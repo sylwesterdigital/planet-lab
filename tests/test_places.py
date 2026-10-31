@@ -45,5 +45,19 @@ class PlaceSnapshotsTest(unittest.TestCase):
         conflict=self.c.patch(f'/api/worlds/{wid}/star',json={'starred':False,'revision':1},headers={'X-CSRF-Token':self.csrf})
         self.assertEqual(conflict.status_code,409)
         self.assertEqual(anonymous.patch(f'/api/worlds/{wid}/star',json={'starred':False,'revision':2}).status_code,403)
+        # Owner favourites are never exposed through public listings or
+        # embedded metadata in a public world's full blueprint.
+        published=self.c.put(f'/api/worlds/{wid}',
+            json={'blueprint':{'config':plan['config'],'place':{'starred':True,'codename':'fire-station'}},
+                  'revision':2,'is_public':True},
+            headers={'X-CSRF-Token':self.csrf})
+        self.assertEqual(published.status_code,200,published.json)
+        self.assertTrue(self.c.get('/api/worlds').json['worlds'][0]['starred'])
+        public_world=anonymous.get(f'/api/worlds/{wid}')
+        self.assertEqual(public_world.status_code,200,public_world.json)
+        self.assertFalse(public_world.json['starred'])
+        self.assertNotIn('starred',public_world.json['blueprint']['place'])
+        self.assertFalse(anonymous.get('/api/worlds').json['worlds'][0]['starred'])
+
 
 if __name__=='__main__':unittest.main()

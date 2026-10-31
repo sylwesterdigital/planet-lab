@@ -48,8 +48,13 @@ function render(){
   const user=window.planetLabWorlds?.user();const owns=user?.handle===w.owner;
   star.disabled=!owns;
   star.addEventListener('click',()=>act(async()=>{
-    const result=await api(`/api/worlds/${w.id}/star`,{method:'PATCH',body:JSON.stringify({starred:!w.starred,revision:w.revision})});
-    w.starred=result.starred;w.revision=result.revision;render();refreshPins();say(`Snapshot #${w.id} ${w.starred?'starred':'unstarred'}.`);
+    try{
+      const result=await api(`/api/worlds/${w.id}/star`,{method:'PATCH',body:JSON.stringify({starred:!w.starred,revision:w.revision})});
+      w.starred=result.starred;w.revision=result.revision;render();refreshPins();say(`Snapshot #${w.id} ${w.starred?'starred':'unstarred'}.`);
+    }catch(error){
+      if(/Revision conflict/.test(error.message))await update();
+      throw error;
+    }
   }));
   const visit=document.createElement('button');visit.type='button';visit.textContent='Locate';
   visit.disabled=!w.anchor;

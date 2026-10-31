@@ -10,8 +10,8 @@ class ReleaseFrontendTest(unittest.TestCase):
     def test_versioned_module_entrypoints(self):
         html = (ROOT / 'index.html').read_text()
         for module in ('app', 'collab', 'studio'):
-            self.assertIn(f'src="./{module}.mjs?v=0.4.9"', html)
-        self.assertIn("from './planner.mjs?v=0.4.9'", (ROOT / 'app.mjs').read_text())
+            self.assertIn(f'src="./{module}.mjs?v=0.4.10"', html)
+        self.assertIn("from './planner.mjs?v=0.4.10'", (ROOT / 'app.mjs').read_text())
 
     def test_uncacheable_html_and_scripts(self):
         backend = (ROOT / 'backend/app.py').read_text()
@@ -35,6 +35,11 @@ class ReleaseFrontendTest(unittest.TestCase):
         self.assertIn("getAiHeaders(path)", studio)
         self.assertIn("'/api/ai/connection-test'", setup)
         self.assertNotIn('localStorage', setup.replace('localStorage, cookies, or the Planet Lab database.', ''))
+
+    def test_release_history_renders_published_dates_and_change_lists(self):
+        feed = (ROOT / 'update-feed.mjs').read_text()
+        self.assertIn('r.publishedAt||r.date', feed)
+        self.assertIn('Array.isArray(r.changes)', feed)
 
     def test_watcher_has_coloured_start_and_finish(self):
         watcher = (ROOT / 'scripts/release_watcher.py').read_text()

@@ -1,4 +1,4 @@
-"""Zero-dependency smoke tests for v0.4.9 UI improvements."""
+"""Zero-dependency smoke tests for v0.4.10 UI improvements."""
 import re
 import unittest
 from pathlib import Path
@@ -7,7 +7,7 @@ class PlaceUiTest(unittest.TestCase):
  def test_version_and_updates(self):
   page=(ROOT/'index.html').read_text()
   self.assertIn('<strong>PlanetLab</strong>',page)
-  self.assertIn('v0.4.9',page)
+  self.assertIn('v0.4.10',page)
   self.assertIn('https://github.com/sylwesterdigital/planet-lab',page)
   self.assertIn('updates.json', (ROOT/'update-feed.mjs').read_text())
  def test_geopins_and_snapshots(self):

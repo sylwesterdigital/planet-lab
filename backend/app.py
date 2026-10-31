@@ -17,12 +17,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
+from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.9'
-MAX_PLAN = 2 * 1024 * 1024
+VERSION = '0.4.10'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
+# Only client-facing entrypoints may be fetched from the release directory.
+# In particular, archived update ZIPs, tests, configuration and deployment files
+# must never be served by Flask's generic static route.
+PUBLIC_ASSETS = frozenset({
+    'index.html', 'house/index.html', 'updates.json',
+    'app.mjs', 'planner.mjs', 'collab.mjs', 'studio.mjs',
+    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs',
+    'ai-connections.mjs', 'api-console.mjs', 'update-feed.mjs',
+})
 
 
 def create_app(test_config=None):
@@ -89,7 +98,7 @@ def create_app(test_config=None):
             abort(404)
         return world
 
-    def public_world(w):
+    def public_world(w, viewer=None):
         place = w.blueprint.get('place', {}) if isinstance(w.blueprint, dict) else {}
         config = w.blueprint.get('config', {}) if isinstance(w.blueprint, dict) else {}
         anchor = config.get('anchor') if isinstance(config, dict) else None
@@ -104,7 +113,7 @@ def create_app(test_config=None):
         return dict(id=w.id, title=w.title, owner=w.owner.handle, revision=w.revision,
                     is_public=w.is_public, updated_at=w.updated_at.isoformat() if w.updated_at else None,
                     anchor=anchor, seed=str(config.get('seed', ''))[:60] if isinstance(config, dict) else '',
-                    starred=bool(place.get('starred')) if isinstance(place, dict) else False,
+                    starred=bool(place.get('starred')) if isinstance(place, dict) and viewer and viewer.id == w.owner_id else False,
                     codename=str(place.get('codename', ''))[:60] if isinstance(place, dict) else '')
 
     @app.after_request
@@ -116,7 +125,7 @@ def create_app(test_config=None):
         # Keep application documents and JavaScript modules uncacheable; use
         # versioned URLs for module entries as a second layer of protection.
         path = request.path.lower()
-        uncacheable = (path == '/' or path.endswith(('.html', '.mjs', '.js'))
+        uncacheable = (path == '/' or path == '/updates.json' or path.endswith(('.html', '.mjs', '.js'))
                        or path.startswith('/api/'))
         response.headers['Cache-Control'] = 'no-store, max-age=0' if uncacheable else 'public, max-age=600'
         # Explicit debug mode, only for authenticated AI requests: append bounded
@@ -233,7 +242,7 @@ def create_app(test_config=None):
             user = actor(db)
             query = select(World).where(or_(World.is_public.is_(True), World.owner_id == user.id)) if user else select(World).where(World.is_public.is_(True))
             rows = db.scalars(query.order_by(World.updated_at.desc()).limit(100)).all()
-            return jsonify(worlds=[public_world(w) for w in rows])
+            return jsonify(worlds=[public_world(w, user) for w in rows])
 
     @app.post('/api/worlds')
     def create_world():
@@ -245,7 +254,7 @@ def create_app(test_config=None):
             data = request.get_json(silent=True) or {}
             blueprint = data.get('blueprint')
             title = str(data.get('title', 'Unnamed world')).strip()[:100]
-            if not isinstance(blueprint, dict) or 'config' not in blueprint or not title or len(json.dumps(blueprint)) > MAX_PLAN:
+            if not valid_blueprint(blueprint) or not title or not isinstance(data.get('is_public', False), bool):
                 return fail('Invalid blueprint or title (max 2 MB)')
             world = World(owner_id=user.id, title=title, blueprint=blueprint, is_public=bool(data.get('is_public', False)))
             db.add(world)
@@ -256,8 +265,18 @@ def create_app(test_config=None):
     @app.get('/api/worlds/<int:world_id>')
     def get_world(world_id):
         with db_session() as db:
-            world = allowed_world(db, world_id, actor(db))
-            return jsonify(**public_world(world), blueprint=world.blueprint)
+            viewer = actor(db)
+            world = allowed_world(db, world_id, viewer)
+            blueprint = world.blueprint
+            if not viewer or viewer.id != world.owner_id:
+                # A public plan is shareable, but its owner's favourite flag
+                # is private metadata and is not part of that shared plan.
+                blueprint = dict(blueprint)
+                if isinstance(blueprint.get('place'), dict):
+                    place = dict(blueprint['place'])
+                    place.pop('starred', None)
+                    blueprint['place'] = place
+            return jsonify(**public_world(world, viewer), blueprint=blueprint)
 
     @app.put('/api/worlds/<int:world_id>')
     def update_world(world_id):
@@ -271,7 +290,7 @@ def create_app(test_config=None):
             if data.get('revision') != world.revision:
                 return fail('Revision conflict; reload this world', 409)
             blueprint = data.get('blueprint')
-            if not isinstance(blueprint, dict) or 'config' not in blueprint or len(json.dumps(blueprint)) > MAX_PLAN:
+            if not valid_blueprint(blueprint) or not isinstance(data.get('is_public', world.is_public), bool):
                 return fail('Invalid blueprint')
             world.blueprint = blueprint
             world.title = str(data.get('title', world.title)).strip()[:100] or world.title
@@ -297,7 +316,7 @@ def create_app(test_config=None):
                 return fail('Revision conflict; refresh snapshots', 409)
             # Reassignment is required for SQLAlchemy JSON change tracking.
             blueprint = dict(world.blueprint)
-            place = dict(blueprint.get('place') or {})
+            place = dict(blueprint['place']) if isinstance(blueprint.get('place'), dict) else {}
             place['starred'] = data['starred']
             blueprint['place'] = place
             world.blueprint = blueprint
@@ -463,7 +482,7 @@ def create_app(test_config=None):
 
     @app.get('/<path:filename>')
     def static_asset(filename):
-        if filename.startswith(('.', 'backend/', 'scripts/', 'tests/')) or '/.' in filename:
+        if filename not in PUBLIC_ASSETS:
             abort(404)
         return send_from_directory(static_dir, filename)
 

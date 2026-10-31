@@ -47,6 +47,47 @@ class PlanetBackendTest(unittest.TestCase):
         self.assertTrue(self.client.get('/api/media/'+upload.json['id']).headers['Content-Disposition'].startswith('attachment;'))
         self.assertEqual(self.client.get('/api/worlds').json['worlds'][0]['revision'], 2)
 
+    def test_only_public_frontend_assets_are_served(self):
+        # A release directory can contain watcher state, configuration and old
+        # release archives. None of those are browser assets.
+        for path in ('/', '/index.html', '/house/index.html', '/app.mjs',
+                     '/planner.mjs', '/updates.json', '/api-console.mjs'):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200, path)
+        self.assertEqual(self.client.get('/updates.json').headers['Cache-Control'], 'no-store, max-age=0')
+        for path in ('/README.md', '/LICENSE', '/test-planner.mjs', '/.git/config',
+                     '/backend/app.py', '/scripts/install-ubuntu.sh',
+                     '/updates/processed/PLANETLAB_RELEASE_v0.4.9.zip',
+                     '/updates/failed/PLANETLAB_RELEASE_v0.4.9.zip',
+                     '/.planetlab/logs/sensitive.log'):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+
+    def test_invalid_blueprint_and_visibility_rejected_without_mutation(self):
+        register = self.post('/api/register', {'handle': 'jsonchecker',
+                                               'password': 'a-long-valid-password'})
+        self.assertEqual(register.status_code, 201, register.json)
+        self.csrf = register.json['csrf']
+        base = {'config': {}, 'tasks': []}
+        invalid = ({'config': 'not-a-map'}, {'config': {}, 'place': []},
+                   {'config': {}, 'value': float('nan')},
+                   {'config': {}, 'value': float('inf')},
+                   {'config': {}, 'value': '🗺' * (600 * 1024)})
+        for blueprint in invalid:
+            with self.subTest(blueprint=str(blueprint)[:50]):
+                result = self.post('/api/worlds', {'blueprint': blueprint})
+                self.assertEqual(result.status_code, 400, result.json)
+        invalid_visibility = self.post('/api/worlds',
+                                       {'blueprint': base, 'is_public': 'false'})
+        self.assertEqual(invalid_visibility.status_code, 400)
+        created = self.post('/api/worlds', {'blueprint': base})
+        self.assertEqual(created.status_code, 201, created.json)
+        wid = created.json['id']
+        update = self.client.put(f'/api/worlds/{wid}',
+                                 json={'blueprint': {'config': 'bad'}, 'revision': 1},
+                                 headers={'X-CSRF-Token': self.csrf})
+        self.assertEqual(update.status_code, 400, update.json)
+        self.assertEqual(self.client.get(f'/api/worlds/{wid}').json['revision'], 1)
+
     def test_registration_login_session_persistence_and_logout(self):
         anonymous = self.client.get('/api/session').json
         self.assertIsNone(anonymous['user'])

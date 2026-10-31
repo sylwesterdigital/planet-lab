@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parent.parent
-IGNORE={'.git','.venv','.planetlab','updates','__pycache__','node_modules','.pytest_cache'}
+IGNORE={'.git','.venv','.planetlab','updates','__MACOSX','__pycache__','node_modules','.pytest_cache'}
 
 parser=argparse.ArgumentParser()
 parser.add_argument('--version',required=True,help='semver e.g. 0.3.0')

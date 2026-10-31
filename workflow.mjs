@@ -1,4 +1,4 @@
-/* v0.4.9: focused, functional workspaces layered on the existing simulation.
+/* v0.4.10: focused, functional workspaces layered on the existing simulation.
  * Does not generate pretend AI output or create data without the user's action.
  */
 const $=id=>document.getElementById(id);

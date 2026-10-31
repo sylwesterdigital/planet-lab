@@ -238,18 +238,21 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
+    run(['python3','tests/test_blueprints_unit.py'], cwd=stage, timeout=20)
+    run(['python3','tests/test_public_assets.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_auth_ui.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_release_ui.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_ai_setup.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_api_console.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_places_ui.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_workstation_ui.py'], cwd=stage, timeout=20)
+    run(['python3','tests/test_workflow_ui.py'], cwd=stage, timeout=20)
     import ast
-    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py']:
+    for filename in ['backend/app.py','backend/models.py','backend/blueprints.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_blueprints_unit.py','tests/test_public_assets.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
     run(['bash', '-n', 'scripts/install-ubuntu.sh'], cwd=stage, timeout=15)
     if (stage / 'scripts/install-macos-watcher.sh').is_file():

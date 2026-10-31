@@ -22,10 +22,13 @@ try{
   const version=document.createElement('b');version.textContent=`v${r.version}`;
   const stamp=document.createElement('time');
   const actual=observed.get(r.version)?.deployedAt;
-  stamp.dateTime=actual||r.date;
-  stamp.textContent=actual?new Date(actual).toLocaleString():`${r.date} · release notes`;
+  const published=r.publishedAt||r.date||'';
+  stamp.dateTime=actual||published;
+  const publishedText=published?new Date(published).toLocaleDateString():'Date unavailable';
+  stamp.textContent=actual?new Date(actual).toLocaleString():`${publishedText} · release notes`;
   stamp.title=actual?'Verified deployment time':'Release date (deployment time unavailable)';
-  const description=document.createElement('p');description.textContent=r.changes;
+  const description=document.createElement('p');
+  description.textContent=Array.isArray(r.changes)?r.changes.join(' · '):String(r.changes||'');
   row.append(version,stamp,description);list.append(row);
  }
 }catch(e){list.textContent='Release history unavailable: '+e.message}

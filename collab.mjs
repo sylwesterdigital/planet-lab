@@ -34,7 +34,12 @@ if(Array.from(list.options).some(o=>o.value===selected))list.value=selected;
 function blueprint(){const sim=window.planetLabApp;if(!sim?.plan)throw new Error('Generate a masterplan before saving');return {...sim.plan, governance:el('freeZone').checked?'voluntary-free-zone':'unspecified', tasks:sim.plan.tasks.map(t=>({...t})), studioBuildings:sim.plan.studioBuildings||[]};}
 function readIntoScene(data){const sim=window.planetLabApp;if(!sim)throw new Error('3D engine has not loaded');const c=data.config||{};
 for(const id of ['seed','geography','profile','level','budget','teams','brief'])if(c[id] !== undefined && el(id))el(id).value=String(c[id]);
-sim.anchor=c.anchor||sim.anchor;sim.generateWorld();
+// Public shared worlds can contain old or malformed coordinates: never pass
+// unchecked saved values into terrain generation or .toFixed() calls.
+if(c.anchor && Number.isFinite(c.anchor.lat) && Number.isFinite(c.anchor.lon) &&
+   Math.abs(c.anchor.lat)<=90 && Math.abs(c.anchor.lon)<=180)
+  sim.anchor={lat:c.anchor.lat,lon:c.anchor.lon};
+sim.generateWorld();
 if(Array.isArray(c.site)){sim.site=c.site;sim.world.setSite(sim.site);sim.updateLocation();}
 sim.createPlan();el('freeZone').checked=data.governance==='voluntary-free-zone';sim.world.setVoluntaryZone(el('freeZone').checked);
 const previous=new Map((data.tasks||[]).filter(t=>t.status==='installed').map(t=>[t.id,t]));
