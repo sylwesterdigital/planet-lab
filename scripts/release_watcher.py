@@ -247,6 +247,7 @@ def local_tests(stage):
     run(['python3','tests/test_ai_setup.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_api_console.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_places_ui.py'], cwd=stage, timeout=20)
+    run(['python3','tests/test_workstation_ui.py'], cwd=stage, timeout=20)
     import ast
     for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)

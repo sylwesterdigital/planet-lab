@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.7';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.9';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -11,7 +11,7 @@ function mat(color,metalness=0,opacity=1){let k=color+'|'+metalness+'|'+opacity;
 function box(parent,x,y,z,w,h,d,color,opts={}){const o=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.02,w),Math.max(.02,h),Math.max(.02,d)),mat(color,opts.metalness||0,opts.opacity??1));o.position.set(x,y,z);o.castShadow=opts.shadows!==false;o.receiveShadow=true;parent.add(o);return o}
 function cylinder(parent,x,y,z,r1,r2,h,color,sides=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,sides),mat(color));o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
 function triangleRoof(parent,x,y,z,w,depth,color,slope=.38){const roof=new THREE.Group();roof.position.set(x,y,z);parent.add(roof);const rise=w*slope*.5;for(let s of [-1,1]){let slab=box(roof,s*w*.25,rise*.54,0,w*.56,.14,depth+.18,color);slab.rotation.z=-s*Math.atan2(rise,w*.5)}return roof}
-function tree(parent,x,y,z,scale=1){cylinder(parent,x,y+.45*scale,z,.08*scale,.1*scale,.9*scale,'#6e6654');const canopy=cylinder(parent,x,y+1.23*scale,z,.05*scale,.75*scale,1.55*scale,'#428b68',7);canopy.rotation.y=.31;}
+function tree(parent,x,y,z,scale=1){cylinder(parent,x,y+.45*scale,z,.08*scale,.1*scale,.9*scale,'#6e6654');const canopy=new THREE.Mesh(new THREE.IcosahedronGeometry(.83*scale,1),mat('#567f67'));canopy.position.set(x,y+1.3*scale,z);canopy.castShadow=true;parent.add(canopy);}
 function clearGroup(g){for(const o of [...g.children]){o.traverse(a=>{if(a.geometry)a.geometry.dispose();if(a.material&&!Object.values(MATERIALS).includes(a.material)){if(Array.isArray(a.material))a.material.forEach(m=>m.dispose());else a.material.dispose()}});g.remove(o)}}
 class WorldView{
  constructor(canvas,changeSite,changeAnchor){
@@ -20,14 +20,27 @@ class WorldView{
   this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));this.renderer.xr.enabled=true;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
   this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=10;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.48;
   this.scene.add(new THREE.HemisphereLight('#bddbff','#3b412f',2.4));let sun=new THREE.DirectionalLight('#ffefd4',3.0);sun.position.set(-48,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.bottom=-110;sun.shadow.camera.top=110;sun.shadow.camera.near=1;sun.shadow.camera.far=250;sun.shadow.bias=-.0006;this.scene.add(sun);
-  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.robotsGroup=new THREE.Group();this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scene.add(this.planetGroup,this.regionGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);
+  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scene.add(this.planetGroup,this.regionGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);
   this.pinGroup=new THREE.Group();this.planetGroup.add(this.pinGroup);this.pinIndex=[];this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
   let down=null;canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;this.click(e)});
   window.addEventListener('resize',()=>this.resize());this.resize();this.setMode('region');
  }
  resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/r.height;this.camera.updateProjectionMatrix()}
- setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.robotsGroup.visible=region;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.48:Math.PI;this.controls.enablePan=region;this.resetCamera()}
+ setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.48:Math.PI;this.controls.enablePan=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
  resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{this.camera.position.set(57,68,89);this.controls.target.set(0,2,0);this.controls.minDistance=10;this.controls.maxDistance=210}this.controls.update()}
+ setDisplayMode(mode){
+  this.displayMode=mode;
+  if(mode==='plan'){
+   this.controls.maxPolarAngle=Math.PI*.48;
+   this.camera.position.set(this.site[0]+.001,125,this.site[1]+.001);
+   this.controls.target.set(this.site[0],0,this.site[1]);
+   this.controls.update();
+  }else{
+   this.resetCamera();
+  }
+ }
+ setAgentVisibility(value){this.showAgents=!!value;this.robotsGroup.visible=this.mode==='region'&&this.showAgents}
+ setVegetationVisibility(value){this.showVegetation=!!value;this.vegetationGroup.visible=this.mode==='region'&&this.showVegetation}
  buildPlanet(seed){clearGroup(this.planetGroup);this.planetGroup.add(this.pinGroup);this.renderPlacePins(this.pinIndex);const globeGeo=new THREE.SphereGeometry(28,120,72),arr=globeGeo.attributes.position,clrs=[];const sea=new THREE.Color('#245476'),coast=new THREE.Color('#b3ba84'),grass=new THREE.Color('#4b9878'),mountain=new THREE.Color('#c2b7a1'),ice=new THREE.Color('#dee6db');
  for(let i=0;i<arr.count;i++){let x=arr.getX(i)/28,y=arr.getY(i)/28,z=arr.getZ(i)/28,n=planetElevation(x,y,z,seed);let c;if(n<0)c=sea.clone().lerp(new THREE.Color('#31779a'),clamp(n+.2,0,.2)*1.9);else if(n<.04)c=coast.clone();else if(n<.17)c=grass.clone();else c=mountain.clone();if(Math.abs(y)>.83)c.lerp(ice,clamp((Math.abs(y)-.83)*6,0,1));clrs.push(c.r,c.g,c.b)}
  globeGeo.setAttribute('color',new THREE.Float32BufferAttribute(clrs,3));this.globe=new THREE.Mesh(globeGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));this.planetGroup.add(this.globe);
@@ -48,13 +61,13 @@ class WorldView{
     this.pinGroup.add(pin);
   }
  }
- generateTerrain(config){this.config=config;clearGroup(this.regionGroup);clearGroup(this.buildGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
+ generateTerrain(config){this.config=config;clearGroup(this.regionGroup);this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.vegetationGroup.visible=this.showVegetation;clearGroup(this.buildGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
   const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
   for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=terrainHeight(x,z,config);p.setY(i,y);let col;if(y<=.35)col=sea.clone();else if(y<1.7)col=shore.clone();else if(y<6.5)col=plain.clone().lerp(forest,clamp((y-2)/10,0,.5));else col=forest.clone().lerp(peak,clamp((y-6.5)/16,0,1));c.push(col.r,col.g,col.b)}geo.setAttribute('color',new THREE.Float32BufferAttribute(c,3));geo.computeVertexNormals();
   this.terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));this.terrain.receiveShadow=true;this.regionGroup.add(this.terrain);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshStandardMaterial({color:colors.sea,transparent:true,opacity:.77,roughness:.3,metalness:.2,depthWrite:false}));water.rotation.x=-Math.PI/2;water.position.y=.23;this.regionGroup.add(water);
   const rnd=mulberry32(hash(config.seed+'vegetation|'+config.geography));
-  for(let n=0;n<235;n++){const x=(rnd()-.5)*146,z=(rnd()-.5)*146,y=terrainHeight(x,z,config);if(y<1.5||y>20||rnd()>.69||Math.hypot(x-this.site[0],z-this.site[1])<27)continue;tree(this.regionGroup,x,y,z,.65+rnd()*.85)}
+  for(let n=0;n<235;n++){const x=(rnd()-.5)*146,z=(rnd()-.5)*146,y=terrainHeight(x,z,config);if(y<1.5||y>20||rnd()>.69||Math.hypot(x-this.site[0],z-this.site[1])<27)continue;tree(this.vegetationGroup,x,y,z,.65+rnd()*.85)}
   this.setSite(this.site);this.drawSelection();
  }
  setSite(site){this.site=site;if(!this.config)return;clearGroup(this.markersGroup);let [x,z]=site,y=terrainHeight(x,z,this.config)+.55;const ring=new THREE.Mesh(new THREE.TorusGeometry(4.1,.13,8,60),new THREE.MeshBasicMaterial({color:'#c5ff93',depthWrite:false}));ring.rotation.x=Math.PI/2;ring.position.set(x,y,z);this.markersGroup.add(ring);const pin=cylinder(this.markersGroup,x,y+1.2,z,.16,.2,2.3,'#c3ef9f');pin.rotation.z=.08}
@@ -127,18 +140,29 @@ class WorldView{
 class Robot{
  constructor(view,index,role,base){this.view=view;this.index=index;this.role=role;this.capabilities=TEAM_ROLES[(index)%TEAM_ROLES.length][3];this.name=`${role}-${String(index+1).padStart(2,'0')}`;this.color=TEAM_ROLES[(index)%TEAM_ROLES.length][2];this.busy=false;this.status='Standby';this.task=null;this.goal=null;this.timer=0;this.phase=0;this.home=base;this.position=[...base];this.state='idle';
  this.group=new THREE.Group();this.view.robotsGroup.add(this.group);
- box(this.group,0,.95,0,.48,.62,.38,this.color);box(this.group,0,1.46,0,.42,.35,.37,'#e4edf1');for(let x of [-.11,.11])box(this.group,x,1.51,.2,.065,.055,.025,'#243c46');this.left=box(this.group,-.14,.31,0,.15,.52,.19,'#6d8791');this.right=box(this.group,.14,.31,0,.15,.52,.19,'#6d8791');box(this.group,-.32,.95,0,.12,.47,.14,'#b4d2cf');box(this.group,.32,.95,0,.12,.47,.14,'#b4d2cf');box(this.group,0,1.12,.21,.25,.14,.05,'#2c4551');
+ // Technical autonomous field rover, intentionally schematic (no humanoid face).
+ box(this.group,0,.34,0,.82,.3,1.08,'#485965',{metalness:.25});
+ for(const x of [-.48,.48])for(const z of [-.36,.36]){
+  const wheel=cylinder(this.group,x,.17,z,.22,.22,.16,'#28333b',12);
+  wheel.rotation.z=Math.PI/2;
+ }
+ box(this.group,0,.56,.1,.64,.18,.55,'#566d78',{metalness:.2});
+ box(this.group,0,.72,-.25,.42,.11,.22,this.color);
+ cylinder(this.group,0,1.04,0,.045,.06,.58,'#b7c1c5',10);
+ const sensor=box(this.group,0,1.36,0,.3,.16,.26,'#273f4f',{metalness:.2});
+ const tool=box(this.group,.3,.73,.29,.13,.54,.13,'#a3b2b9',{metalness:.3});
+ this.left=sensor;this.right=tool;
  this.reset();}
  reset(){this.state='idle';this.busy=false;this.task=null;this.status='Standby';this.position=[...this.home];this.place()}
  place(){const [x,z]=this.position;this.group.position.set(x,this.view.height(x,z)+.05,z)}
  assign(task,done){this.task=task;this.done=done;this.busy=true;this.status=`${task.stage}: ${task.type}`;this.goal=[task.x,task.z];this.state='walk'}
- update(dt){this.phase+=dt*8;const walk=this.state==='walk';this.left.rotation.x=walk?Math.sin(this.phase)*.5:0;this.right.rotation.x=walk?-Math.sin(this.phase)*.5:0;
+ update(dt){this.phase+=dt*8;const walk=this.state==='walk';this.left.rotation.y=walk?Math.sin(this.phase)*.11:0;this.right.rotation.x=walk?Math.sin(this.phase)*.09:0;
  if(walk){let dx=this.goal[0]-this.position[0],dz=this.goal[1]-this.position[1],dist=Math.hypot(dx,dz),step=Math.min(dist,15*dt);if(dist>.02){this.position[0]+=dx/dist*step;this.position[1]+=dz/dist*step;this.group.rotation.y=Math.atan2(dx,dz)}this.place();if(dist<=step+.02){this.state='work';this.timer=.28+Math.min(1.3,(this.task.meta.floors||1)*.045)}}
  else if(this.state==='work'){this.timer-=dt;this.group.rotation.z=Math.sin(this.phase*2)*.06;if(this.timer<=0){this.group.rotation.z=0;this.state='idle';this.busy=false;this.status='Standby';let completed=this.task;this.task=null;this.done(completed,this)}}
  }
 }
 class CityApp{
- constructor(){this.events=[];this.time=0;this.last=0;this.lastUi=0;this.running=true;this.plan=null;this.anchor={lat:11.2,lon:-35.4};this.site=[0,0];this.robots=[];this.config=null;this.world=new WorldView($('scene'),site=>this.changeSite(site),anchor=>this.changeAnchor(anchor));this.installEvents();this.generateWorld();this.createPlan();this.loop=this.loop.bind(this);this.world.renderer.setAnimationLoop(this.loop);this.setupXR()}
+ constructor(){this.events=[];this.time=0;this.last=0;this.lastUi=0;this.running=true;this.plan=null;this.anchor={lat:11.2,lon:-35.4};this.site=[0,0];this.robots=[];this.config=null;this.world=new WorldView($('scene'),site=>this.changeSite(site),anchor=>this.changeAnchor(anchor));this.installEvents();this.generateWorld();this.loop=this.loop.bind(this);this.world.renderer.setAnimationLoop(this.loop);this.setupXR()}
  async setupXR(){
   const target=$('xrControls');
   if(!navigator.xr?.isSessionSupported || !window.isSecureContext)return;
@@ -152,7 +176,7 @@ class CityApp{
  readConfig(){return citySpec({seed:$('seed').value||'ODYSSEY-7',geography:$('geography').value,anchor:this.anchor,profile:$('profile').value,level:$('level').value,budget:$('budget').value,teams:$('teams').value,brief:$('brief').value,site:this.site})}
  generateWorld(){this.running=false;this.config=this.readConfig();this.world.buildPlanet(this.config.seed);this.site=chooseSite([0,0],this.config);this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);this.world.setMode('region');this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}
  removeRobots(){for(const a of this.robots){this.world.robotsGroup.remove(a.group);a.group.traverse(o=>o.geometry?.dispose())}this.robots=[]}
- changeAnchor(anchor){this.anchor=anchor;this.generateWorld();this.world.setMode('region');this.updateMode();this.log(`Planet location selected: ${anchor.lat}°, ${anchor.lon}°`);this.updateUi()}
+ changeAnchor(anchor){this.anchor=anchor;this.generateWorld();this.world.setMode('region');this.updateMode();this.log(`Planet location selected: ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));this.updateUi()}
  changeSite(site){this.site=site;this.world.setSite(site);this.updateLocation();this.drawMap();this.log('New site proposed — generate masterplan to update layout.');this.updateUi()}
  updateLocation(){const [x,z]=this.site;$('siteText').textContent=`Site: x ${x.toFixed(1)}, z ${z.toFixed(1)} · Planet ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°. Click the terrain to relocate.`;$('locationTag').innerHTML=`<b>${this.world.mode.toUpperCase()}</b> · ${this.config.geography} · ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°`}
  createPlan(){this.running=false;this.config=this.readConfig();this.plan=generateCity(this.config);this.world.setPlan(this.plan,$('showPlan').checked);this.world.setVoluntaryZone($('freeZone').checked);this.removeRobots();this.robots=[];
@@ -162,7 +186,9 @@ class CityApp{
   $('planetMode').onclick=()=>{this.world.setMode('planet');this.updateMode()};$('regionMode').onclick=()=>{this.world.setMode('region');this.updateMode()};
   $('newWorld').onclick=()=>this.generateWorld();$('newSite').onclick=()=>this.changeSite(chooseSite([this.site[0]+12,this.site[1]+11],this.readConfig()));
   $('plan').onclick=()=>this.createPlan();$('restart').onclick=()=>this.createPlan();$('toggle').onclick=()=>{this.running=!this.running;this.updateUi()};$('camera').onclick=()=>this.world.resetCamera();
-  $('showPlan').onchange=()=>this.world.setHints($('showPlan').checked);$('freeZone').onchange=()=>{this.world.setVoluntaryZone($('freeZone').checked);this.updateUi()};
+  $('showPlan').onchange=()=>this.world.setHints($('showPlan').checked);
+  const selectView=(view)=>{for(const [name,id] of [['massing','viewMassing'],['plan','viewPlan'],['agents','viewAgents']]){$(id).classList.toggle('active',name===view);$(id).setAttribute('aria-pressed',String(name===view))}this.world.setAgentVisibility(view==='agents');this.world.setDisplayMode(view==='plan')};
+  $('viewMassing').onclick=()=>selectView('massing');$('viewPlan').onclick=()=>selectView('plan');$('viewAgents').onclick=()=>selectView('agents');$('showVegetation').onchange=e=>this.world.setVegetationVisibility(e.target.checked);$('freeZone').onchange=()=>{this.world.setVoluntaryZone($('freeZone').checked);this.updateUi()};
   $('export').onclick=()=>{if(!this.plan)return;const data={...this.plan,governance:$('freeZone').checked?'voluntary-free-zone':'unspecified',tasks:this.plan.tasks.map(t=>({...t}))};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='planet-city-'+this.config.seed.replace(/[^a-z0-9_-]/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
   $('map').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),x=((e.clientX-r.left)/r.width-.5)*156,z=((e.clientY-r.top)/r.height-.5)*156;this.changeSite(chooseSite([x,z],this.readConfig()))};
  }
@@ -192,4 +218,4 @@ class CityApp{
  }
  loop(now){try{const realDt=Math.min(.05,(now-this.last)/1000||.016);this.last=now;if(this.running&&this.world.mode==='region')this.update(realDt*Number($('speed').value));if(now-this.lastUi>300){this.updateUi();this.lastUi=now}this.world.render()}catch(e){console.error(e);this.running=false;$('error').style.display='block';$('error').textContent='Simulation error: '+e.message}}
 }
-try{window.planetLabApp=new CityApp()}catch(e){console.error(e);$('error').style.display='block';$('error').textContent='Unable to start Three.js: '+e.message+'\nServe the directory over HTTP and ensure Three.js CDN access.';$('status').textContent='ERROR'}
+try{window.planetLabApp=new CityApp();window.dispatchEvent(new Event('planetlab:app-ready'))}catch(e){console.error(e);$('error').style.display='block';$('error').textContent='Unable to start Three.js: '+e.message+'\nServe the directory over HTTP and ensure Three.js CDN access.';$('status').textContent='ERROR'}

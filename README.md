@@ -1,6 +1,35 @@
-# PlanetLab v0.4.7 — Geo pins, city systems and compact UI
+# PlanetLab v0.4.9 — usable spatial workstation
 
-**Deployment:** place `PLANETLAB_RELEASE_v0.4.7.zip` in the Mac repository's `updates/` directory. The running watcher validates, tests, publishes to GitHub over SSH and activates the Ubuntu release. No manual Git actions.
+A corrective release, **not** an engineering-grade building simulator. Left-hand tools remain visible; the 3D stage fills the available browser height without page-level scrolling. The top workflow navigation exposes Globe, City/site, Building, Saved Places and Analysis. Building controls remain on the right. The stage has **3D massing**, **Site plan** (top-down) and **Show agents** (schematic construction rovers); landscape vegetation is optional. The old humanoid robot meshes no longer appear by default. Geometry, budgets and zoning remain conceptual and MUST NOT be treated as BIM, architectural drawings, real costs or buildable design.
+
+**Workflow:** Open Globe → click region → City/site → choose profile and budget → Generate masterplan → switch Site plan or massing → Building Studio to edit house dimensions → Save snapshot. Output is conceptual and procedural, not real-world engineering.
+
+**Deploy:** drop `PLANETLAB_RELEASE_v0.4.9.zip` into Mac watcher `updates/`; it will validate, test, push over Git SSH and deploy to Ubuntu without extra commands.
+
+# PlanetLab v0.4.9 — Task-first workspace
+
+**Deploy:** Drop `PLANETLAB_RELEASE_v0.4.9.zip` into the existing Mac watcher `updates/` directory. No manual SSH or Git commands.
+
+## Main flows
+
+- **Plan a settlement:** generates and constructs a procedural city with roaming robot teams.
+- **Build a house:** creates a parametric conceptual building; width, depth, floors, roof and partitions are editable in Building Studio.
+- **Explore the planet:** choose terrain geography and a site.
+- **Saved places:** create per-account geo-pinned snapshots, revisit and star them.
+- **Inspect:** view simulated statistics, infrastructure tasks and dependencies.
+- **AI Setup:** existing Meta and Tripo connectors and API console; requires provider keys.
+
+Default world is intentionally empty; nothing is constructed without an explicit action.
+
+**Honest scope:** fictional geography, conceptual geometry, procedural rules, simple collision-free robots. No traffic, economy, building physics, real GIS, real supplier costs or realistic interior walk controls. Real-world construction suitability is NOT validated.
+
+## Developer / deployment
+
+Uses Three.js on the frontend and Flask API with persistent world storage, optional PostgreSQL and one-process WebSockets. Immutable package manifests, local regression checks and staged Ubuntu activation via `planetlab-watch.sh`. Full regression suite is run by watcher on Ubuntu before activation.
+
+# PlanetLab v0.4.9 — Geo pins, city systems and compact UI
+
+**Deployment:** place `PLANETLAB_RELEASE_v0.4.9.zip` in the Mac repository's `updates/` directory. The running watcher validates, tests, publishes to GitHub over SSH and activates the Ubuntu release. No manual Git actions.
 
 ## Changed
 

@@ -45,10 +45,34 @@
 .xr-stage-entry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:auto}.xr-stage-entry[hidden]{display:none!important}.xr-stage-entry button{position:static!important;width:auto!important;min-width:140px!important;margin:0!important;background:#163542dd!important;box-shadow:0 4px 20px #000a!important}
 .snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
 @media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
+
+/* v0.4.9 — task-first workspace, not a metrics-first dashboard */
+.workflow-nav{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:12;display:flex;gap:5px;padding:5px;background:rgba(9,23,33,.92);border:1px solid #3e606b;border-radius:11px;box-shadow:0 8px 25px #04101877;white-space:nowrap}
+.workflow-nav button{border:0;border-radius:7px;background:transparent;color:#b9cbd3;font-size:12px;font-weight:700;padding:10px 12px;cursor:pointer}
+.workflow-nav button:hover,.workflow-nav button[aria-pressed="true"]{background:#2b4e52;color:#e7fbe8}
+.workflow-nav .workflow-save{border-left:1px solid #39535b;border-radius:0 7px 7px 0;color:var(--lime)}
+.workflow-entry{position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 36px));background:rgba(13,29,39,.95);border:1px solid #537481;border-radius:18px;box-shadow:0 22px 85px #000a;padding:25px;backdrop-filter:blur(17px)}
+.workflow-entry[hidden]{display:none!important}
+.workflow-entry .eyebrow{margin-bottom:10px}
+.workflow-entry h2{font-size:27px;line-height:1.2;margin:0 0 9px;letter-spacing:-.03em}
+.workflow-entry p{font-size:13px;line-height:1.6;color:#b8cbd5;margin:0 0 18px}
+.workflow-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.workflow-choice{text-align:left;white-space:normal;min-height:108px;border-radius:11px;border:1px solid #4c6873;background:#192e3a;padding:14px;cursor:pointer}
+.workflow-choice:hover{border-color:var(--lime);background:#224342}
+.workflow-choice strong{display:block;font-size:14px;color:#f0f6f1;margin-bottom:8px}
+.workflow-choice span{display:block;color:#a8c1cc;font-size:11px;line-height:1.45}
+.workflow-choice.primary-choice{background:#254a3d;border-color:#73b48a}
+.workflow-entry .workflow-caveat{font-size:10px;color:#95aab4;margin:17px 0 0}
+.workflow-tip{position:absolute;z-index:9;bottom:78px;left:16px;max-width:370px;padding:10px 13px;border-radius:9px;background:#10242ad9;border:1px solid #486571;color:#d3e7e9;font-size:11px;line-height:1.5;pointer-events:none}
+.workflow-entry:not([hidden])~.workflow-tip{display:none}
+
+
+
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
-/* v0.4.7: floating HTTP inspector: native resize + pointer-draggable title */
+/* v0.4.9: floating HTTP inspector: native resize + pointer-draggable title */
 .api-console[hidden]{display:none!important}
 .api-console{position:fixed;z-index:11000;bottom:20px;right:20px;width:min(750px,calc(100vw - 24px));height:min(490px,calc(100vh - 24px));min-width:300px;min-height:225px;max-width:100vw;max-height:100vh;resize:both;overflow:hidden;display:flex;flex-direction:column;background:#0a1520;border:1px solid #526b7d;border-radius:12px;box-shadow:0 16px 75px #000d;color:#e6f2f6;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .api-console-bar{touch-action:none;user-select:none;cursor:move;display:flex;align-items:center;gap:12px;padding:12px 14px;background:#142b39;border-bottom:1px solid #355064;flex-shrink:0}
@@ -72,6 +96,59 @@
 .xr-stage-entry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:auto}.xr-stage-entry[hidden]{display:none!important}.xr-stage-entry button{position:static!important;width:auto!important;min-width:140px!important;margin:0!important;background:#163542dd!important;box-shadow:0 4px 20px #000a!important}
 .snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
 @media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
+
+/* v0.4.9 — task-first workspace, not a metrics-first dashboard */
+.workflow-nav{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:12;display:flex;gap:5px;padding:5px;background:rgba(9,23,33,.92);border:1px solid #3e606b;border-radius:11px;box-shadow:0 8px 25px #04101877;white-space:nowrap}
+.workflow-nav button{border:0;border-radius:7px;background:transparent;color:#b9cbd3;font-size:12px;font-weight:700;padding:10px 12px;cursor:pointer}
+.workflow-nav button:hover,.workflow-nav button[aria-pressed="true"]{background:#2b4e52;color:#e7fbe8}
+.workflow-nav .workflow-save{border-left:1px solid #39535b;border-radius:0 7px 7px 0;color:var(--lime)}
+.workflow-entry{position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 36px));background:rgba(13,29,39,.95);border:1px solid #537481;border-radius:18px;box-shadow:0 22px 85px #000a;padding:25px;backdrop-filter:blur(17px)}
+.workflow-entry[hidden]{display:none!important}
+.workflow-entry .eyebrow{margin-bottom:10px}
+.workflow-entry h2{font-size:27px;line-height:1.2;margin:0 0 9px;letter-spacing:-.03em}
+.workflow-entry p{font-size:13px;line-height:1.6;color:#b8cbd5;margin:0 0 18px}
+.workflow-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.workflow-choice{text-align:left;white-space:normal;min-height:108px;border-radius:11px;border:1px solid #4c6873;background:#192e3a;padding:14px;cursor:pointer}
+.workflow-choice:hover{border-color:var(--lime);background:#224342}
+.workflow-choice strong{display:block;font-size:14px;color:#f0f6f1;margin-bottom:8px}
+.workflow-choice span{display:block;color:#a8c1cc;font-size:11px;line-height:1.45}
+.workflow-choice.primary-choice{background:#254a3d;border-color:#73b48a}
+.workflow-entry .workflow-caveat{font-size:10px;color:#95aab4;margin:17px 0 0}
+.workflow-tip{position:absolute;z-index:9;bottom:78px;left:16px;max-width:370px;padding:10px 13px;border-radius:9px;background:#10242ad9;border:1px solid #486571;color:#d3e7e9;font-size:11px;line-height:1.5;pointer-events:none}
+.workflow-entry:not([hidden])~.workflow-tip{display:none}
+
+
+
+
+/* v0.4.9 - professional workstation: fixed viewport + persistent tools */
+html,body{height:100%;overflow:hidden}
+.app{height:100vh;height:100dvh;min-height:0;overflow:hidden;grid-template-rows:56px minmax(0,1fr)}
+.workspace,.workspace[data-flow]{height:100%;min-height:0;min-width:0;display:grid;grid-template-columns:300px minmax(0,1fr) 272px;overflow:hidden}
+.workspace[data-flow]>.left,.workspace[data-flow]>.right{display:block;min-height:0;min-width:0;overflow-y:auto;grid-column:auto;grid-row:1}
+.workspace[data-flow]>.left{grid-column:1}
+.workspace[data-flow]>.stage{display:block;grid-column:2;grid-row:1;min-width:0;min-height:0;height:100%;overflow:hidden;position:relative}
+.workspace[data-flow]>.right{grid-column:3}
+.workspace[data-flow]>.right>*{display:block}
+.workspace[data-flow]>.right>[hidden]{display:none}
+#scene{position:absolute;inset:0;width:100%;height:100%}
+.bottom{bottom:12px;left:12px;right:12px;pointer-events:none;padding:9px 11px}
+.workflow-nav{top:13px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);padding:4px;gap:2px;z-index:10;box-shadow:0 3px 15px #0004}
+.workflow-nav button{font-size:11px;padding:8px 9px}
+.view-toolbar{position:absolute;top:62px;left:12px;z-index:9;display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:5px;background:#10202ae8;border:1px solid #3e5662;border-radius:7px;max-width:calc(100% - 24px)}
+.view-toolbar span{font-size:9px;color:#b2c3cd;letter-spacing:.13em;margin:0 7px}
+.view-toolbar button{border:1px solid #344f5c;border-radius:5px;background:#1b303c;color:#b9cbd4;font-size:10px;padding:6px 9px}
+.view-toolbar button.active,.view-toolbar button[aria-pressed="true"]{color:#eef9f3;border-color:#8fbcaa;background:#31524b}
+.view-vegetation{display:flex;align-items:center;gap:4px;color:#b6c8cb;font-size:10px;cursor:pointer;white-space:nowrap;padding:0 6px}
+.view-vegetation input{accent-color:#9acd96}
+.tool-guide{border:1px solid #36505a;background:#152a35;padding:9px 10px;color:#afc2cf;line-height:1.6;font-size:10px;margin-bottom:15px;border-radius:6px}
+.tool-guide b{color:#e0eae9}
+.scene-instructions{top:61px;right:12px;font-size:9px;max-width:155px}
+.workflow-entry[hidden],.workflow-tip[hidden]{display:none!important}
+/* Constrain to viewport even on narrower desktop windows. Every panel scrolls independently. */
+@media(max-width:1150px){.workspace,.workspace[data-flow]{grid-template-columns:265px minmax(0,1fr) 235px}.top{padding:0 10px}.workflow-nav button{font-size:10px;padding:7px}}
+@media(max-width:850px){.workspace,.workspace[data-flow]{grid-template-columns:250px minmax(0,1fr)}.workspace[data-flow]>.right{grid-column:2;position:absolute;z-index:30;right:0;top:56px;bottom:0;width:min(325px,calc(100vw - 250px));background:#111d28;box-shadow:-10px 0 30px #000a;display:none}.workspace[data-flow="build"]>.right,.workspace[data-flow="places"]>.right,.workspace[data-flow="insights"]>.right{display:block}.workspace[data-flow]>.stage{grid-column:2}.workflow-nav{left:7px;right:7px;max-width:none;transform:none;overflow-x:auto;justify-content:flex-start}.workflow-nav button{flex-shrink:0}.scene-instructions{display:none}.view-toolbar{top:59px}.bottom{font-size:10px}}
+@media(max-width:600px){.workspace,.workspace[data-flow]{grid-template-columns:185px minmax(0,1fr)}.sidebar{padding:11px 9px}.workspace[data-flow]>.right{width:min(300px,calc(100vw - 185px))}.top .brand strong{font-size:12px}.status{display:none}.workflow-nav button{font-size:9px;padding:6px}.view-toolbar{top:51px}.view-toolbar span,.view-vegetation{display:none}.view-toolbar button{font-size:9px;padding:5px}.bottom{padding:6px}}
+
 </style>
 </head><body>
 <div class="auth-backdrop" id="authBackdrop" role="dialog" aria-modal="true" aria-label="Planet Lab account">
@@ -106,22 +183,46 @@
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.7 · World / City / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
-<div class="workspace"><aside class="sidebar left">
-<p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
-<div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.9 · World / City / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
+<p class="eyebrow">TOOLS / WORLD → CITY → BUILDING</p>
+<div class="tool-guide"><b>Globe</b> pick a region · <b>City</b> plan roads and plots · <b>Building</b> edit dimensions · <b>Places</b> save a site</div>
+<p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Select geography, generate a site plan, and inspect building massing. Plans and budgets are illustrative.</p>
+<div class="mode-tabs"><button class="active" id="regionMode">Region / terrain</button><button id="planetMode">Globe / planet</button></div>
 <div class="row2"><div><label class="lab" for="seed">WORLD SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div><label class="lab" for="geography">GEOGRAPHY</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Generate terrain</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Click land in region view to propose a building site. Click the globe to explore another region.</div>
 <section class="section"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
 <div class="row2"><div><label class="lab" for="profile">ECONOMY / CITY PROFILE</label><select id="profile" class="field"><option value="mixed">Balanced settlement</option><option value="agricultural">Agricultural</option><option value="industrial">Industrial</option><option value="resort">Holiday / Vegas</option><option value="spa">Spa / wellness</option><option value="datacenter">Data centre hub</option><option value="metropolis">Dense metropolis</option></select></div><div><label class="lab" for="level">COMPLEXITY</label><select id="level" class="field"><option value="basic" selected>Basic</option><option value="simple">Simple</option><option value="average">Average</option><option value="advanced">Advanced</option><option value="super">Super complex</option></select></div></div>
 <div class="row2"><div><label class="lab" for="budget">BUDGET · $M</label><input id="budget" class="field" type="number" min="0.1" max="100000" step="1" value="25"/></div><div><label class="lab" for="teams">ROBOT TEAMS</label><input id="teams" class="field" type="number" min="2" max="22" step="1" value="10"/></div></div>
 <label class="checkbox" style="margin-top:12px"><input id="freeZone" type="checkbox"/> Voluntary / free-zone settlement label</label>
-<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">The planner is procedural and seeded, not connected to a live AI model. The exported plan is ready for future LLM or GIS integration.</div>
-</section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label></section>
-</aside><div class="stage"><canvas id="scene"></canvas><div id="xrControls" class="xr-stage-entry" hidden></div><div class="overlay"><div class="tag" id="locationTag"><b>REGION</b> · seed ODYSSEY-7</div><div class="tag" id="planTag">No masterplan</div></div><div class="scene-instructions" id="sceneHelp">Drag to orbit · Scroll to zoom<br/>Click terrain to move settlement site</div><div class="bottom"><div class="progress-row"><strong id="phaseName">Awaiting plan</strong><span id="progressText">0 / 0 tasks</span></div><div class="track"><div class="progress-fill" id="bar"></div></div><div class="phase-line" id="stages"></div></div><div class="error" id="error"></div></div>
+<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Procedural conceptual plan. Not a surveyed site, a structural design or a live cost estimate.</div>
+</section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
+<div class="hint">Agents are abstract task markers; off by default. The 3D scene is conceptual massing, not a construction-ready BIM model.</div></section>
+</aside><div class="stage"><canvas id="scene"></canvas>
+<div class="view-toolbar" aria-label="Scene presentation"><span>VIEW</span><button type="button" id="viewMassing" class="active" aria-pressed="true" title="Orbit and inspect architectural massing">3D massing</button><button type="button" id="viewPlan" aria-pressed="false" title="Top-down site plan">Site plan</button><button type="button" id="viewAgents" aria-pressed="false" title="Display simulated construction equipment">Show agents</button><label class="view-vegetation"><input type="checkbox" id="showVegetation"> Vegetation</label></div>
+<nav class="workflow-nav" aria-label="PlanetLab workspace">
+ <button type="button" id="flowWorld" aria-pressed="false">Globe</button>
+ <button type="button" id="flowCity" aria-pressed="false">City plan</button>
+ <button type="button" id="flowBuild" aria-pressed="false">Building</button>
+ <button type="button" id="flowPlaces" aria-pressed="false">Saved places</button>
+ <button type="button" id="flowInsights" aria-pressed="false">Inspect</button>
+ <button type="button" id="flowSave" class="workflow-save">Save</button>
+</nav>
+<section class="workflow-entry" id="workflowEntry" hidden aria-label="Choose what to create">
+ <div class="eyebrow">PLANETLAB · START HERE</div>
+ <h2>What do you want to create?</h2>
+ <p>Start with one action. All settings and advanced controls are available after choosing a workspace.</p>
+ <div class="workflow-choices">
+  <button type="button" class="workflow-choice primary-choice" id="startCity"><strong>Plan a settlement</strong><span>Generate roads, plots and buildings; robots assemble the plan.</span></button>
+  <button type="button" class="workflow-choice" id="startHouse"><strong>Build a house</strong><span>Place a simple editable house on the terrain.</span></button>
+  <button type="button" class="workflow-choice" id="startExplore"><strong>Explore the planet</strong><span>Change terrain, pick a site and orbit the globe.</span></button>
+ </div>
+ <p class="workflow-caveat">Procedural simulation · fictional geography · no real-world planning or engineering validation</p>
+</section>
+<div class="workflow-tip" id="workflowTip" role="status" aria-live="polite" hidden></div><div id="xrControls" class="xr-stage-entry" hidden></div><div class="overlay"><div class="tag" id="locationTag"><b>REGION</b> · seed ODYSSEY-7</div><div class="tag" id="planTag">No masterplan</div></div><div class="scene-instructions" id="sceneHelp">Drag to orbit · Scroll to zoom<br/>Click terrain to move settlement site</div><div class="bottom"><div class="progress-row"><strong id="phaseName">Awaiting plan</strong><span id="progressText">0 / 0 tasks</span></div><div class="track"><div class="progress-fill" id="bar"></div></div><div class="phase-line" id="stages"></div></div><div class="error" id="error"></div></div>
 <aside class="sidebar right"><p class="eyebrow">Live planning intelligence</p><h1 class="title" style="font-size:20px">Settlement telemetry</h1>
 <div class="kpis"><div class="kpi"><strong id="homesCount">0</strong><span>Funded buildings</span></div><div class="kpi"><strong id="roadCount">0</strong><span>Road segments</span></div><div class="kpi"><strong id="allocated">$0</strong><span>Planned cost (M)</span></div><div class="kpi"><strong id="remaining">$0</strong><span>Remaining (M)</span></div></div>
-<div class="section"><h3>Land-use map <span class="small">· planned</span></h3><canvas class="map" id="map" width="450" height="280" title="Click map to propose a nearby site"></canvas><div class="legend"><span style="--chip:#688193">Roads</span><span style="--chip:#d6ad8d">Buildings</span><span style="--chip:#76b87d">Green space</span><span style="--chip:#4388b0">Water / reserve</span></div><div id="mapNote" class="hint">The overview updates when a plan is generated.</div></div>
+<div class="section" id="landUseSection"><h3>Land-use map <span class="small">· planned</span></h3><canvas class="map" id="map" width="450" height="280" title="Click map to propose a nearby site"></canvas><div class="legend"><span style="--chip:#688193">Roads</span><span style="--chip:#d6ad8d">Buildings</span><span style="--chip:#76b87d">Green space</span><span style="--chip:#4388b0">Water / reserve</span></div><div id="mapNote" class="hint">The overview updates when a plan is generated.</div></div>
 <div class="section" id="placebookSection"><h3>Places & saved snapshots</h3>
 <div class="hint">Saved plans are pins on the fictional planet. Return to a region, revisit snapshots, or star favourites.</div>
 <label class="lab" for="snapshotName">SNAPSHOT NAME</label><input id="snapshotName" class="field" maxlength="100" placeholder="New harbour settlement"/>
@@ -130,8 +231,8 @@
 <div id="snapshotList" class="snapshot-list" aria-label="Saved world pins"><span class="hint">Sign in to list pinned plans.</span></div>
 <div id="snapshotStatus" class="hint" aria-live="polite"></div>
 </div>
-<div class="section"><h3>Robotic infrastructure teams</h3><div id="teamList"></div></div>
-<div class="section"><h3>Build queue by category</h3><div id="catalog"></div></div>
+<div class="section" id="teamsSection"><h3>Robotic infrastructure teams</h3><div id="teamList"></div></div>
+<div class="section" id="catalogSection"><h3>Build queue by category</h3><div id="catalog"></div></div>
 <div class="section" id="systemsSection"><h3>City systems · conceptual</h3>
 <div class="hint">Land-use codes, infrastructure dependencies and indicative cost indices. Not real-world quotes.</div>
 <div class="hint" id="buildingSelectText">Click an installed building in the 3D scene to give it a code name.</div>
@@ -141,7 +242,7 @@
 <div id="citySystemsSummary" class="feed" style="max-height:185px">Generate a plan to analyse service coverage.</div>
 <button id="citySystemsCheck" class="btn mini full" type="button">Analyse dependencies</button>
 </div>
-<div class="section"><h3>Construction log</h3><div id="feed" class="feed"></div></div><div class="section"><div class="notice"><b>Systemic simulation, not engineering design.</b> Geography, zoning, budgets and walking avatars are approximations. This prototype does not simulate building permits, structural safety, real-world construction costs or collision-free robot pathfinding.</div><div class="hint"><a href="./house/index.html">Open original single-house assembly demo ↗</a></div></div>
+<div class="section" id="feedSection"><h3>Construction log</h3><div id="feed" class="feed"></div></div><div class="section"><div class="notice"><b>Systemic simulation, not engineering design.</b> Geography, zoning, budgets and walking avatars are approximations. This prototype does not simulate building permits, structural safety, real-world construction costs or collision-free robot pathfinding.</div><div class="hint"><a href="./house/index.html">Open original single-house assembly demo ↗</a></div></div>
 <div class="section" id="collabPanel"><h3>04 / Multiplayer world hub</h3>
 <div id="cloudStatus" class="hint">Connecting to local Flask API…</div>
 <div class="hint">Your account is managed at the top of the page. Worlds, collaboration and uploads are available after sign-in.</div>
@@ -216,11 +317,12 @@
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.7"></script>
-<script type="module" src="./collab.mjs?v=0.4.7"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.7"></script>
-<script type="module" src="./studio.mjs?v=0.4.7"></script>
-<script type="module" src="./placebook.mjs?v=0.4.7"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.7"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.7"></script>
+<script type="module" src="./app.mjs?v=0.4.9"></script>
+<script type="module" src="./collab.mjs?v=0.4.9"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.9"></script>
+<script type="module" src="./studio.mjs?v=0.4.9"></script>
+<script type="module" src="./placebook.mjs?v=0.4.9"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.9"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.9"></script>
+<script type="module" src="./workflow.mjs?v=0.4.9"></script>
 </body></html>
