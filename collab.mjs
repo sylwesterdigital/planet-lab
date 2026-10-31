@@ -12,19 +12,19 @@ async function call(path, options={}) {
   if(!response.ok)throw new Error(data.error || `HTTP ${response.status}`);
   return data;
 }
-function setSession(user, token) {
+function setSession(user, token, isAdmin=false) {
   currentUser = user || null;
   csrf = token || '';
   const strip = el('accountStrip');
   strip.hidden = !currentUser;
   el('accountName').textContent = currentUser ? `@${currentUser.handle}` : '';
   note(currentUser ? `Signed in as ${currentUser.handle}` : 'Sign in to save and collaborate');
-  window.planetLabAuthState = {user: currentUser, csrf};
-  window.dispatchEvent(new CustomEvent('planetlab:auth-changed', {detail: {user: currentUser, csrf}}));
+  window.planetLabAuthState = {user: currentUser, csrf, isAdmin: Boolean(isAdmin)};
+  window.dispatchEvent(new CustomEvent('planetlab:auth-changed', {detail: {user: currentUser, csrf, isAdmin: Boolean(isAdmin)}}));
 }
 async function sessionInfo() {
   const s = await call('/api/session');
-  setSession(s.user, s.csrf);
+  setSession(s.user, s.csrf, s.is_admin);
   return s;
 }
 async function worlds(){const d=await call('/api/worlds');const list=el('worldList'),selected=list.value;list.replaceChildren(new Option('Select world',''));
@@ -105,7 +105,7 @@ form.addEventListener('submit',async event=>{
     const response=await call(authMode==='register'?'/api/register':'/api/login',{
       method:'POST',body:JSON.stringify({handle,password})
     });
-    setSession({id:response.id,handle:response.handle},response.csrf);
+    await sessionInfo();
     hideAuth();
     await action(worlds);
   } catch (error) {

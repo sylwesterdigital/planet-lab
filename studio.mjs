@@ -84,6 +84,11 @@ async function refreshAuth(){
   const state=window.planetLabAuthState;
   if(!state)return;
   csrf=state.csrf;activeUser=state.user;isAdmin=false;
+  if(!state.isAdmin){
+    $('integrationsAdmin').hidden=true;
+    $('studioAdminNote').textContent=activeUser?'Admin access is required to configure AI providers.':'Sign in to access AI settings.';
+    return;
+  }
   try{const settings=await api('/api/integrations');isAdmin=true;for(const [p,vals] of Object.entries(settings.providers)){
       $(p+'Model').value=vals.model;
       if(p==='meta'){for(const [id,key] of [['metaImageModel','image_model'],['metaComplexModel','complex_model'],['metaSegmentationModel','segmentation_model'],['metaVoiceModel','voice_model']])$(id).value=vals[key]||'';}
@@ -122,6 +127,7 @@ for(const p of ['meta','tripo']){
   $(p+'Save').onclick=()=>studioAction(()=>saveProvider(p));
   $(p+'Test').onclick=()=>studioAction(async()=>{const d=await api(`/api/integrations/${p}/test`,{method:'POST',body:'{}'});notice(`${p}: ${d.status|| (d.ok?'connection OK':'check settings')}`)});
 }
+$('integrationsForm').addEventListener('submit',e=>e.preventDefault());
 $('studioRefresh').onclick=()=>studioAction(refreshAuth);
 $('aiBuilding').onclick=()=>studioAction(async()=>{
   notice('Requesting AI building specification…');const result=await api('/api/ai/building',{method:'POST',body:JSON.stringify({brief:$('aiBrief').value,tier:$('aiTier').value})});

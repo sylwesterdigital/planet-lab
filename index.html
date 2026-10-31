@@ -66,7 +66,7 @@
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.2 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.3 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
 <div class="workspace"><aside class="sidebar left">
 <p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
@@ -125,7 +125,7 @@
 </div></div>
 <div class="section"><h3>07 / Integrations & Models</h3><div id="studioAdminNote" class="hint">Checking administrator permissions…</div>
 <button class="btn mini full" id="studioRefresh">Refresh authentication / settings</button>
-<div id="integrationsAdmin" hidden>
+<div id="integrationsAdmin" hidden><form id="integrationsForm" autocomplete="off">
 <div class="notice">Operator-only. Keys are sent to Flask over HTTPS, stored with file mode 0600 outside the webroot, and never returned by the API. They are not encrypted at rest; restrict server and backups.</div>
 <label class="lab" for="metaEndpoint">META BASE ENDPOINT</label>
 <input class="field" id="metaEndpoint" value="https://api.meta.ai/v1"/>
@@ -142,9 +142,9 @@
 <label class="lab" for="tripoKey">TRIPO API KEY (LEAVE BLANK TO KEEP EXISTING)</label><input class="field" type="password" id="tripoKey" autocomplete="off"/>
 <label class="checkbox"><input type="checkbox" id="tripoEnabled"/> Enable Tripo</label><div class="hint" id="tripoConnected"></div>
 <div class="buttons"><button class="btn mini" id="tripoSave">Save Tripo</button><button class="btn mini" id="tripoTest">Check configuration</button></div>
-</div></div>
+</form></div></div>
 </aside></div></div>
-<script type="module" src="./app.mjs"></script>
-<script type="module" src="./collab.mjs"></script>
-<script type="module" src="./studio.mjs"></script>
+<script type="module" src="./app.mjs?v=0.4.3"></script>
+<script type="module" src="./collab.mjs?v=0.4.3"></script>
+<script type="module" src="./studio.mjs?v=0.4.3"></script>
 </body></html>

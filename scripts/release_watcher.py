@@ -41,8 +41,76 @@ class ReleaseError(Exception):
     pass
 
 
-def log(msg):
-    print(f'[{dt.datetime.now().strftime("%H:%M:%S")}] {msg}', flush=True)
+# Colour is intended for interactive macOS terminals. Logs and launchd output
+# stay plain text; NO_COLOR and --color=never are respected.
+COLOR_MODE = 'auto'
+ACTIVE_LOG = None
+RUN = {'phase': 'idle', 'version': '?', 'github': False, 'live': False, 'started': None}
+COLORS = {'INFO': '\x1b[36m', 'STEP': '\x1b[1;34m', 'WARN': '\x1b[1;33m',
+          'ERROR': '\x1b[1;31m', 'SUCCESS': '\x1b[1;32m', 'LIVE': '\x1b[1;32m',
+          'EVENT': '\x1b[1;36m'}
+RESET = '\x1b[0m'
+
+
+def color_on():
+    if os.environ.get('NO_COLOR') is not None or COLOR_MODE == 'never':
+        return False
+    return COLOR_MODE == 'always' or (COLOR_MODE == 'auto' and sys.stdout.isatty())
+
+
+def log(msg, level='INFO'):
+    stamp = dt.datetime.now().strftime('%H:%M:%S')
+    text = f'[{stamp}] [{level:<7}] {msg}'
+    if ACTIVE_LOG is not None:
+        with ACTIVE_LOG.open('a', encoding='utf-8') as out:
+            out.write(text + '\n')
+    if color_on():
+        # Leave actual text searchable in plain logs; ANSI only for a TTY.
+        print(f'{COLORS.get(level, "")}{text}{RESET}', flush=True)
+    else:
+        print(text, flush=True)
+
+
+def banner(title, detail='', level='EVENT'):
+    rule = '=' * 76
+    for line in (rule, f'  PLANET LAB  |  {title}',
+                 f'  {detail}' if detail else '', rule):
+        if line:
+            log(line, level)
+
+
+def stage(name):
+    RUN['phase'] = name
+    log(name, 'STEP')
+
+
+def begin_run(archive, dry):
+    global ACTIVE_LOG
+    match = re.search(r'v(\d+\.\d+\.\d+)', archive.name)
+    version = match.group(1) if match else '?'
+    RUN.update(phase='validation', version=version, github=False, live=False,
+               started=time.monotonic())
+    (STATE / 'logs').mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
+    ACTIVE_LOG = STATE / 'logs' / f'{stamp}-v{version}.log'
+    banner('DEPLOYMENT START' if not dry else 'DRY RUN START',
+           f'RELEASE v{version}  |  ZIP: {archive.name}')
+
+
+def finish_run(ok, dry=False, error=None):
+    global ACTIVE_LOG
+    seconds = int(time.monotonic() - RUN['started']) if RUN['started'] else 0
+    status = ('DRY RUN PASSED' if ok else 'DRY RUN FAILED') if dry else ('DEPLOYMENT SUCCESS' if ok else 'DEPLOYMENT FAILED')
+    level = 'SUCCESS' if ok else 'ERROR'
+    banner(status, f'RELEASE v{RUN["version"]}  |  {seconds}s  |  PHASE: {RUN["phase"]}', level)
+    log('GitHub: ' + ('UPDATED' if RUN['github'] else 'NOT UPDATED') +
+        '  |  Ubuntu: ' + ('LIVE / VERIFIED' if RUN['live'] else 'NOT ACTIVATED / UNVERIFIED') +
+        '  |  https://planetlab.me', level)
+    if error:
+        log(f'Reason: {error}', 'ERROR')
+    if ACTIVE_LOG:
+        log(f'Full release log: {ACTIVE_LOG}', 'INFO')
+    ACTIVE_LOG = None
 
 
 def run(args, cwd=None, timeout=100):
@@ -130,8 +198,9 @@ def local_tests(stage):
     for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','test-planner.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
-    log(output)
+    log(output, 'SUCCESS')
     log(run(['python3','tests/test_auth_ui.py'], cwd=stage, timeout=20))
+    log(run(['python3','tests/test_release_ui.py'], cwd=stage, timeout=20))
     import ast
     for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
@@ -145,7 +214,7 @@ def local_tests(stage):
     index = (stage / 'index.html').read_text()
     if 'collab.mjs' not in index or 'app.mjs' not in index or 'xrControls' not in index or 'id="authBackdrop"' not in index:
         raise ReleaseError('Missing required multiplayer/Three.js/XR interface entrypoints')
-    log('Local JS, planner, Python syntax, shell, frontend tests passed')
+    log('Local JS, planner, Python syntax, shell, frontend tests passed', 'SUCCESS')
 
 
 def normalize_git_ssh():
@@ -209,7 +278,7 @@ def git_preflight(stage, hashes):
         else:
             raise ReleaseError('Remote main has history but local main has no commits')
     ssh('test -d /var/www/planetlab.me && command -v nginx && command -v rsync && command -v python3 && command -v curl')
-    log('GitHub SSH, working tree and Ubuntu SSH preflight passed')
+    log('GitHub SSH, working tree and Ubuntu SSH preflight passed', 'SUCCESS')
 
 
 def deploy_stage(stage, version):
@@ -231,7 +300,7 @@ def deploy_stage(stage, version):
       runuser -u planetlab -- "$VENV_PY" -m unittest discover -s tests -p 'test_*.py' -v''', timeout=70)
     if 'OK' not in output:
         raise ReleaseError('Remote backend tests were not confirmed: ' + output[-400:])
-    log('Ubuntu release staged, dependencies installed, backend tests passed. Live unchanged.')
+    log('Ubuntu release staged, dependencies installed, backend tests passed. Live unchanged.', 'SUCCESS')
 
 
 def git_publish(stage, manifest):
@@ -265,7 +334,7 @@ def git_publish(stage, manifest):
     except Exception:
         # Never reset the user's working tree automatically.
         raise
-    log(f'GitHub main updated: {local[:12]}')
+    log(f'GitHub main updated: {local[:12]}', 'SUCCESS')
 
 
 def activate(version):
@@ -282,37 +351,40 @@ def activate(version):
         if 'PLANET' not in homepage or 'app.mjs' not in homepage:
             raise ReleaseError('HTTPS frontend is not the expected Planet Lab release')
     except Exception as exc:
-        log(f'Public smoke failed: {exc}; requesting server rollback')
+        log(f'Public smoke failed: {exc}; requesting server rollback', 'WARN')
         ssh(f'bash {remote_path(release+"/scripts/install-ubuntu.sh")} {version} rollback', timeout=90)
         raise ReleaseError('Public HTTPS verification failed; rollback attempted') from exc
-    log('HTTPS frontend and API verified; WebSocket endpoint configured in Nginx')
+    log('HTTPS frontend and API verified; WebSocket endpoint configured in Nginx', 'LIVE')
 
 
 def process(archive, dry_run=False):
     STATE.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='release-',dir=STATE) as temp:
-        stage=Path(temp)
-        log(f'1/6 Verifying {archive.name}')
-        manifest=verify(archive,stage)
+        stage_dir=Path(temp)
+        stage(f'1/6  Validate release ZIP: {archive.name}')
+        manifest=verify(archive,stage_dir)
         version=manifest['version']
-        log(f'    Verified v{version}: {len(manifest["sha256"])} checksummed files')
-        log('2/6 Running local static/planner tests')
-        local_tests(stage)
+        RUN['version']=version
+        log(f'Verified v{version}: {len(manifest["sha256"])} checksummed files', 'SUCCESS')
+        stage('2/6  Run local syntax, planner, frontend regression tests')
+        local_tests(stage_dir)
         if dry_run:
-            log(f'DRY RUN PASSED v{version}. GitHub and server NOT changed.')
+            log(f'Local validation complete for v{version}. GitHub and Ubuntu unchanged.', 'SUCCESS')
             return
-        log('3/6 Preflighting Git and target Ubuntu')
-        git_preflight(stage,manifest['sha256'])
-        log('4/6 Staging Ubuntu release and running integration tests')
-        deploy_stage(stage,version)
-        log('5/6 Committing and pushing verified source to GitHub')
-        git_publish(stage,manifest)
-        log('6/6 Activating and checking public HTTPS')
+        stage('3/6  Preflight GitHub SSH and Ubuntu')
+        git_preflight(stage_dir,manifest['sha256'])
+        stage('4/6  Stage Ubuntu release and run backend integration tests')
+        deploy_stage(stage_dir,version)
+        stage('5/6  Commit and push verified source to GitHub')
+        git_publish(stage_dir,manifest)
+        RUN['github']=True
+        stage('6/6  Activate release and verify public HTTPS')
         activate(version)
+        RUN['live']=True
         status={'version':version,'utc':dt.datetime.now(dt.timezone.utc).isoformat(),
                 'github':GITHUB,'site':URL}
         tempstatus=STATE/'deployed.json.tmp';tempstatus.write_text(json.dumps(status,indent=2)+'\n');tempstatus.replace(STATE/'deployed.json')
-        log(f'SUCCESS: v{version} live at {URL}, GitHub main updated')
+        log(f'RELEASE v{version} LIVE — {URL} | GitHub main updated', 'LIVE')
 
 
 def main():
@@ -324,7 +396,10 @@ def main():
     mode.add_argument('--status',action='store_true')
     mode.add_argument('--check-zip',type=Path,metavar='FILE',help='Validate one release and exit (no Git or deploy)')
     parser.add_argument('--interval',type=int,default=4)
+    parser.add_argument('--color',choices=('auto','always','never'),default='auto',help='ANSI colour mode (default: auto for TTY)')
     args=parser.parse_args()
+    global COLOR_MODE
+    COLOR_MODE=args.color
     if args.check_zip:
         STATE.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='zip-check-',dir=STATE) as tmp:
@@ -352,26 +427,31 @@ def main():
             for archive in pending:
                 if not (args.once or args.dry_run) and time.time()-archive.stat().st_mtime < 4:
                     continue
+                begin_run(archive,args.dry_run)
                 try:
                     process(archive,args.dry_run)
                     if not args.dry_run:
-                        archive.rename(UPDATES/'processed'/archive.name)
+                        dest=UPDATES/'processed'/archive.name
+                        if dest.exists():dest=dest.with_name(archive.stem+'-'+str(int(time.time()))+'.zip')
+                        archive.rename(dest)
+                    finish_run(True,args.dry_run)
                 except Exception as exc:
-                    failed=True;log('FAILED: '+str(exc))
+                    failed=True
                     if not args.dry_run:
                         dest=UPDATES/'failed'/archive.name
                         if dest.exists():dest=dest.with_name(archive.stem+'-'+str(int(time.time()))+'.zip')
                         archive.rename(dest)
-                        log(f'Moved to {dest}; release can be retried after correcting issue')
+                        log(f'Failed release saved at {dest}', 'WARN')
+                    finish_run(False,args.dry_run,str(exc))
             if args.once or args.dry_run:return 1 if failed else 0
             updated=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
             if updated!=code_hash:
-                log('Watcher updated from release; restarting')
-                os.execv('/bin/bash',['bash',str(ROOT/'planetlab-watch.sh'),'--interval',str(args.interval)])
+                log('Watcher updated from release; restarting with new code', 'EVENT')
+                os.execv('/bin/bash',['bash',str(ROOT/'planetlab-watch.sh'),'--interval',str(args.interval),'--color',args.color])
             time.sleep(args.interval)
 
 
 if __name__=='__main__':
     try:sys.exit(main())
-    except KeyboardInterrupt:log('Watcher stopped');sys.exit(0)
-    except Exception as err:log('FATAL: '+str(err));sys.exit(1)
+    except KeyboardInterrupt:log('Watcher stopped', 'WARN');sys.exit(0)
+    except Exception as err:log('FATAL: '+str(err), 'ERROR');sys.exit(1)

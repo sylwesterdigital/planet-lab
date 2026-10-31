@@ -1,3 +1,18 @@
+# Planet Lab v0.4.3 — Auth bootstrap and deployment diagnostics
+
+This release addresses a mixed-version browser cache failure where v0.4.0 `collab.mjs` attempted to access removed registration controls from v0.4.2 HTML, leaving the first-load overlay stuck. It does not alter persistent databases, media or the live deployment paths.
+
+Changes:
+- HTML and JavaScript modules served with `Cache-Control: no-store`; versioned script entry URLs and planner import.
+- Browser auth uses the current server session as the source of truth after login and registration.
+- Admin status is included in `/api/session`; regular accounts no longer produce avoidable 403 calls to `/api/integrations`. Backend permission checks remain enforced.
+- Provider password fields are inside a form with submit prevention.
+- Release watcher: colour-coded terminal levels, explicit start/end banners, deployment phase, elapsed time, version/GitHub/site summary, and durable logs. Colour auto-disables in redirected logs / launchd. `NO_COLOR` supported.
+
+Workflow: drop `PLANETLAB_RELEASE_v0.4.3.zip` into `updates/`. The running watcher validates, stages, tests, pushes by SSH, deploys and verifies. No manual Git operations.
+
+The wrapper under `planetlab-watch.sh` may be run interactively for coloured output, or installed as a persistent launchd job using `scripts/install-macos-watcher.sh` (one-time setup).
+
 # PLANET / LAB — v0.4.2
 
 ## v0.4.2 — First-load account experience and persistent sessions

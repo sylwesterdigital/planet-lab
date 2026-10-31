@@ -19,7 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
 from .ai_routes import setup_ai
 
-VERSION = '0.4.2'
+VERSION = '0.4.3'
 MAX_PLAN = 2 * 1024 * 1024
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
@@ -98,7 +98,13 @@ def create_app(test_config=None):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        response.headers['Cache-Control'] = 'no-store' if request.path.startswith('/api/') else 'public, max-age=600'
+        # A new release must never serve cached JS from an older HTML layout.
+        # Keep application documents and JavaScript modules uncacheable; use
+        # versioned URLs for module entries as a second layer of protection.
+        path = request.path.lower()
+        uncacheable = (path == '/' or path.endswith(('.html', '.mjs', '.js'))
+                       or path.startswith('/api/'))
+        response.headers['Cache-Control'] = 'no-store, max-age=0' if uncacheable else 'public, max-age=600'
         return response
 
     @app.errorhandler(413)
@@ -124,7 +130,12 @@ def create_app(test_config=None):
         session.setdefault('csrf', secrets.token_urlsafe(32))
         with db_session() as db:
             user = actor(db)
-            return jsonify(user={'id': user.id, 'handle': user.handle} if user else None, csrf=session['csrf'])
+            return jsonify(
+                user={'id': user.id, 'handle': user.handle} if user else None,
+                csrf=session['csrf'],
+                is_admin=bool(user and user.handle == os.environ.get('PLANETLAB_ADMIN_HANDLE', '').strip().lower()
+                              and str(user.id) == os.environ.get('PLANETLAB_ADMIN_USER_ID', '').strip())
+            )
 
     @app.post('/api/register')
     def register():
