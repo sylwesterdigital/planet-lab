@@ -41,6 +41,26 @@
 @media(max-width:650px){.ai-modal-card{padding:17px}.ai-modal-head h2{font-size:25px}.ai-modal-footer{flex-direction:column;align-items:stretch}.ai-modal-footer button{width:100%}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+<style>
+/* v0.4.6: floating HTTP inspector: native resize + pointer-draggable title */
+.api-console[hidden]{display:none!important}
+.api-console{position:fixed;z-index:11000;bottom:20px;right:20px;width:min(750px,calc(100vw - 24px));height:min(490px,calc(100vh - 24px));min-width:300px;min-height:225px;max-width:100vw;max-height:100vh;resize:both;overflow:hidden;display:flex;flex-direction:column;background:#0a1520;border:1px solid #526b7d;border-radius:12px;box-shadow:0 16px 75px #000d;color:#e6f2f6;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.api-console-bar{touch-action:none;user-select:none;cursor:move;display:flex;align-items:center;gap:12px;padding:12px 14px;background:#142b39;border-bottom:1px solid #355064;flex-shrink:0}
+.api-console-bar strong{font-size:12px;color:#a7eeaa;letter-spacing:.05em}
+.api-console-bar span{color:#8ca9bb;font-size:10px;flex:1}
+.api-console-tools{display:flex;gap:6px;padding:8px;flex-wrap:wrap;border-bottom:1px solid #243a48;background:#10232f;flex-shrink:0}
+.api-ctl{border:1px solid #3b576b;background:#152c3a;color:#dbeaf4;border-radius:5px;padding:5px 8px;font-size:10px;white-space:nowrap;cursor:pointer}
+.api-ctl:hover{background:#284758}
+.api-console-content{flex:1;min-height:0;display:grid;grid-template-columns:42% minmax(0,1fr)}
+.api-console-list{overflow:auto;border-right:1px solid #29404e}
+.api-log-item{display:flex;align-items:center;gap:7px;width:100%;text-align:left;padding:8px 9px;border:0;border-bottom:1px solid #253a48;background:#0f1e2a;color:#e4eef3;font:11px ui-monospace,SFMono-Regular,monospace;cursor:pointer}
+.api-log-item:hover,.api-log-item.active{background:#284554}.api-log-item .api-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.api-code{font-weight:800}.api-code.good{color:#92e3a7}.api-code.bad{color:#ff8d8d}.api-code.muted,.api-log-item .muted{color:#9cb1bc;font-size:10px}
+.api-console-detail{margin:0;padding:12px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#d2e4ee;background:#08141f;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;tab-size:2}
+.api-console-foot{flex-shrink:0;border-top:1px solid #304859;padding:7px 10px;color:#91aab9;background:#122332;font-size:9px}
+.api-alert{border-color:#d47471!important;color:#ffb0a9!important}
+@media(max-width:560px){.api-console{left:6px!important;right:6px!important;bottom:6px;width:calc(100vw - 12px);min-width:0;height:min(450px,80vh)}.api-console-content{grid-template-columns:1fr;grid-template-rows:35% 65%}.api-console-list{border-right:0;border-bottom:1px solid #29404e}}
+</style>
 </head><body>
 <div class="auth-backdrop" id="authBackdrop" role="dialog" aria-modal="true" aria-label="Planet Lab account">
   <div class="auth-card">
@@ -74,7 +94,7 @@
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.5 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.6 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
 <div class="workspace"><aside class="sidebar left">
 <p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
@@ -134,7 +154,7 @@
 <div class="section" id="aiConnectionsSection"><h3>07 / AI Connections</h3>
 <div class="notice">Use your own Meta key to generate editable buildings and images. No administrator approval needed.</div>
 <div id="aiConnectionInline" class="hint" role="status">No Meta key connected for this tab.</div>
-<button type="button" id="aiSetupOpen" class="btn primary full">Connect Meta AI / Tripo3D</button>
+<button type="button" id="aiSetupOpen" class="btn primary full">Connect Meta AI / Tripo3D</button><button type="button" id="apiConsoleStudio" class="btn mini full">Open API Console · requests & responses</button>
 <div class="hint">Session-only mode: keys are kept in browser memory, never in localStorage, cookies, or the Planet Lab database. Reloading clears them.</div>
 </div>
 </aside></div></div>
@@ -148,7 +168,7 @@
       <div class="ai-key-row"><input class="field" type="password" id="aiMetaKey" autocomplete="off" spellcheck="false" placeholder="Paste your Meta Model API key"/><button class="btn mini" id="aiKeyReveal" type="button">Show</button></div>
       <label class="lab" for="aiMetaModel">MODEL</label>
       <select class="field" id="aiMetaModel"><option value="muse-spark-1.3">Muse Spark 1.3 · default</option><option value="muse-spark-1.3-contributor">Muse Spark 1.3 Contributor</option><option value="muse-spark-1.2">Muse Spark 1.2</option><option value="muse-wonder-1.0">Muse Wonder (if available)</option></select>
-      <div class="ai-modal-actions"><button id="aiSessionSave" type="submit" class="btn primary">Use key in this tab</button><button id="aiTestKey" type="button" class="btn">Test connection</button></div>
+      <div class="ai-modal-actions"><button id="aiSessionSave" type="submit" class="btn primary">Use key in this tab</button><button id="aiTestKey" type="button" class="btn">Test & show logs</button><button id="apiConsoleAi" type="button" class="btn">API Console</button></div>
       <div class="ai-inline-status" id="aiSetupStatus" role="status" aria-live="polite">Not connected</div>
       <details class="ai-details"><summary>Optional · Tripo3D 3D asset generation</summary><label class="lab" for="aiTripoKey">TRIPO API KEY</label><input class="field" type="password" id="aiTripoKey" autocomplete="off" spellcheck="false" placeholder="Paste Tripo3D key"/><button id="aiTripoSave" type="button" class="btn mini" style="margin-top:8px">Use Tripo key in this tab</button></details>
       <div class="ai-modal-footer"><span>No browser disk storage. Keys are transmitted only to Planet Lab over HTTPS for the provider requests you initiate. Model usage may incur charges.</span>
@@ -156,8 +176,14 @@
     </form>
   </div>
 </div>
-<script type="module" src="./app.mjs?v=0.4.5"></script>
-<script type="module" src="./collab.mjs?v=0.4.5"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.5"></script>
-<script type="module" src="./studio.mjs?v=0.4.5"></script>
+<section id="apiConsole" class="api-console" hidden role="region" aria-label="AI HTTP debug console">
+  <div class="api-console-bar" id="apiConsoleHandle"><strong>● API CONSOLE</strong><span id="apiLogCount">0 requests</span><button class="api-ctl" id="apiConsoleClose" type="button" aria-label="Close console">×</button></div>
+  <div class="api-console-tools"><select class="api-ctl" id="apiLogFilter" aria-label="Filter requests"><option value="all">All requests</option><option value="errors">Errors only</option></select><button class="api-ctl" id="apiLogLess" type="button">A−</button><button class="api-ctl" id="apiLogMore" type="button">A+</button><button class="api-ctl" id="apiLogCopy" type="button">Copy selected</button><button class="api-ctl" id="apiLogExport" type="button">Export JSON</button><button class="api-ctl" id="apiLogClear" type="button">Clear</button></div>
+  <div class="api-console-content"><div class="api-console-list" id="apiLogList" aria-label="Recent requests"></div><pre tabindex="0" class="api-console-detail" id="apiLogDetail">No API requests yet.</pre></div>
+  <div class="api-console-foot">Drag the header · resize from bottom-right · last 100 requests · credentials redacted · no persistent storage</div>
+</section>
+<script type="module" src="./app.mjs?v=0.4.6"></script>
+<script type="module" src="./collab.mjs?v=0.4.6"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.6"></script>
+<script type="module" src="./studio.mjs?v=0.4.6"></script>
 </body></html>

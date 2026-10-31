@@ -7,6 +7,7 @@ import json
 import os
 import re
 import threading
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -109,6 +110,31 @@ def required(data_dir, name):
     return p
 
 
+def _trace_sanitise(value, key=None, depth=0):
+    """Restrict trace payloads to 8 KB, strip authentication material by name/value.
+
+    This is opt-in request-scoped diagnostic data. It is never persisted in the DB
+    and never includes the real Authorization header or the BYOK API key.
+    """
+    if key and re.search(r'(authorization|cookie|secret|password|token|api.?key|credential)', str(key), re.I):
+        return '[REDACTED]'
+    if depth > 8:
+        return '[DEPTH LIMIT]'
+    if isinstance(value, dict):
+        return {str(k): _trace_sanitise(v, k, depth + 1) for k, v in list(value.items())[:65]}
+    if isinstance(value, list):
+        return [_trace_sanitise(v, depth=depth + 1) for v in value[:40]]
+    if isinstance(value, str):
+        text = value[:6000] + (' [TRUNCATED]' if len(value) > 6000 else '')
+        text = re.sub(r'Bearer\s+\S+', 'Bearer [REDACTED]', text, flags=re.I)
+        text = re.sub(r'((?:api[_-]?key|access[_-]?token)\s*[:=]\s*)[^\s,;}]+',
+                      r'\1[REDACTED]', text, flags=re.I)
+        return text
+    if value is None or isinstance(value, (float, int, bool)):
+        return value
+    return repr(value)[:200]
+
+
 def provider_request(settings, endpoint, payload=None, timeout=65):
     # Paths are application-defined, never user-provided.
     base = settings['base_url']
@@ -125,16 +151,56 @@ def provider_request(settings, endpoint, payload=None, timeout=65):
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args, **kwargs):
             return None
+
+    # Only a user explicitly requesting the debug trace may receive provider
+    # diagnostics. Avoid any disk storage, logging of credentials or telemetry.
+    from flask import has_request_context, request, g
+    debugging = has_request_context() and request.headers.get('X-PlanetLab-Debug') == '1'
+    started = time.monotonic()
+    if debugging:
+        g.planetlab_provider_trace = {
+            'url': url, 'method': req.get_method(),
+            'requestHeaders': {'Authorization': '[REDACTED]', 'Content-Type': 'application/json'},
+            'requestJson': _trace_sanitise(payload),
+            'upstreamStatus': None, 'durationMs': None,
+            'upstreamResponse': None,
+        }
+
+    def trace(status, raw):
+        if not debugging:
+            return
+        entry = g.planetlab_provider_trace
+        entry['upstreamStatus'] = status
+        entry['durationMs'] = int((time.monotonic() - started) * 1000)
+        if raw:
+            # Never return a raw provider response containing the actual token.
+            preview = raw[:10000].decode('utf-8', errors='replace') if isinstance(raw, bytes) else str(raw)[:10000]
+            preview = preview.replace(settings['api_key'], '[REDACTED]')
+            try:
+                entry['upstreamResponse'] = _trace_sanitise(json.loads(preview))
+            except (ValueError, TypeError):
+                entry['upstreamResponse'] = _trace_sanitise(preview)
+        else:
+            entry['upstreamResponse'] = '(empty response)'
+
     try:
         with urllib.request.build_opener(NoRedirect).open(req, timeout=timeout) as response:
             raw = response.read(12 * 1024 * 1024 + 1)
+            trace(response.status, raw)
             if len(raw) > 12 * 1024 * 1024:
                 raise IntegrationError('Provider response exceeded size limit')
             return json.loads(raw)
     except urllib.error.HTTPError as exc:
-        # Never return raw provider payload: it can contain account details.
+        # Bounded, sanitised detail helps diagnose invalid model, billing, quota,
+        # wrong endpoint, etc. The normal HTTP response remains a generic error.
+        try:
+            preview = exc.read(10000)
+        except (ValueError, OSError):
+            preview = b''
+        trace(exc.code, preview)
         raise IntegrationError(f'Provider HTTP {exc.code}') from exc
     except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        trace(None, str(type(exc).__name__))
         raise IntegrationError('Provider request unavailable or invalid') from exc
 
 

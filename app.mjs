@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.5';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.6';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};

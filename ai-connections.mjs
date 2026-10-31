@@ -1,3 +1,4 @@
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.6';
 /* Session-only BYOK: never persist keys into cookies, Storage, URL or the server DB. */
 const el=id=>document.getElementById(id);
 const ephemeral = {meta:'',tripo:'',model:'muse-spark-1.3'};
@@ -45,7 +46,7 @@ async function testMeta(){
   const session=window.planetLabAuthState;
   if(!session?.user)throw new Error('Sign in to Planet Lab first.');
   setStatus('Testing Muse Spark through Planet Lab…');
-  const r=await fetch('/api/ai/connection-test',{
+  const r=await tracedFetch('/api/ai/connection-test',{
     method:'POST',credentials:'same-origin',cache:'no-store',
     headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,'X-PlanetLab-Meta-Key':ephemeral.meta},
     body:JSON.stringify({provider:'meta',model:ephemeral.model})
@@ -61,7 +62,7 @@ el('aiSetupBackdrop').addEventListener('click',e=>{if(e.target===el('aiSetupBack
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!el('aiSetupBackdrop').hidden)closeAiSetup()});
 el('aiKeyReveal').addEventListener('click',()=>{const input=el('aiMetaKey');input.type=input.type==='password'?'text':'password';el('aiKeyReveal').textContent=input.type==='password'?'Show':'Hide'});
 el('aiSetupForm').addEventListener('submit',e=>{e.preventDefault();try{storeMeta()}catch(err){setStatus(err.message,'error')}});
-el('aiTestKey').addEventListener('click',async()=>{const b=el('aiTestKey');b.disabled=true;try{await testMeta()}catch(err){setStatus(err.message,'error')}finally{b.disabled=false}});
+el('aiTestKey').addEventListener('click',async()=>{const b=el('aiTestKey');b.disabled=true;openApiConsole();try{await testMeta()}catch(err){setStatus(err.message,'error');openApiConsole()}finally{b.disabled=false}});
 el('aiTripoSave').addEventListener('click',()=>{
   const key=el('aiTripoKey').value.trim();
   if(key.length<12||key.length>4096||/[\r\n]/.test(key)){setStatus('Enter a valid Tripo key (12–4096 characters).','error');return}

@@ -1,6 +1,7 @@
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.6';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.5';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.6';
 
 const $=id=>document.getElementById(id);
 let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
@@ -9,7 +10,7 @@ const notice=(msg)=>{$('studioStatus').textContent=msg};
 async function api(path,options={}){
   const method=options.method||'GET';const headers={...(!(options.body instanceof FormData)&&options.body?{'Content-Type':'application/json'}:{}),...getAiHeaders(path),...(options.headers||{})};
   if(method!=='GET')headers['X-CSRF-Token']=csrf;
-  const r=await fetch(path,{credentials:'same-origin',...options,headers});
+  const r=await tracedFetch(path,{credentials:'same-origin',...options,headers});
   const obj=await r.json().catch(()=>({error:'Invalid API response'}));
   if(!r.ok)throw new Error(obj.error||`HTTP ${r.status}`);
   return obj;
@@ -88,7 +89,7 @@ function requireConnection(provider='meta'){
   }
 }
 function currentWorld(){const value=Number($('worldList').value);if(!Number.isInteger(value)||value<1)throw new Error('Save and select a world first');return value}
-async function studioAction(fn){try{await fn()}catch(e){notice(`Error: ${e.message}`);console.error(e)}}
+async function studioAction(fn){try{await fn()}catch(e){notice(`Error: ${e.message} · Open API Console for details.`);console.error(e);openApiConsole()}}
 async function listMedia(){const id=currentWorld();const result=await api(`/api/worlds/${id}/media`);
   const select=$('assetList');select.replaceChildren(new Option('Select imported GLB',''));
   for(const item of result.media.filter(m=>/\.glb$/i.test(m.filename)))select.add(new Option(`${item.filename} (${(item.size/1048576).toFixed(1)} MB)`,item.id));

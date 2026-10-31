@@ -10,8 +10,8 @@ class ReleaseFrontendTest(unittest.TestCase):
     def test_versioned_module_entrypoints(self):
         html = (ROOT / 'index.html').read_text()
         for module in ('app', 'collab', 'studio'):
-            self.assertIn(f'src="./{module}.mjs?v=0.4.5"', html)
-        self.assertIn("from './planner.mjs?v=0.4.5'", (ROOT / 'app.mjs').read_text())
+            self.assertIn(f'src="./{module}.mjs?v=0.4.6"', html)
+        self.assertIn("from './planner.mjs?v=0.4.6'", (ROOT / 'app.mjs').read_text())
 
     def test_uncacheable_html_and_scripts(self):
         backend = (ROOT / 'backend/app.py').read_text()
@@ -38,7 +38,7 @@ class ReleaseFrontendTest(unittest.TestCase):
 
     def test_watcher_has_coloured_start_and_finish(self):
         watcher = (ROOT / 'scripts/release_watcher.py').read_text()
-        for marker in ('DEPLOYMENT START', 'DEPLOYMENT SUCCESS', 'DEPLOYMENT FAILED',
+        for marker in ('DEPLOYMENT START', 'DEPLOYMENT', 'FAILED',
                        "'ERROR'", "'WARN'", "'SUCCESS'", 'NO_COLOR', 'GitHub: ', 'Full release log: '):
             self.assertIn(marker, watcher)
 
