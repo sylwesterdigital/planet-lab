@@ -10,7 +10,7 @@
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.3 · COLLAB</small></div></div><div class="status" id="status">INITIALISING</div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4 · AI STUDIO</small></div></div><div class="status" id="status">INITIALISING</div></header>
 <div class="workspace"><aside class="sidebar left">
 <p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
@@ -40,7 +40,56 @@
 <div style="margin-top:12px"><label class="lab">WORLD CHAT / PRESENCE</label><div id="chatLog" class="feed" style="min-height:40px;max-height:115px"></div>
 <div class="buttons"><input id="chatInput" class="field" maxlength="1000" placeholder="Message other builders" aria-label="Chat message"><button class="btn mini" id="chatSend">Send</button></div></div>
 <div style="margin-top:10px"><label class="lab" for="mediaFile">UPLOAD WORLD MEDIA · 50 MB MAX</label><input type="file" id="mediaFile" class="field" accept=".glb,.gltf,.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.mp3,.wav,.ogg"><button class="btn mini full" id="uploadMedia">Upload to selected world</button></div>
-<div class="hint">Multiuser collaboration is an initial one-process WebSocket implementation; avatars still simulate locally. Public worlds are readable, but only owners may edit or upload assets.</div></div></aside></div></div>
+<div class="hint">Multiuser collaboration is an initial one-process WebSocket implementation; avatars still simulate locally. Public worlds are readable, but only owners may edit or upload assets.</div></div>
+<div class="section" id="aiStudio"><h3>05 / Building Studio + AI</h3>
+<div class="notice"><b>Editable geometry, not engineering certification.</b> Build a parametric structure in the region scene. Meta AI can propose dimensions; user can override everything. API calls may incur costs.</div>
+<div id="studioStatus" class="hint" style="margin:10px 0">Building studio ready.</div>
+<label class="lab" for="aiBrief">BUILDING / INTERIOR BRIEF</label>
+<textarea id="aiBrief" class="field textarea">Compact contemporary lakeside house, two storeys, accessible entrance, wood and glass, three rooms per floor.</textarea>
+<label class="lab" for="aiTier">REASONING TIER</label><select id="aiTier" class="field"><option value="standard">Spark / default</option><option value="complex">Complex / Wonder if configured</option></select>
+<button class="btn primary full" id="aiBuilding">✧ Ask Meta to design building</button>
+<div class="row2"><div><label class="lab" for="bWidth">WIDTH (M)</label><input id="bWidth" type="number" min="3" max="30" step=".5" class="field" value="10"></div><div><label class="lab" for="bDepth">DEPTH (M)</label><input id="bDepth" type="number" min="3" max="30" step=".5" class="field" value="8"></div></div>
+<div class="row2"><div><label class="lab" for="bFloors">FLOORS</label><input id="bFloors" type="number" min="1" max="20" class="field" value="2"></div><div><label class="lab" for="bWindows">WINDOWS / FLOOR</label><input id="bWindows" type="number" min="1" max="9" class="field" value="3"></div></div>
+<div class="row2"><div><label class="lab" for="bRoof">ROOF</label><select id="bRoof" class="field"><option value="flat">Flat</option><option value="gable">Gable</option><option value="shed">Shed</option></select></div><div><label class="lab" for="bRooms">ROOMS</label><input id="bRooms" type="number" min="1" max="16" class="field" value="4"></div></div>
+<label class="lab" for="bStyle">STYLE</label><select id="bStyle" class="field"><option value="modern">Modern</option><option value="traditional">Traditional</option><option value="rustic">Rustic</option><option value="industrial">Industrial</option><option value="futuristic">Futuristic</option></select>
+<div class="buttons"><button id="manualBuilding" class="btn mini primary">Build / update</button><button id="enterBuilding" class="btn mini">Inspect interior</button></div>
+<button id="aiImage" class="btn mini full">Generate Muse concept image (selected world)</button>
+<img id="conceptPreview" hidden alt="AI generated architectural concept" style="width:100%;border-radius:8px;margin-top:9px"/>
+<div class="section"><h3>Simulated city analysis</h3>
+<button class="btn mini full" id="analyseCity">Analyse current masterplan</button>
+<canvas id="cityAnalysis" width="320" height="165" style="width:100%;background:#101d26;border-radius:8px;margin-top:8px" aria-label="Land use distribution chart"></canvas>
+<div id="cityAnalysisNote" class="hint">Simulated land-use counts only. Not sourced real-estate data.</div></div>
+<div class="section"><h3>06 / Tripo3D component foundry</h3>
+<label class="lab" for="tripoPrompt">3D COMPONENT PROMPT</label><textarea id="tripoPrompt" class="field textarea">Low-poly modular wooden garden bench, weathered timber, isolated object, game-ready PBR materials</textarea>
+<button id="tripoCreate" class="btn mini full">Generate 3D asset · Tripo</button>
+<div class="buttons"><button id="tripoCheck" class="btn mini">Check job</button><button disabled id="tripoImport" class="btn mini">Import GLB</button></div>
+<div id="tripoProgress" class="hint">No job submitted. Tasks are asynchronous.</div>
+<label class="lab" for="assetList">WORLD GLB LIBRARY</label><select id="assetList" class="field"><option value="">Select imported GLB</option></select>
+<div class="buttons"><button id="assetRefresh" class="btn mini">Refresh assets</button><button id="assetPlace" class="btn mini">Place in scene</button></div>
+<div class="hint">Automatic GLB import requires an approved Tripo CDN host. If blocked, download the GLB and use the existing world media uploader.</div>
+</div></div>
+<div class="section"><h3>07 / Integrations & Models</h3><div id="studioAdminNote" class="hint">Checking administrator permissions…</div>
+<button class="btn mini full" id="studioRefresh">Refresh authentication / settings</button>
+<div id="integrationsAdmin" hidden>
+<div class="notice">Operator-only. Keys are sent to Flask over HTTPS, stored with file mode 0600 outside the webroot, and never returned by the API. They are not encrypted at rest; restrict server and backups.</div>
+<label class="lab" for="metaEndpoint">META BASE ENDPOINT</label>
+<input class="field" id="metaEndpoint" value="https://api.meta.ai/v1"/>
+<label class="lab" for="metaModel">META REASONING MODEL</label><input class="field" id="metaModel" value="muse-spark-1.3"/>
+<label class="lab" for="metaImageModel">META IMAGE MODEL</label><input class="field" id="metaImageModel" value="muse-image-1.0"/>
+<label class="lab" for="metaComplexModel">COMPLEX MODEL ID (OPTIONAL)</label><input class="field" id="metaComplexModel" placeholder="Your enabled Muse Wonder model ID"/>
+<label class="lab" for="metaSegmentationModel">SEGMENTATION MODEL ID (FUTURE)</label><input class="field" id="metaSegmentationModel" value="sam-3.1"/>
+<label class="lab" for="metaVoiceModel">VOICE TRANSCRIPTION MODEL ID (FUTURE)</label><input class="field" id="metaVoiceModel" value="muse-voice-transcribe-1.0"/>
+<label class="lab" for="metaKey">META API KEY (LEAVE BLANK TO KEEP EXISTING)</label><input class="field" type="password" id="metaKey" autocomplete="off"/>
+<label class="checkbox"><input type="checkbox" id="metaEnabled"/> Enable Meta</label><div class="hint" id="metaConnected"></div>
+<div class="buttons"><button class="btn mini" id="metaSave">Save Meta</button><button class="btn mini" id="metaTest">Test Meta</button></div>
+<label class="lab" for="tripoEndpoint">TRIPO BASE ENDPOINT</label><input class="field" id="tripoEndpoint" value="https://openapi.tripo3d.ai/v3"/>
+<label class="lab" for="tripoModel">TRIPO MODEL ID</label><input class="field" id="tripoModel" value="v3.1-20260211"/>
+<label class="lab" for="tripoKey">TRIPO API KEY (LEAVE BLANK TO KEEP EXISTING)</label><input class="field" type="password" id="tripoKey" autocomplete="off"/>
+<label class="checkbox"><input type="checkbox" id="tripoEnabled"/> Enable Tripo</label><div class="hint" id="tripoConnected"></div>
+<div class="buttons"><button class="btn mini" id="tripoSave">Save Tripo</button><button class="btn mini" id="tripoTest">Check configuration</button></div>
+</div></div>
+</aside></div></div>
 <script type="module" src="./app.mjs"></script>
 <script type="module" src="./collab.mjs"></script>
+<script type="module" src="./studio.mjs"></script>
 </body></html>

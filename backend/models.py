@@ -53,3 +53,16 @@ class Media(Base):
     size: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class AssetJob(Base):
+    __tablename__ = 'asset_jobs'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    world_id: Mapped[int] = mapped_column(ForeignKey('worlds.id'), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    external_task_id: Mapped[str] = mapped_column(String(128))
+    provider: Mapped[str] = mapped_column(String(32), default='tripo')
+    prompt: Mapped[str] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(32), default='queued')
+    result_url: Mapped[str] = mapped_column(Text, default='')
+    media_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -31,10 +31,10 @@ WEBROOT = '/var/www/planetlab.me'
 APPROOT = '/opt/planetlab'
 URL = 'https://planetlab.me'
 SEMVER = re.compile(r'^\d+\.\d+\.\d+$')
-REQUIRED = ('index.html', 'app.mjs', 'planner.mjs', 'collab.mjs', 'house/index.html',
-            'backend/app.py', 'backend/models.py', 'backend/requirements.txt',
+REQUIRED = ('index.html', 'app.mjs', 'planner.mjs', 'collab.mjs', 'studio.mjs', 'house/index.html',
+            'backend/app.py', 'backend/models.py', 'backend/ai_routes.py', 'backend/integrations.py', 'backend/requirements.txt',
             'scripts/install-ubuntu.sh', 'scripts/release_watcher.py',
-            'planetlab-watch.sh', 'test-planner.mjs', 'tests/test_backend.py', 'README.md')
+            'planetlab-watch.sh', 'test-planner.mjs', 'tests/test_backend.py', 'tests/test_ai.py', 'README.md')
 
 
 class ReleaseError(Exception):
@@ -132,7 +132,7 @@ def local_tests(stage):
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     log(output)
     import ast
-    for filename in ['backend/app.py','backend/models.py','scripts/release_watcher.py','tests/test_backend.py']:
+    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
     run(['bash', '-n', 'scripts/install-ubuntu.sh'], cwd=stage, timeout=15)
     installer=(stage / 'scripts/install-ubuntu.sh').read_text()
@@ -152,9 +152,11 @@ def git_preflight(stage, hashes):
     if branch != 'main':
         raise ReleaseError(f'Expected main branch, found {branch}')
     remote = run(['git','remote','get-url','origin'],cwd=ROOT)
-    if remote not in (GITHUB, 'https://github.com/sylwesterdigital/planet-lab.git',
-                      'ssh://git@github.com/sylwesterdigital/planet-lab.git'):
-        raise ReleaseError('Unexpected GitHub origin: ' + remote)
+    if remote != GITHUB:
+        raise ReleaseError('Git origin must use SSH: git remote set-url origin ' + GITHUB)
+    push_remote = run(['git','remote','get-url','--push','origin'],cwd=ROOT)
+    if push_remote != GITHUB:
+        raise ReleaseError('Git push URL must be SSH: git remote set-url --push origin ' + GITHUB)
     staged = run(['git', 'diff', '--cached','--name-only'],cwd=ROOT)
     if staged:
         raise ReleaseError('Existing staged changes: ' + staged)
@@ -167,10 +169,10 @@ def git_preflight(stage, hashes):
             raise ReleaseError('Release conflicts with uncommitted edits: ' + rel)
     run(['git', 'var', 'GIT_AUTHOR_IDENT'], cwd=ROOT)
     remote_main = run(['git', '-c', 'core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
-                       'ls-remote', 'origin', 'refs/heads/main'], cwd=ROOT, timeout=35)
+                       'ls-remote', GITHUB, 'refs/heads/main'], cwd=ROOT, timeout=35)
     # Accept empty repositories but refuse to overwrite diverged histories.
     if remote_main:
-        run(['git', 'fetch', '--no-tags', 'origin', 'main'], cwd=ROOT, timeout=45)
+        run(['git', 'fetch', '--no-tags', GITHUB, 'main'], cwd=ROOT, timeout=45)
         if subprocess.run(['git','rev-parse','--verify','HEAD'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode == 0:
             relation = subprocess.run(['git','merge-base','--is-ancestor','FETCH_HEAD','HEAD'],cwd=ROOT,
                                       stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
@@ -198,7 +200,7 @@ def deploy_stage(stage, version):
       . /etc/planetlab/planetlab.env
       export PLANETLAB_SECRET_KEY PLANETLAB_DATA_DIR
       VENV_PY="$(bash {remote_path(release+'/scripts/install-ubuntu.sh')} {version} venv-path)"
-      runuser -u planetlab -- "$VENV_PY" -m unittest discover -s tests -p 'test_backend.py' -v''', timeout=70)
+      runuser -u planetlab -- "$VENV_PY" -m unittest discover -s tests -p 'test_*.py' -v''', timeout=70)
     if 'OK' not in output:
         raise ReleaseError('Remote backend tests were not confirmed: ' + output[-400:])
     log('Ubuntu release staged, dependencies installed, backend tests passed. Live unchanged.')
@@ -226,10 +228,10 @@ def git_publish(stage, manifest):
         if subprocess.run(['git','diff','--cached','--quiet'],cwd=ROOT).returncode:
             run(['git','commit','-m',f'planetlab: release v{manifest["version"]}'],cwd=ROOT)
         run(['git','-c','core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
-             'push','origin','main'],cwd=ROOT,timeout=100)
+             'push',GITHUB,'main'],cwd=ROOT,timeout=100)
         local=run(['git','rev-parse','HEAD'],cwd=ROOT)
         remote=run(['git','-c','core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
-                    'ls-remote','origin','refs/heads/main'],cwd=ROOT,timeout=30)
+                    'ls-remote',GITHUB,'refs/heads/main'],cwd=ROOT,timeout=30)
         if not remote.startswith(local+'\t'):
             raise ReleaseError('GitHub did not confirm pushed commit')
     except Exception:
@@ -286,6 +288,7 @@ def process(archive, dry_run=False):
 
 
 def main():
+    os.environ['GIT_TERMINAL_PROMPT'] = '0'
     parser=argparse.ArgumentParser(description='PLANETLAB versioned ZIP deployment watcher for macOS')
     mode=parser.add_mutually_exclusive_group()
     mode.add_argument('--once',action='store_true',help='Consume pending ZIPs once then exit')

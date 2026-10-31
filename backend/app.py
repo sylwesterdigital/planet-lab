@@ -16,8 +16,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
+from .ai_routes import setup_ai
 
-VERSION = '0.3.2'
+VERSION = '0.4.0'
 MAX_PLAN = 2 * 1024 * 1024
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
@@ -352,6 +353,23 @@ def create_app(test_config=None):
             if not file_path.is_file():
                 abort(404)
             return send_file(file_path, mimetype='application/octet-stream', as_attachment=True, download_name=item.filename)
+
+    @app.get('/api/media/<media_id>/raw')
+    def inline_media(media_id):
+        with db_session() as db:
+            item = db.get(Media, media_id)
+            if not item:
+                abort(404)
+            allowed_world(db, item.world_id, actor(db))
+            if Path(item.filename).suffix.lower() not in ('.glb', '.webp', '.png', '.jpg', '.jpeg'):
+                abort(404)
+            file_path = data_dir / 'media' / (item.id + Path(item.filename).suffix.lower())
+            if not file_path.is_file():
+                abort(404)
+            mimetype = 'model/gltf-binary' if file_path.suffix == '.glb' else item.mime
+            return send_file(file_path, mimetype=mimetype, as_attachment=False)
+
+    setup_ai(app, db_session, data_dir, actor, require_csrf, fail)
 
     @app.get('/')
     def homepage():

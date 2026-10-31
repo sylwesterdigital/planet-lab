@@ -25,7 +25,7 @@ if(Array.isArray(c.site)){sim.site=c.site;sim.world.setSite(sim.site);sim.update
 sim.createPlan();el('freeZone').checked=data.governance==='voluntary-free-zone';sim.world.setVoluntaryZone(el('freeZone').checked);
 const previous=new Map((data.tasks||[]).filter(t=>t.status==='installed').map(t=>[t.id,t]));
 for(const task of sim.plan.tasks){if(previous.has(task.id)){task.status='installed';sim.world.makePart(task);}}
-sim.updateUi();sim.drawMap();}
+sim.updateUi();sim.drawMap();window.planetLabStudio?.applyStored(data);}
 function connect(world){if(socket){socket.close();socket=null;}
 if(!currentUser)return;
 const protocol=location.protocol==='https:'?'wss:':'ws:';

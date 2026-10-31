@@ -130,3 +130,78 @@ python3 -m unittest discover -s tests -p 'test_backend.py'
 | `GET /api/media/<uuid>` | Authenticated forced-attachment media download |
 
 JSON world blueprint contains `config`, `tasks`, `landuse`, `stats` and experimental governance metadata. `plan` generation and robots remain local/authoritative in the browser; syncing complex 3D edits and authoritative multiplayer actions are planned for the next release.
+
+---
+
+# Planet Lab 0.4.0 — Spatial AI Studio and 3D component foundry
+
+This release **extends** the existing 0.3.x Three.js procedural planet, city planner, house-builder demo, robots, multiuser accounts, SQLite/PostgreSQL, WebSockets and Mac release watcher. It does not replace those modules.
+
+## What's new
+
+- **Building Studio:** manually edit width, depth, 1–20 floors, roof type, facade styling, windows and simple room partitions. A first-person-like interior camera inspection is provided, but there is no collision, interaction or architectural certification. Studio buildings are concept geometry overlaid on the original terrain; they do **not** alter zoning, roads or robot task scheduling.
+- **Meta Muse Spark:** an admin can ask Meta to propose a JSON building specification. All dimensions are bounded and converted into deterministic THREE.BoxGeometry meshes. Generated JSON never executes code.
+- **Meta Muse Image:** generate one architectural concept image per call and attach the result to an owned saved world as private media (unless the world is made public).
+- **Tripo3D:** queue text-to-3D tasks; poll their status manually. Import approved-host GLB model URLs into world media and place GLBs in the scene, or use the existing manual GLB uploader if the provider uses another CDN.
+- **Integrations & Models:** admin-controlled server-side API keys, model identifiers and allowlisted HTTPS API endpoints for Meta and Tripo; no keys embedded in JavaScript or the release archive.
+- **Simulated analytics:** a bar chart of planned roads, residential buildings, infrastructure and protected green-space cells. This is NOT a real-world city dataset.
+- **Deployment:** Git remotes must be configured to the repo's GitHub SSH URL. The watcher runs new integration tests as part of remote preparation.
+
+## Authentication: one-time operator approval
+
+Registration alone **never grants API billing privileges**. After a successful 0.4.0 deployment, create/sign in to the intended Planet Lab account on `https://planetlab.me/`, then authorise that existing account on Ubuntu:
+
+```bash
+ssh -tt -p 333 root@planetlab.me 'bash /opt/planetlab/current/scripts/authorize-admin.sh'
+```
+
+The helper looks up the existing account ID in the configured database, shows the binding and requires `AUTHORIZE`. It writes `PLANETLAB_ADMIN_HANDLE` and `PLANETLAB_ADMIN_USER_ID` to `/etc/planetlab/planetlab.env` with a timestamped backup and restarts only `planetlab.service`. A deployment cannot automatically elect a public registrant as billing administrator. If this command is not run, the integration configuration remains disabled by default.
+
+In the web UI, click **Refresh authentication / settings** to reveal Integrations & Models, then enter API credentials. Meta and Tripo are **disabled until individually enabled**. The Tripo connection check validates local configuration only (no potentially charged request); the Meta test calls GET `/models` and requires network access.
+
+## Configuration and provider boundaries
+
+| Provider | Base URL | Model | API operation |
+| --- | --- | --- | --- |
+| Meta | `https://api.meta.ai/v1` | `muse-spark-1.3` | `POST /chat/completions` |
+| Meta image | Same Meta key | `muse-image-1.0` | `POST /images/generations` |
+| Tripo | `https://openapi.tripo3d.ai/v3` (or `.com`) | `v3.1-20260211` | `POST /generation/text-to-model`, `GET /tasks/{id}` |
+
+Only these documented origins are available from the configuration UI. Arbitrary internal endpoints are deliberately not permitted. Provider calls are never made during app startup or deploy. They are initiated on demand by the authorised operator and may incur charges. The application does not yet implement spending limits, usage accounting, or background task workers.
+
+**Credentials:** stored in `/var/lib/planetlab/private/integrations.json`, under `0700` parent and `0600` file permissions. Keys are **not encrypted at rest**: protect the service account, snapshots and backups, and rotate keys if compromised. They are omitted from API responses, commits and ZIP releases. Never paste keys into chat or Git.
+
+Tripo GLB model URLs can use temporary signed CDN links. Planet Lab checks that the URL uses HTTPS and an approved host before downloading, rejects redirects and checks the GLB header/length/size. To trust an additional official Tripo CDN hostname, add the exact hostname to the operator-managed service environment as `PLANETLAB_TRIPO_ASSET_HOSTS=cdn.example.org`, then restart the service. Do not allow arbitrary domains or local IP addresses. Manual GLB import remains available. Imported assets and generated images are stored under `/var/lib/planetlab/media/`, never inside releases.
+
+## Existing deployment workflow
+
+Copy a new `PLANETLAB_RELEASE_v0.4.0.zip` to the Mac repository's `updates/`, then run:
+
+```bash
+cd /Users/smielniczuk/Documents/works/planet-lab
+bash planetlab-watch.sh --dry-run
+bash planetlab-watch.sh --once
+```
+
+The watcher stages `/opt/planetlab/releases/v0.4.0`, uses the shared requirements-keyed venv under `/opt/planetlab/venvs`, checks the backend in isolation, commits and pushes GitHub with SSH, activates systemd/Nginx, verifies public HTTPS, and rolls back the application on failed activation. It never synchronises world media or database files from the release ZIP. A new `asset_jobs` SQL table is created via existing metadata bootstrap; altering existing schemas in later releases needs Alembic migrations.
+
+**Release watcher limitations:** server upgrade preflight can stage files and install Python packages. It does not test production credentials, Meta/Tripo paid inference, externally hosted CDN downloads, distributed WebSockets, or WebXR hardware. After deployment verify authentication, settings and a deliberately low-cost test request manually.
+
+## World model and roadmap
+
+Keep geography, editable geometry, AI content and economy separate. Recommended hierarchy:
+
+`Planet → Region → City → Parcel → Building → Floor → Room → Component`
+
+Future milestones should include: GeoJSON/OpenStreetMap/Overture parcel ingestion with source/licence/provenance, real estate visual layers, parametric building component IDs and constraint graph, room-level materials/furniture/doors, real WebXR walking interaction and manual work tools, durable asynchronous provider job queue and automated CDN ingest, spatial/transport networks, and a resource-accounting simulation with simulated rather than legal ownership. There is **no live GIS/real estate integration, world economy, structural simulation or authoritative multiplayer building** in this release.
+
+## Local validation
+
+```bash
+node --check app.mjs
+node --check studio.mjs
+node test-planner.mjs
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Full backend integration tests need packages from `backend/requirements.txt`; the watcher installs them on Ubuntu in an isolated virtual environment. New AI tests mock Meta responses and never spend API credits. Check actual provider API versions and your agreement before enabling paid calls.
