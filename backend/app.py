@@ -19,7 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
 from .ai_routes import setup_ai
 
-VERSION = '0.4.6'
+VERSION = '0.4.7'
 MAX_PLAN = 2 * 1024 * 1024
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
@@ -90,8 +90,22 @@ def create_app(test_config=None):
         return world
 
     def public_world(w):
+        place = w.blueprint.get('place', {}) if isinstance(w.blueprint, dict) else {}
+        config = w.blueprint.get('config', {}) if isinstance(w.blueprint, dict) else {}
+        anchor = config.get('anchor') if isinstance(config, dict) else None
+        if not isinstance(anchor, dict):
+            anchor = None
+        else:
+            try:
+                lat, lon = float(anchor['lat']), float(anchor['lon'])
+                anchor = {'lat': lat, 'lon': lon} if -90 <= lat <= 90 and -180 <= lon <= 180 else None
+            except (KeyError, ValueError, TypeError):
+                anchor = None
         return dict(id=w.id, title=w.title, owner=w.owner.handle, revision=w.revision,
-                    is_public=w.is_public, updated_at=w.updated_at.isoformat() if w.updated_at else None)
+                    is_public=w.is_public, updated_at=w.updated_at.isoformat() if w.updated_at else None,
+                    anchor=anchor, seed=str(config.get('seed', ''))[:60] if isinstance(config, dict) else '',
+                    starred=bool(place.get('starred')) if isinstance(place, dict) else False,
+                    codename=str(place.get('codename', ''))[:60] if isinstance(place, dict) else '')
 
     @app.after_request
     def headers(response):
@@ -135,6 +149,26 @@ def create_app(test_config=None):
         with db_session() as db:
             db.execute(select(func.count()).select_from(User)).scalar_one()
         return jsonify(service='planetlab-api', version=VERSION, status='ok', database='connected', websocket='enabled')
+
+    @app.get('/api/releases')
+    def release_history():
+        path = data_dir / 'deployment-history.json'
+        if not path.is_file():
+            return jsonify(version=VERSION, releases=[])
+        try:
+            # Public metadata only: deployed version, UTC time, Git commit SHA.
+            # Stored outside the web release directory.
+            if path.stat().st_size > 64 * 1024:
+                return fail('Release history unavailable', 503)
+            rows = json.loads(path.read_text()).get('releases', [])
+            safe = []
+            for item in rows[:25]:
+                if not isinstance(item, dict):
+                    continue
+                safe.append({k: str(item.get(k, ''))[:80] for k in ('version', 'deployedAt', 'git')})
+            return jsonify(version=VERSION, releases=safe)
+        except (OSError, ValueError, TypeError):
+            return fail('Release history unavailable', 503)
 
     @app.get('/api/session')
     def status():
@@ -247,6 +281,31 @@ def create_app(test_config=None):
             result = world.revision
         broadcast(world_id, {'type': 'world_updated', 'revision': result})
         return jsonify(id=world_id, revision=result)
+
+    @app.patch('/api/worlds/<int:world_id>/star')
+    def star_world(world_id):
+        require_csrf()
+        with db_session.begin() as db:
+            user = actor(db)
+            world = db.get(World, world_id)
+            if not user or not world or world.owner_id != user.id:
+                abort(403)
+            data = request.get_json(silent=True) or {}
+            if not isinstance(data.get('starred'), bool):
+                return fail('starred must be true or false')
+            if data.get('revision') != world.revision:
+                return fail('Revision conflict; refresh snapshots', 409)
+            # Reassignment is required for SQLAlchemy JSON change tracking.
+            blueprint = dict(world.blueprint)
+            place = dict(blueprint.get('place') or {})
+            place['starred'] = data['starred']
+            blueprint['place'] = place
+            world.blueprint = blueprint
+            world.revision += 1
+            db.flush()
+            result = world.revision
+        broadcast(world_id, {'type': 'world_updated', 'revision': result})
+        return jsonify(id=world_id, revision=result, starred=data['starred'])
 
     @app.get('/api/worlds/<int:world_id>/messages')
     def get_messages(world_id):

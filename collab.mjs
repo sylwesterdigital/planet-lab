@@ -31,7 +31,7 @@ async function worlds(){const d=await call('/api/worlds');const list=el('worldLi
 for(const w of d.worlds){list.add(new Option(`#${w.id} · ${w.title} · ${w.owner}${w.is_public?' · public':''}`,String(w.id)));}
 if(Array.from(list.options).some(o=>o.value===selected))list.value=selected;
 }
-function blueprint(){const sim=window.planetLabApp;if(!sim?.plan)throw new Error('Generate a masterplan before saving');return {...sim.plan, governance:el('freeZone').checked?'voluntary-free-zone':'unspecified', tasks:sim.plan.tasks.map(t=>({...t}))};}
+function blueprint(){const sim=window.planetLabApp;if(!sim?.plan)throw new Error('Generate a masterplan before saving');return {...sim.plan, governance:el('freeZone').checked?'voluntary-free-zone':'unspecified', tasks:sim.plan.tasks.map(t=>({...t})), studioBuildings:sim.plan.studioBuildings||[]};}
 function readIntoScene(data){const sim=window.planetLabApp;if(!sim)throw new Error('3D engine has not loaded');const c=data.config||{};
 for(const id of ['seed','geography','profile','level','budget','teams','brief'])if(c[id] !== undefined && el(id))el(id).value=String(c[id]);
 sim.anchor=c.anchor||sim.anchor;sim.generateWorld();
@@ -147,5 +147,13 @@ async function bootAuth(){
     console.error('Session check failed',error);
   }
 }
+window.planetLabWorlds={
+  getBlueprint:blueprint,
+  loadId:async(id)=>{el('worldList').value=String(id);await load()},
+  refresh:worlds,
+  csrf:()=>csrf,
+  user:()=>currentUser,
+  api:call
+};
 el('authRetry').onclick=bootAuth;
 await bootAuth();

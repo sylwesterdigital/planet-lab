@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.6';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.7';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -21,18 +21,32 @@ class WorldView{
   this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=10;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.48;
   this.scene.add(new THREE.HemisphereLight('#bddbff','#3b412f',2.4));let sun=new THREE.DirectionalLight('#ffefd4',3.0);sun.position.set(-48,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.bottom=-110;sun.shadow.camera.top=110;sun.shadow.camera.near=1;sun.shadow.camera.far=250;sun.shadow.bias=-.0006;this.scene.add(sun);
   this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.robotsGroup=new THREE.Group();this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scene.add(this.planetGroup,this.regionGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);
-  this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
+  this.pinGroup=new THREE.Group();this.planetGroup.add(this.pinGroup);this.pinIndex=[];this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
   let down=null;canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;this.click(e)});
   window.addEventListener('resize',()=>this.resize());this.resize();this.setMode('region');
  }
  resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/r.height;this.camera.updateProjectionMatrix()}
  setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.robotsGroup.visible=region;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.48:Math.PI;this.controls.enablePan=region;this.resetCamera()}
  resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{this.camera.position.set(57,68,89);this.controls.target.set(0,2,0);this.controls.minDistance=10;this.controls.maxDistance=210}this.controls.update()}
- buildPlanet(seed){clearGroup(this.planetGroup);const globeGeo=new THREE.SphereGeometry(28,120,72),arr=globeGeo.attributes.position,clrs=[];const sea=new THREE.Color('#245476'),coast=new THREE.Color('#b3ba84'),grass=new THREE.Color('#4b9878'),mountain=new THREE.Color('#c2b7a1'),ice=new THREE.Color('#dee6db');
+ buildPlanet(seed){clearGroup(this.planetGroup);this.planetGroup.add(this.pinGroup);this.renderPlacePins(this.pinIndex);const globeGeo=new THREE.SphereGeometry(28,120,72),arr=globeGeo.attributes.position,clrs=[];const sea=new THREE.Color('#245476'),coast=new THREE.Color('#b3ba84'),grass=new THREE.Color('#4b9878'),mountain=new THREE.Color('#c2b7a1'),ice=new THREE.Color('#dee6db');
  for(let i=0;i<arr.count;i++){let x=arr.getX(i)/28,y=arr.getY(i)/28,z=arr.getZ(i)/28,n=planetElevation(x,y,z,seed);let c;if(n<0)c=sea.clone().lerp(new THREE.Color('#31779a'),clamp(n+.2,0,.2)*1.9);else if(n<.04)c=coast.clone();else if(n<.17)c=grass.clone();else c=mountain.clone();if(Math.abs(y)>.83)c.lerp(ice,clamp((Math.abs(y)-.83)*6,0,1));clrs.push(c.r,c.g,c.b)}
  globeGeo.setAttribute('color',new THREE.Float32BufferAttribute(clrs,3));this.globe=new THREE.Mesh(globeGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));this.planetGroup.add(this.globe);
  let atmosphere=new THREE.Mesh(new THREE.SphereGeometry(28.55,48,32),new THREE.MeshBasicMaterial({color:'#79bfd2',transparent:true,opacity:.07,side:THREE.BackSide}));this.planetGroup.add(atmosphere);
  const random=mulberry32(hash(seed+'stars'));let pts=[];for(let i=0;i<350;i++){const a=random()*Math.PI*2,b=Math.acos(random()*2-1),r=130+random()*60;pts.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a))}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));this.planetGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({color:'#a0b9d8',size:.35,sizeAttenuation:true})))
+ }
+ renderPlacePins(items=[]){
+  this.pinIndex=items;
+  if(!this.pinGroup)return;
+  clearGroup(this.pinGroup);
+  for(const entry of items){
+    if(!entry.anchor)continue;
+    const lat=entry.anchor.lat*Math.PI/180,lon=entry.anchor.lon*Math.PI/180;
+    // PlanetLab longitude maps to x/z sphere axes; all coordinates are fictional.
+    const normal=new THREE.Vector3(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon));
+    const pin=new THREE.Mesh(new THREE.SphereGeometry(entry.starred?.58:.36,10,8),new THREE.MeshBasicMaterial({color:entry.draft?'#f4a86f':entry.starred?'#ffd684':'#a8f4d3'}));
+    pin.position.copy(normal.multiplyScalar(28.5));pin.userData.placeId=entry.id;
+    this.pinGroup.add(pin);
+  }
  }
  generateTerrain(config){this.config=config;clearGroup(this.regionGroup);clearGroup(this.buildGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
   const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
@@ -59,7 +73,24 @@ class WorldView{
  }
  height(x,z){return terrainHeight(x,z,this.config)}
  drawSelection(){if(!this.selection)return;}
- click(e){const b=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1);this.raycaster.setFromCamera(this.pointer,this.camera);if(this.mode==='planet'&&this.globe){const hit=this.raycaster.intersectObject(this.globe)[0];if(hit){const p=hit.point.clone().normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){const hit=this.raycaster.intersectObject(this.terrain)[0];if(hit){const site=chooseSite([hit.point.x,hit.point.z],this.config);this.changeSite(site);return}}}
+ click(e){const b=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1);this.raycaster.setFromCamera(this.pointer,this.camera);if(this.mode==='planet'&&this.globe){
+  const pinHit=this.raycaster.intersectObjects(this.pinGroup.children,false)[0];
+  if(pinHit?.object?.userData?.placeId){
+    window.dispatchEvent(new CustomEvent('planetlab:open-pin',{detail:{id:pinHit.object.userData.placeId}}));return;
+  }
+  const hit=this.raycaster.intersectObject(this.globe)[0];if(hit){const p=hit.point.clone().normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){
+  const meshHit=this.raycaster.intersectObjects(this.buildGroup.children,true).find(intersection=>{
+    let ancestor=intersection.object;
+    while(ancestor&&ancestor!==this.buildGroup){if(ancestor.userData?.task?.meta?.kind)return true;ancestor=ancestor.parent}
+    return false;
+  });
+  if(meshHit){
+    let ancestor=meshHit.object;
+    while(ancestor&&ancestor!==this.buildGroup&&!ancestor.userData?.task)ancestor=ancestor.parent;
+    const task=ancestor?.userData?.task;
+    if(task?.meta?.kind){window.dispatchEvent(new CustomEvent('planetlab:building-selected',{detail:{task}}));return}
+  }
+  const hit=this.raycaster.intersectObject(this.terrain)[0];if(hit){const site=chooseSite([hit.point.x,hit.point.z],this.config);this.changeSite(site);return}}}
  makePart(task){const g=new THREE.Group(),{type,stage,x,z,meta}=task,y=this.height(x,z);g.position.set(x,y,z);const bkind=meta.kind||type,w=meta.width||2.8,d=meta.depth||2.2,h=meta.floors>6?meta.floors*1.25:Math.max(2.6,(meta.floors||1)*2.9);const palette=['#ddc2a7','#bcb9a7','#c3cbd1','#c9a8a2'];
  if(type==='road'||type==='arterial'){const wide=meta.width||2.1;box(g,0,.04,0,meta.axis==='z'?wide:this.plan.cellSize, .09,meta.axis==='z'?this.plan.cellSize:wide,'#536775');if(type==='arterial'){const line=box(g,0,.095,0,meta.axis==='z'?.065:1.55,.012,meta.axis==='z'?1.55:.065,'#e8cf9e');} }
  else if(type==='path'){const m=box(g,0,.09,0,2.4,.08,.6,'#c1ae8f');m.rotation.y=meta.rotation||0}
@@ -107,7 +138,16 @@ class Robot{
  }
 }
 class CityApp{
- constructor(){this.events=[];this.time=0;this.last=0;this.lastUi=0;this.running=true;this.plan=null;this.anchor={lat:11.2,lon:-35.4};this.site=[0,0];this.robots=[];this.config=null;this.world=new WorldView($('scene'),site=>this.changeSite(site),anchor=>this.changeAnchor(anchor));this.installEvents();this.generateWorld();this.createPlan();this.loop=this.loop.bind(this);this.world.renderer.setAnimationLoop(this.loop);const xrButton=VRButton.createButton(this.world.renderer);xrButton.style.position='static';xrButton.style.width='100%';xrButton.style.marginTop='8px';xrButton.style.background='#263a45';document.getElementById('xrControls').appendChild(xrButton)}
+ constructor(){this.events=[];this.time=0;this.last=0;this.lastUi=0;this.running=true;this.plan=null;this.anchor={lat:11.2,lon:-35.4};this.site=[0,0];this.robots=[];this.config=null;this.world=new WorldView($('scene'),site=>this.changeSite(site),anchor=>this.changeAnchor(anchor));this.installEvents();this.generateWorld();this.createPlan();this.loop=this.loop.bind(this);this.world.renderer.setAnimationLoop(this.loop);this.setupXR()}
+ async setupXR(){
+  const target=$('xrControls');
+  if(!navigator.xr?.isSessionSupported || !window.isSecureContext)return;
+  try{
+    if(!await navigator.xr.isSessionSupported('immersive-vr'))return;
+    const button=VRButton.createButton(this.world.renderer);
+    target.appendChild(button);target.hidden=false;
+  }catch(error){console.info('WebXR VR unavailable:',error?.message||error)}
+ }
  log(msg){this.events.unshift({time:this.time,msg});this.events=this.events.slice(0,45)}
  readConfig(){return citySpec({seed:$('seed').value||'ODYSSEY-7',geography:$('geography').value,anchor:this.anchor,profile:$('profile').value,level:$('level').value,budget:$('budget').value,teams:$('teams').value,brief:$('brief').value,site:this.site})}
  generateWorld(){this.running=false;this.config=this.readConfig();this.world.buildPlanet(this.config.seed);this.site=chooseSite([0,0],this.config);this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);this.world.setMode('region');this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}

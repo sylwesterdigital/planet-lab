@@ -238,7 +238,7 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
@@ -246,8 +246,9 @@ def local_tests(stage):
     run(['python3','tests/test_release_ui.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_ai_setup.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_api_console.py'], cwd=stage, timeout=20)
+    run(['python3','tests/test_places_ui.py'], cwd=stage, timeout=20)
     import ast
-    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py']:
+    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
     run(['bash', '-n', 'scripts/install-ubuntu.sh'], cwd=stage, timeout=15)
     if (stage / 'scripts/install-macos-watcher.sh').is_file():
@@ -437,6 +438,11 @@ def process(archive, dry_run=False):
         activate(version)
         RUN['live'] = True
         log('6/6  HTTPS + API verified', 'SUCCESS')
+        # Optional UX metadata: a failure here must not roll back a healthy release.
+        try:
+            ssh(f'python3 {remote_path(APPROOT+"/current/scripts/record-release.py")} {version} {commit}', timeout=15)
+        except Exception as log_error:
+            log(f'Deployment succeeded; release history not recorded: {_short_error(log_error)}', 'WARN')
         status = {'version': version, 'utc': dt.datetime.now(dt.timezone.utc).isoformat(),
                   'github': GITHUB, 'site': URL}
         tempstatus = STATE / 'deployed.json.tmp'

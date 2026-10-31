@@ -4,7 +4,7 @@ const events=[];
 const LIMIT=100;
 const MAX_TEXT=9000;
 let selectedId=null;
-let fontSize=12;
+let fontSize=11;
 let filter='all';
 let running=0;
 let visible=false;
@@ -99,12 +99,20 @@ function downloadJson(data,name){
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;
   document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function setMinimised(on){
+  const panel=el('apiConsole');if(!panel)return;
+  panel.classList.toggle('minimised',Boolean(on));
+  const button=el('apiConsoleMin');button.textContent=on?'+':'−';
+  button.title=on?'Restore console':'Minimise console';
+  button.setAttribute('aria-label',on?'Restore console':'Minimise console');
+}
 function setup(){
   const panel=el('apiConsole');if(!panel)return;
   el('apiConsoleTop').addEventListener('click',openApiConsole);
   el('apiConsoleAi').addEventListener('click',openApiConsole);
   el('apiConsoleStudio').addEventListener('click',openApiConsole);
   el('apiConsoleClose').addEventListener('click',closeApiConsole);
+  el('apiConsoleMin').addEventListener('click',()=>setMinimised(!panel.classList.contains('minimised')));
   el('apiLogClear').addEventListener('click',()=>{events.length=0;selectedId=null;draw()});
   el('apiLogExport').addEventListener('click',()=>downloadJson({source:'Planet Lab API console',exportedAt:new Date().toISOString(),redacted:true,requests:events},'planetlab-api-logs.json'));
   el('apiLogCopy').addEventListener('click',async()=>{
@@ -112,8 +120,8 @@ function setup(){
     try{await navigator.clipboard.writeText(serial(entry));el('apiLogCopy').textContent='Copied';setTimeout(()=>{el('apiLogCopy').textContent='Copy selected'},1100)}
     catch{el('apiLogDetail').focus();const sel=window.getSelection(),range=document.createRange();range.selectNodeContents(el('apiLogDetail'));sel.removeAllRanges();sel.addRange(range)}
   });
-  el('apiLogLess').addEventListener('click',()=>{fontSize=Math.max(10,fontSize-1);draw()});
-  el('apiLogMore').addEventListener('click',()=>{fontSize=Math.min(20,fontSize+1);draw()});
+  el('apiLogLess').addEventListener('click',()=>{fontSize=Math.max(6,fontSize-1);draw()});
+  el('apiLogMore').addEventListener('click',()=>{fontSize=Math.min(26,fontSize+1);draw()});
   el('apiLogFilter').addEventListener('change',e=>{filter=e.target.value;draw()});
   // Only the title bar moves the window. Native resize handle changes dimensions.
   const handle=el('apiConsoleHandle');let dragging=null;

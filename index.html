@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>PLANET LAB — Autonomous Settlement Sandbox</title>
+<title>PlanetLab — World Builder</title>
 <meta name="description" content="Procedural planet, natural terrain, settlement masterplans and multi-team Three.js construction robots."/>
 <style>
 :root{--bg:#0b121b;--panel:#121e2a;--line:#2c3d4b;--text:#e9f1f3;--muted:#91a7b7;--lime:#b8ed8e;--teal:#72d3c4;--gold:#f0bc84;--blue:#96bcff}
@@ -39,10 +39,16 @@
 .ai-inline-status.error{color:#ffaaaa;border-color:#99575b}.ai-inline-status.success{color:#b8ed8e;border-color:#528969}
 .ai-details{margin-top:15px;border-top:1px solid #345263;padding-top:15px}.ai-details summary{cursor:pointer;font-weight:700;color:#b8ced9;font-size:12px}.ai-modal-footer{border-top:1px solid #345263;margin-top:19px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:14px}.ai-modal-footer span{max-width:335px;color:#9aafbc;font-size:11px;line-height:1.6}.ai-modal-footer button{white-space:normal;min-width:145px}
 @media(max-width:650px){.ai-modal-card{padding:17px}.ai-modal-head h2{font-size:25px}.ai-modal-footer{flex-direction:column;align-items:stretch}.ai-modal-footer button{width:100%}}
+
+.top-right{display:flex;gap:12px;align-items:center}.top-github{font-size:11px;text-decoration:none;color:#a8d5e2}.top-github:hover{color:var(--lime)}
+.updates-popover{position:fixed;right:18px;top:67px;width:min(370px,calc(100vw - 36px));z-index:1000;background:#102330;border:1px solid #4d6c75;box-shadow:0 15px 55px #000b;border-radius:10px;padding:13px}.updates-popover[hidden]{display:none}.updates-popover header{display:flex;justify-content:space-between;align-items:center;gap:8px}.updates-items{display:grid;gap:9px;max-height:225px;overflow:auto;margin:12px 0}.update-entry{border-bottom:1px solid #2b424e;padding-bottom:9px}.update-entry b{font-size:11px;color:var(--lime)}.update-entry time{font:10px ui-monospace,monospace;color:#91aabb;margin-left:8px}.update-entry p{margin:4px 0;color:#b3cad1;font-size:11px;line-height:1.5}
+.xr-stage-entry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:auto}.xr-stage-entry[hidden]{display:none!important}.xr-stage-entry button{position:static!important;width:auto!important;min-width:140px!important;margin:0!important;background:#163542dd!important;box-shadow:0 4px 20px #000a!important}
+.snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
+@media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
-/* v0.4.6: floating HTTP inspector: native resize + pointer-draggable title */
+/* v0.4.7: floating HTTP inspector: native resize + pointer-draggable title */
 .api-console[hidden]{display:none!important}
 .api-console{position:fixed;z-index:11000;bottom:20px;right:20px;width:min(750px,calc(100vw - 24px));height:min(490px,calc(100vh - 24px));min-width:300px;min-height:225px;max-width:100vw;max-height:100vh;resize:both;overflow:hidden;display:flex;flex-direction:column;background:#0a1520;border:1px solid #526b7d;border-radius:12px;box-shadow:0 16px 75px #000d;color:#e6f2f6;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .api-console-bar{touch-action:none;user-select:none;cursor:move;display:flex;align-items:center;gap:12px;padding:12px 14px;background:#142b39;border-bottom:1px solid #355064;flex-shrink:0}
@@ -60,6 +66,12 @@
 .api-console-foot{flex-shrink:0;border-top:1px solid #304859;padding:7px 10px;color:#91aab9;background:#122332;font-size:9px}
 .api-alert{border-color:#d47471!important;color:#ffb0a9!important}
 @media(max-width:560px){.api-console{left:6px!important;right:6px!important;bottom:6px;width:calc(100vw - 12px);min-width:0;height:min(450px,80vh)}.api-console-content{grid-template-columns:1fr;grid-template-rows:35% 65%}.api-console-list{border-right:0;border-bottom:1px solid #29404e}}
+
+.top-right{display:flex;gap:12px;align-items:center}.top-github{font-size:11px;text-decoration:none;color:#a8d5e2}.top-github:hover{color:var(--lime)}
+.updates-popover{position:fixed;right:18px;top:67px;width:min(370px,calc(100vw - 36px));z-index:1000;background:#102330;border:1px solid #4d6c75;box-shadow:0 15px 55px #000b;border-radius:10px;padding:13px}.updates-popover[hidden]{display:none}.updates-popover header{display:flex;justify-content:space-between;align-items:center;gap:8px}.updates-items{display:grid;gap:9px;max-height:225px;overflow:auto;margin:12px 0}.update-entry{border-bottom:1px solid #2b424e;padding-bottom:9px}.update-entry b{font-size:11px;color:var(--lime)}.update-entry time{font:10px ui-monospace,monospace;color:#91aabb;margin-left:8px}.update-entry p{margin:4px 0;color:#b3cad1;font-size:11px;line-height:1.5}
+.xr-stage-entry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:auto}.xr-stage-entry[hidden]{display:none!important}.xr-stage-entry button{position:static!important;width:auto!important;min-width:140px!important;margin:0!important;background:#163542dd!important;box-shadow:0 4px 20px #000a!important}
+.snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
+@media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
 </style>
 </head><body>
 <div class="auth-backdrop" id="authBackdrop" role="dialog" aria-modal="true" aria-label="Planet Lab account">
@@ -94,7 +106,7 @@
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.6 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.7 · World / City / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace"><aside class="sidebar left">
 <p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
@@ -104,14 +116,31 @@
 <div class="row2"><div><label class="lab" for="profile">ECONOMY / CITY PROFILE</label><select id="profile" class="field"><option value="mixed">Balanced settlement</option><option value="agricultural">Agricultural</option><option value="industrial">Industrial</option><option value="resort">Holiday / Vegas</option><option value="spa">Spa / wellness</option><option value="datacenter">Data centre hub</option><option value="metropolis">Dense metropolis</option></select></div><div><label class="lab" for="level">COMPLEXITY</label><select id="level" class="field"><option value="basic" selected>Basic</option><option value="simple">Simple</option><option value="average">Average</option><option value="advanced">Advanced</option><option value="super">Super complex</option></select></div></div>
 <div class="row2"><div><label class="lab" for="budget">BUDGET · $M</label><input id="budget" class="field" type="number" min="0.1" max="100000" step="1" value="25"/></div><div><label class="lab" for="teams">ROBOT TEAMS</label><input id="teams" class="field" type="number" min="2" max="22" step="1" value="10"/></div></div>
 <label class="checkbox" style="margin-top:12px"><input id="freeZone" type="checkbox"/> Voluntary / free-zone settlement label</label>
-<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div id="xrControls"></div><div class="hint">The planner is procedural and seeded, not connected to a live AI model. The exported plan is ready for future LLM or GIS integration.</div>
+<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">The planner is procedural and seeded, not connected to a live AI model. The exported plan is ready for future LLM or GIS integration.</div>
 </section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label></section>
-</aside><div class="stage"><canvas id="scene"></canvas><div class="overlay"><div class="tag" id="locationTag"><b>REGION</b> · seed ODYSSEY-7</div><div class="tag" id="planTag">No masterplan</div></div><div class="scene-instructions" id="sceneHelp">Drag to orbit · Scroll to zoom<br/>Click terrain to move settlement site</div><div class="bottom"><div class="progress-row"><strong id="phaseName">Awaiting plan</strong><span id="progressText">0 / 0 tasks</span></div><div class="track"><div class="progress-fill" id="bar"></div></div><div class="phase-line" id="stages"></div></div><div class="error" id="error"></div></div>
+</aside><div class="stage"><canvas id="scene"></canvas><div id="xrControls" class="xr-stage-entry" hidden></div><div class="overlay"><div class="tag" id="locationTag"><b>REGION</b> · seed ODYSSEY-7</div><div class="tag" id="planTag">No masterplan</div></div><div class="scene-instructions" id="sceneHelp">Drag to orbit · Scroll to zoom<br/>Click terrain to move settlement site</div><div class="bottom"><div class="progress-row"><strong id="phaseName">Awaiting plan</strong><span id="progressText">0 / 0 tasks</span></div><div class="track"><div class="progress-fill" id="bar"></div></div><div class="phase-line" id="stages"></div></div><div class="error" id="error"></div></div>
 <aside class="sidebar right"><p class="eyebrow">Live planning intelligence</p><h1 class="title" style="font-size:20px">Settlement telemetry</h1>
 <div class="kpis"><div class="kpi"><strong id="homesCount">0</strong><span>Funded buildings</span></div><div class="kpi"><strong id="roadCount">0</strong><span>Road segments</span></div><div class="kpi"><strong id="allocated">$0</strong><span>Planned cost (M)</span></div><div class="kpi"><strong id="remaining">$0</strong><span>Remaining (M)</span></div></div>
 <div class="section"><h3>Land-use map <span class="small">· planned</span></h3><canvas class="map" id="map" width="450" height="280" title="Click map to propose a nearby site"></canvas><div class="legend"><span style="--chip:#688193">Roads</span><span style="--chip:#d6ad8d">Buildings</span><span style="--chip:#76b87d">Green space</span><span style="--chip:#4388b0">Water / reserve</span></div><div id="mapNote" class="hint">The overview updates when a plan is generated.</div></div>
+<div class="section" id="placebookSection"><h3>Places & saved snapshots</h3>
+<div class="hint">Saved plans are pins on the fictional planet. Return to a region, revisit snapshots, or star favourites.</div>
+<label class="lab" for="snapshotName">SNAPSHOT NAME</label><input id="snapshotName" class="field" maxlength="100" placeholder="New harbour settlement"/>
+<div class="buttons"><button class="btn mini primary" id="snapshotSave">Save snapshot + pin</button><button class="btn mini" id="snapshotRefresh">Refresh pins</button></div>
+<div class="row2"><div><label class="lab" for="snapshotFilter">VIEW</label><select class="field" id="snapshotFilter"><option value="area">Current region</option><option value="all">Entire planet</option><option value="stars">Starred</option></select></div><div><label class="lab" for="snapshotType">SITE CODE</label><select id="snapshotType" class="field"></select></div></div>
+<div id="snapshotList" class="snapshot-list" aria-label="Saved world pins"><span class="hint">Sign in to list pinned plans.</span></div>
+<div id="snapshotStatus" class="hint" aria-live="polite"></div>
+</div>
 <div class="section"><h3>Robotic infrastructure teams</h3><div id="teamList"></div></div>
 <div class="section"><h3>Build queue by category</h3><div id="catalog"></div></div>
+<div class="section" id="systemsSection"><h3>City systems · conceptual</h3>
+<div class="hint">Land-use codes, infrastructure dependencies and indicative cost indices. Not real-world quotes.</div>
+<div class="hint" id="buildingSelectText">Click an installed building in the 3D scene to give it a code name.</div>
+<label class="lab" for="buildingCodeType">SELECTED BUILDING FUNCTION</label><select class="field" id="buildingCodeType"></select>
+<label class="lab" for="buildingCodeName">BUILDING CODE NAME</label><input class="field" id="buildingCodeName" maxlength="60" placeholder="e.g. Central Hospital A"/>
+<button class="btn mini full" type="button" id="buildingCodeApply">Label selected building</button>
+<div id="citySystemsSummary" class="feed" style="max-height:185px">Generate a plan to analyse service coverage.</div>
+<button id="citySystemsCheck" class="btn mini full" type="button">Analyse dependencies</button>
+</div>
 <div class="section"><h3>Construction log</h3><div id="feed" class="feed"></div></div><div class="section"><div class="notice"><b>Systemic simulation, not engineering design.</b> Geography, zoning, budgets and walking avatars are approximations. This prototype does not simulate building permits, structural safety, real-world construction costs or collision-free robot pathfinding.</div><div class="hint"><a href="./house/index.html">Open original single-house assembly demo ↗</a></div></div>
 <div class="section" id="collabPanel"><h3>04 / Multiplayer world hub</h3>
 <div id="cloudStatus" class="hint">Connecting to local Flask API…</div>
@@ -177,13 +206,21 @@
   </div>
 </div>
 <section id="apiConsole" class="api-console" hidden role="region" aria-label="AI HTTP debug console">
-  <div class="api-console-bar" id="apiConsoleHandle"><strong>● API CONSOLE</strong><span id="apiLogCount">0 requests</span><button class="api-ctl" id="apiConsoleClose" type="button" aria-label="Close console">×</button></div>
+  <div class="api-console-bar" id="apiConsoleHandle"><strong>● API CONSOLE</strong><span id="apiLogCount">0 requests</span><button class="api-ctl" id="apiConsoleMin" type="button" aria-label="Minimise console" title="Minimise console">−</button><button class="api-ctl" id="apiConsoleClose" type="button" aria-label="Close console">×</button></div>
   <div class="api-console-tools"><select class="api-ctl" id="apiLogFilter" aria-label="Filter requests"><option value="all">All requests</option><option value="errors">Errors only</option></select><button class="api-ctl" id="apiLogLess" type="button">A−</button><button class="api-ctl" id="apiLogMore" type="button">A+</button><button class="api-ctl" id="apiLogCopy" type="button">Copy selected</button><button class="api-ctl" id="apiLogExport" type="button">Export JSON</button><button class="api-ctl" id="apiLogClear" type="button">Clear</button></div>
   <div class="api-console-content"><div class="api-console-list" id="apiLogList" aria-label="Recent requests"></div><pre tabindex="0" class="api-console-detail" id="apiLogDetail">No API requests yet.</pre></div>
   <div class="api-console-foot">Drag the header · resize from bottom-right · last 100 requests · credentials redacted · no persistent storage</div>
 </section>
-<script type="module" src="./app.mjs?v=0.4.6"></script>
-<script type="module" src="./collab.mjs?v=0.4.6"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.6"></script>
-<script type="module" src="./studio.mjs?v=0.4.6"></script>
+<aside class="updates-popover" id="updatesPanel" hidden aria-label="Recent releases">
+<header><strong>Recent updates</strong><button class="api-ctl" id="updatesClose" type="button">×</button></header>
+<div class="updates-items" id="updatesList">Loading release notes…</div>
+<a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
+</aside>
+<script type="module" src="./app.mjs?v=0.4.7"></script>
+<script type="module" src="./collab.mjs?v=0.4.7"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.7"></script>
+<script type="module" src="./studio.mjs?v=0.4.7"></script>
+<script type="module" src="./placebook.mjs?v=0.4.7"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.7"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.7"></script>
 </body></html>

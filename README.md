@@ -1,26 +1,35 @@
-# Planet Lab v0.4.6 — inspectable AI connections + quiet release output
+# PlanetLab v0.4.7 — Geo pins, city systems and compact UI
 
-This release adds a detachable-style floating **API Console** that is draggable by its title bar, resizable at the lower-right corner, and available from the top account strip, Building Studio and AI Setup overlay. It captures the last 100 Meta/Tripo requests **in this browser tab only**.
+**Deployment:** place `PLANETLAB_RELEASE_v0.4.7.zip` in the Mac repository's `updates/` directory. The running watcher validates, tests, publishes to GitHub over SSH and activates the Ubuntu release. No manual Git actions.
 
-## Use
+## Changed
 
-1. Log in, open **AI Setup**, paste your Meta API key and select a model.
-2. Click **Test & show logs**. The API Console opens automatically and lists the request with status, duration, endpoint and request/response JSON.
-3. Select a request to inspect upstream Meta/Tripo HTTP status, request JSON and response/error excerpt. The diagnostic payload is attached **only** when the browser explicitly sends `X-PlanetLab-Debug: 1` and the session is authenticated.
-4. Move the console by dragging its title bar; resize from its lower-right corner. Use **A+ / A-**, **Errors only**, **Copy selected**, **Export JSON**, or **Clear**.
-5. Use **Generate building** in Building Studio: the same panel traces every AI call.
+- Compact **PlanetLab** name/version, GitHub link, and dated release notes menu (`updates.json` is source release history, not live deploy timestamps).
+- AI Console `−` minimise / `+` restore; 6–26 px fonts in 1 px increments; existing redacted API inspector remains available.
+- WebXR immersive-VR entry only when `navigator.xr.isSessionSupported('immersive-vr')` succeeds, centred in the 3D stage. No VR button in the left sidebar.
+- Save named snapshot = create a **new persistent world** (original snapshots remain intact). Fictional planet coordinate + seed is stored in the blueprint. Current-region / all-planet / favourites filters; click planet pin or Open to restore snapshots. Starred snapshots use an owner-only CSRF-protected PATCH endpoint with revision concurrency.
+- Click an installed 3D building, assign a functional type and a code name. The metadata is preserved in the next blueprint snapshot. The selectable catalogue contains residential, commercial, civic, transport, industry, environment and utility types.
+- Conceptual service/dependency checker: roads, transport, power, schools, civic services, green-space warnings and **unitless** infrastructure index.
+- Existing user sessions, AI setup, Tripo import, city simulation, single-house demo, WebSockets, databases, rollback and watcher are retained.
 
-### Security
+## Architecture and honesty
 
-* API keys and CSRF tokens are **never written** into console entries or exported JSON. Authorization headers are redacted. Diagnostic traces only exist in the live browser tab, and the Flask request context; no persistent diagnostic database is created.
-* The upstream trace is a **bounded and redacted excerpt** of the actual provider JSON response, not a packet capture. This allows debugging 400/401/403/429/model errors without exposing authentication secrets or enormous generated images.
-* Browser console exports can still include your building prompts and model outputs. Treat downloaded exports as private project information.
-* Meta requests are explicitly initiated by the user and may incur provider charges. No external API calls happen during tests or installation.
+- Geo coordinates are **fictional planet angular coordinates**, not WGS84 Earth GIS.
+- City costs and dependency analysis are toy simulations; **not** certified engineering, actual supplier quotes or real estate valuations.
+- Role tags are metadata for existing geometric shells. A hospital code name does not magically generate a fully fitted hospital.
+- External OpenStreetMap / Overture / supplier API integration, simulation of real finance, ownership and WebXR hand interaction are **future work**.
+- No destructive SQL migration is needed. Star + code metadata are stored in existing SQLAlchemy world JSON, and retained across releases in `/var/lib/planetlab`.
 
-### Deployment watcher
+## Roadmap
 
-The watcher now shows a compact START line, six short success lines and one clearly coloured SUCCESS/FAILED end line. Full test output and SSH command diagnostics remain under `.planetlab/logs/`, so ordinary terminal output is not flooded with blue banners or test-runner output. `--verbose` is available when needed; normal releases require **only** dropping this ZIP into `updates/`.
+1. Planet/region/city/district persistent IDs; authoritative real map tiles with source metadata and licensing.
+2. Parcel-level zoning, buildings with rooms and modular real-world supplier components (dimensions, SKU, price/date/currency, licence).
+3. Transport graphs (roads, rail, airports, ports), water/power/sewage networks; capacity-aware dispatch and robot team dependencies.
+4. Services coverage and construction economy: hospital and fire response, equipment, inventory, labour, debt/rent, lifecycle costs, realistic time steps; clearly tagged model assumptions.
+5. Marketplace of licensed components and developer/operator roles; server-authoritative multiplayer and collaborative WebXR tools.
 
-### Scope
+## Tests
 
-No schema migration or change to stored media. Meta/Tripo provider endpoints and credentials remain separately configured. Frontend and backend tests run before GitHub push and Ubuntu activation.
+`node test-planner.mjs && python3 -m unittest discover -s tests -p 'test_*.py'`
+
+The Mac watcher runs JS syntax, planner tests and frontend tests locally, then Flask integration tests on the Ubuntu staged release before activation. Live server and provider calls are not verified by the ZIP authoring environment.

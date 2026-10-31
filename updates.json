@@ -1,0 +1,10 @@
+{
+  "project": "PlanetLab",
+  "releases": [
+    {"version":"0.4.7","date":"2026-10-31","changes":"Geo-pinned snapshots and favourites; planning catalogue; WebXR gating; compact interface and API console controls."},
+    {"version":"0.4.6","date":"2026-10-31","changes":"Floating API request console and quiet watcher diagnostics."},
+    {"version":"0.4.5","date":"2026-10-31","changes":"Meta BYOK HTTP status fix and provider error handling."},
+    {"version":"0.4.3","date":"2026-10-31","changes":"Authentication cache compatibility and coloured release watcher."},
+    {"version":"0.4.2","date":"2026-10-31","changes":"First-load account overlay and session handling."}
+  ]
+}
