@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HABITAT // Autonomous Build Lab</title>
+  <meta name="description" content="Three.js procedural house planning with cooperating construction robots." />
+  <style>
+    :root{--bg:#0b1119;--panel:#131e29;--line:#263442;--muted:#8a9fb0;--text:#eaf2f4;--lime:#b6f174;--teal:#59c9c1;--orange:#f3a862;--blue:#88abff;--pink:#dd91dc}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;background:var(--bg);color:var(--text);font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+    .app{height:100vh;min-height:690px;display:grid;grid-template-rows:63px minmax(0,1fr);overflow:hidden}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0f1923;border-bottom:1px solid var(--line);gap:12px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}.mark{width:34px;height:34px;display:grid;place-items:center;border:1px solid #5f9273;background:#1c352c;border-radius:10px;color:var(--lime);font-size:24px;font-weight:800}
+    .brand strong{font-size:15px;letter-spacing:.17em}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.11em}.topright{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:11px;white-space:nowrap}.pulse{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px #b6f17466;display:inline-block;margin-right:5px}
+    .workspace{display:grid;grid-template-columns:310px minmax(320px,1fr) 286px;min-height:0}
+    .sidebar{background:#111c27;border-right:1px solid var(--line);overflow:auto;padding:20px 19px 30px;scrollbar-color:#334654 transparent}.right{border-right:0;border-left:1px solid var(--line);background:#111c27}
+    .eyebrow{color:var(--lime);font-weight:700;letter-spacing:.14em;font-size:10px;text-transform:uppercase;margin:0 0 9px}.heading{font-size:24px;line-height:1.13;letter-spacing:-.045em;margin:0 0 10px;font-weight:730}.desc{font-size:12px;color:var(--muted);margin:0 0 17px}.section{padding-top:18px;margin-top:19px;border-top:1px solid var(--line)}.section-title{display:flex;justify-content:space-between;color:#f0f5f5;letter-spacing:.05em;font-size:11px;font-weight:750;text-transform:uppercase;margin-bottom:12px}.small{font-size:10px;color:var(--muted)}
+    label.field-label{display:block;color:#b8c8d4;font-weight:650;margin:0 0 7px;font-size:11px}.field{width:100%;background:#0c1620;border:1px solid #344555;border-radius:9px;color:#eaf1f4;padding:10px 11px;resize:vertical;min-height:80px;line-height:1.4}.field:focus{border-color:var(--teal);outline:0}.field.short{min-height:0;height:36px}
+    .controls-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:11px}.btn{border:1px solid #385063;background:#1c2c38;color:#eef4f7;border-radius:9px;padding:10px 11px;font-weight:700;transition:background .12s}.btn:hover{background:#29404f}.btn.primary{border-color:#b6f174;background:var(--lime);color:#15231a}.btn.primary:hover{background:#caff95}.btn.fill{width:100%;margin-top:11px}.btn.ghost{background:transparent}.btn.tiny{font-size:11px;padding:7px 8px}.btn[disabled]{opacity:.5;cursor:default}
+    .option{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.chip{border:1px solid #344655;color:#a6bac8;background:#16242f;border-radius:7px;padding:7px 11px;font-size:11px}.chip.active{background:#294a38;border-color:#80b86b;color:#d7ffb1}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.line{height:1px;background:var(--line);margin:17px 0}
+    .metric-box{border:1px solid var(--line);background:#152330;border-radius:11px;padding:12px}.metric-box .num{font-size:22px;font-weight:760;letter-spacing:-.04em}.metric-box .tag{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+    .stage{position:relative;background:radial-gradient(circle at 43% 28%,#223947 0,#0e1823 70%);min-width:0;overflow:hidden}#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+    .scene-overlay{position:absolute;top:19px;left:20px;pointer-events:none;display:flex;flex-direction:column;gap:8px}.pill{border:1px solid #4d6572;background:#0f202ccf;backdrop-filter:blur(10px);font-size:11px;letter-spacing:.05em;color:#c8dce3;border-radius:6px;padding:7px 10px;width:max-content;max-width:calc(100vw - 80px)}.pill strong{color:var(--lime)}
+    .scene-footer{position:absolute;left:18px;right:18px;bottom:17px;border:1px solid #405563;background:#0e1d29dd;backdrop-filter:blur(14px);border-radius:12px;padding:12px 14px}.progress-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:7px}.progress-head strong{font-size:12px}.track{height:7px;border-radius:10px;background:#334450;overflow:hidden}.filltrack{height:100%;width:0;background:linear-gradient(90deg,#74c8b4,var(--lime));border-radius:9px;transition:width .3s}.phases{display:flex;gap:3px;margin-top:10px}.phase{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8398a5;font-size:9px;text-align:center;border-top:2px solid #354754;padding-top:5px}.phase.done{border-color:#78c3a6;color:#b5e2d4}.phase.current{border-color:var(--lime);color:#ebfbdd}
+    .robot-line{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #213340}.robot-line:last-child{border:0}.robot-dot{height:27px;width:27px;display:grid;place-items:center;border-radius:8px;font-size:13px;color:#0c1417;font-weight:800}.robot-text{flex:1;min-width:0}.robot-text strong{display:block;font-size:12px}.robot-text small{font-size:10px;color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.robot-state{font:10px ui-monospace,monospace;color:var(--teal)}
+    .catalog{max-height:250px;overflow:auto;scrollbar-color:#344553 transparent}.catalog-row{display:grid;grid-template-columns:17px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 1px;border-bottom:1px solid #22313e;font-size:11px}.catalog-row:last-child{border:0}.swatch{width:10px;height:10px;border-radius:3px}.catalog-row .count{color:var(--muted);font-family:ui-monospace,monospace}
+    .feed{max-height:250px;overflow:auto;display:flex;flex-direction:column;gap:8px;scrollbar-color:#344553 transparent}.feed-item{display:flex;gap:9px;font-size:10px;line-height:1.5;color:#b1c3ce}.feed-time{flex:0 0 41px;color:var(--lime);font-family:ui-monospace,monospace}
+    .notice{font-size:11px;border:1px solid #38505c;border-radius:9px;background:#1b2d37;padding:10px;color:#b5c8d1}.notice strong{color:#e2f1eb}
+    .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-top:8px}
+    .error{display:none;position:absolute;top:25%;left:12%;right:12%;background:#3e252a;border:1px solid #d85f67;color:#fff;padding:18px;border-radius:10px;font-size:13px;z-index:9;white-space:pre-wrap}
+    @media(max-width:1150px){.workspace{grid-template-columns:270px minmax(300px,1fr) 248px}.sidebar{padding:16px 14px}.heading{font-size:21px}}
+    @media(max-width:900px){.app{height:auto;min-height:100vh;overflow:auto}.workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 60vh auto}.sidebar{border:0;border-bottom:1px solid var(--line);overflow:visible}.sidebar.left{grid-row:1}.stage{grid-row:2;min-height:450px}.sidebar.right{grid-row:3;border:0;border-top:1px solid var(--line)}.right .catalog,.right .feed{max-height:180px}.top{padding:0 14px}.topright .desktop{display:none}}
+  </style>
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}
+  </script>
+</head>
+<body>
+<div class="app">
+  <header class="top"><div class="brand"><div class="mark">⬡</div><div><strong>HABITAT / LAB</strong><small>AUTONOMOUS CONSTRUCTION SANDBOX · MVP 0.1</small></div></div><div class="topright"><span><span class="pulse"></span><span id="topStatus">INITIALISING</span></span><span class="desktop">THREE.JS · LOCAL PROCEDURAL PLANNER</span></div></header>
+  <main class="workspace">
+    <aside class="sidebar left">
+      <p class="eyebrow">01 / Brief to blueprint</p>
+      <h1 class="heading">An idea becomes<br>a building.</h1>
+      <p class="desc">Describe a house. Generate an assembly plan. Watch specialist robot avatars manufacture, deliver and place components.</p>
+      <label class="field-label" for="prompt">BUILD REQUEST</label>
+      <textarea id="prompt" class="field" spellcheck="false">A small modern cabin with big windows and a gable roof</textarea>
+      <div class="controls-row">
+        <div><label class="field-label" for="seed">PLAN SEED</label><input id="seed" class="field short" value="42" type="text" /></div>
+        <div><label class="field-label" for="complexity">COMPLEXITY</label><select id="complexity" class="field short" style="padding:7px"><option value="basic">Basic shell</option><option value="expanded">Expanded + details</option></select></div>
+      </div>
+      <button id="generate" class="btn primary fill">✧ Generate building plan</button>
+      <div class="controls-row"><button id="random" class="btn ghost tiny">↻ New seed</button><button id="export" class="btn ghost tiny">↓ Export plan JSON</button></div>
+      <section class="section"><div class="section-title">02 / Construction playback <span class="small">SIMULATED</span></div><button id="toggle" class="btn primary fill" style="margin-top:0">Ⅱ Pause robots</button><div class="option" style="margin-top:12px"><span class="small">SPEED</span><button data-speed="1" class="chip">1×</button><button data-speed="3" class="chip active">3×</button><button data-speed="8" class="chip">8×</button><button id="camera" class="chip" style="margin-left:auto">⌖ Camera</button></div></section>
+      <section class="section"><div class="section-title">03 / Proposed structure</div><div class="two"><div class="metric-box"><div id="dimensions" class="num">8 × 6</div><div class="tag">Footprint · metres</div></div><div class="metric-box"><div id="totalParts" class="num">—</div><div class="tag">Assembly pieces</div></div></div><div style="margin-top:12px" class="notice"><strong id="planName">Cedar cabin</strong><div id="planDetail" style="margin-top:3px">Single-storey panelised construction.</div></div></section>
+      <section class="section"><div class="section-title">Planner contract</div><p class="small">This MVP uses a deterministic prompt-and-seed planner, not a live LLM. Replace <code>PlanModel.generate()</code> with structured AI JSON later. Sizes, loads and placements are illustrative, not construction engineering.</p></section>
+    </aside>
+    <section class="stage" aria-label="Interactive 3D construction site">
+      <canvas id="scene"></canvas>
+      <div class="scene-overlay"><div class="pill"><strong>● LIVE WORLD</strong> &nbsp; WALKING AGENTS · COMPONENT SNAP</div><div class="pill" id="stageName">STAGE 01 / FOUNDATION</div><div class="pill">DRAG TO ORBIT · SCROLL TO ZOOM · CLICK PARTS</div></div>
+      <div class="error" id="error"></div>
+      <div class="scene-footer"><div class="progress-head"><strong id="progressText">0 / 0 components placed</strong><span id="percent">0%</span></div><div class="track"><div id="progressFill" class="filltrack"></div></div><div id="phaseBar" class="phases"></div><div id="selected" class="small" style="margin-top:10px">Select a placed component for details.</div></div>
+    </section>
+    <aside class="sidebar right">
+      <div class="section-title" style="margin-top:2px">04 / Autonomous crew <span class="small">4 UNITS</span></div><div id="robots"></div>
+      <section class="section"><div class="section-title">05 / Component repository</div><div id="catalog" class="catalog"></div></section>
+      <section class="section"><div class="section-title">06 / Activity log</div><div id="feed" class="feed"></div></section>
+      <section class="section"><div class="notice">Each part follows a pipeline: <strong>FABRICATE → DELIVER → SNAP → VERIFY</strong>.<br><span style="font-size:10px">Robots use animated task states, not real navigation physics or structural checks.</span></div></section>
+    </aside>
+  </main>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+const PHASES = [
+  {id:'foundation',name:'Foundation'}, {id:'walls',name:'Walls'},
+  {id:'openings',name:'Openings'}, {id:'ceiling',name:'Ceiling'},
+  {id:'roof',name:'Roof'}, {id:'extras',name:'Extras'}
+];
+const META = {
+ foundation:{name:'Foundation slab',color:'#8498a6'},
+ wall:{name:'Wall panel',color:'#d6c5a7'},
+ wallWindow:{name:'Window wall panel',color:'#c6ae86'},
+ wallDoor:{name:'Door wall panel',color:'#d9b88e'},
+ partition:{name:'Partition',color:'#b8c1c1'},
+ window:{name:'Window unit',color:'#74d6ee'},
+ door:{name:'Door unit',color:'#e59d60'},
+ ceiling:{name:'Ceiling cassette',color:'#94b1b5'},
+ roof:{name:'Roof cassette',color:'#dc855c'},
+ roofFlat:{name:'Flat roof cassette',color:'#c87557'},
+ solar:{name:'Solar panel',color:'#365f9b'},
+ porch:{name:'Porch step',color:'#899997'}
+};
+const hash = value => {let h=2166136261;for(const c of String(value)){h ^= c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+const rng = seed => {let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}};
+const v3 = (x,y,z)=>new THREE.Vector3(x,y,z);
+const makeTask = (id,type,phase,x,y,z,rotation=0,extra={})=>({id,type,phase,pos:[x,y,z],rotation,...extra,status:'queued',mesh:null});
+
+// MODEL: repository + deterministic brief-to-plan generator; replace with LLM JSON later.
+class PlanModel {
+  constructor(){this.tasks=[];this.phaseIndex=0;this.brief='';this.config=null}
+  generate(brief,seed,complexity){
+    const p=brief.toLowerCase(),random=rng(hash(seed+'|'+p));
+    const large=/large|big house|spacious|duży|duza|duże/.test(p);
+    const tiny=/tiny|micro|small|compact|mały|maly|niewielki/.test(p);
+    const width=large?10:tiny?6:(random()>.62?10:8);
+    const depth=large?8:6;
+    const flat=/flat roof|modern flat|płaski dach|plaski dach/.test(p);
+    const solar=/solar|photovoltaic|pv |fotowoltaic/.test(p)||complexity==='expanded';
+    const porch=/porch|terrace|patio|weranda|taras/.test(p)||complexity==='expanded';
+    const usePartitions=complexity==='expanded';
+    const title=flat?'Courtyard Studio':solar?'Solar Habitat':'Cedar Cabin';
+    this.brief=brief;this.config={seed,width,depth,flat,solar,porch,usePartitions,title,complexity};this.tasks=[];this.phaseIndex=0;
+    let id=0;const add=(type,phase,x,y,z,rot=0,extra={})=>this.tasks.push(makeTask('P-'+String(++id).padStart(3,'0'),type,phase,x,y,z,rot,extra));
+    add('foundation','foundation',0,0,0,0,{width,depth});
+    const buildWall=(x,z,rotation,kind,side)=>{
+      add(kind==='window'?'wallWindow':kind==='door'?'wallDoor':'wall','walls',x,0,z,rotation,{side});
+      if(kind==='window')add('window','openings',x,0,z,rotation,{side});
+      if(kind==='door')add('door','openings',x,0,z,rotation,{side});
+    };
+    const nX=width/2,nZ=depth/2;
+    const doorIndex=Math.max(1,Math.floor(nX/2)-1);
+    const frontChoices=Array.from({length:nX},(_,i)=>i).filter(i=>i!==doorIndex);
+    const frontWindow=frontChoices[Math.floor(random()*frontChoices.length)];
+    const rearWindow=Math.floor(random()*nX);
+    const rightWindow=Math.floor(random()*nZ);
+    const leftWindow=Math.floor(random()*nZ);
+    for(let i=0;i<nX;i++){
+      let x=-width/2+1+i*2;
+      buildWall(x,depth/2,0,i===doorIndex?'door':i===frontWindow?'window':'wall','front');
+      buildWall(x,-depth/2,Math.PI,i===rearWindow?'window':'wall','back');
+    }
+    for(let i=0;i<nZ;i++){
+      let z=-depth/2+1+i*2;
+      buildWall(width/2,z,Math.PI/2,i===rightWindow?'window':'wall','right');
+      buildWall(-width/2,z,-Math.PI/2,i===leftWindow?'window':'wall','left');
+    }
+    if(usePartitions){
+      for(let i=0;i<Math.max(1,nX-1);i++)add('partition','walls',-width/2+1+i*2,0,0,0,{side:'interior'});
+    }
+    for(let i=0;i<nX;i++)add('ceiling','ceiling',-width/2+1+i*2,2.84,0,0,{width:2,depth});
+    if(flat){
+      for(let i=0;i<nX;i++)add('roofFlat','roof',-width/2+1+i*2,3.18,0,0,{width:2.08,depth:depth+.5});
+    }else{
+      const rise=1.35, slope=Math.atan2(rise,width/2),len=Math.sqrt((width/2+.35)**2+rise**2);
+      add('roof','roof',-width/4,3.2+rise/2,0,0,{slope,side:'left',length:len,depth:depth+.5});
+      add('roof','roof',width/4,3.2+rise/2,0,0,{slope:-slope,side:'right',length:len,depth:depth+.5});
+    }
+    if(solar){for(let z=-depth/2+1;z<depth/2;z+=2)add('solar','extras',width/4,flat?3.36:4.08,z,0,{angle:flat?0:-Math.atan2(1.35,width/2)})}
+    if(porch)add('porch','extras',-width/2+3,.05,depth/2+1.0);
+    return this;
+  }
+  activePhase(){return PHASES[this.phaseIndex] || null}
+  checkAdvance(){
+    const phase=this.activePhase();if(!phase)return false;
+    if(this.tasks.filter(t=>t.phase===phase.id).every(t=>t.status==='installed')){
+      do { this.phaseIndex++; } while(this.activePhase() && !this.tasks.some(t=>t.phase===this.activePhase().id));
+      return true;
+    }
+    return false;
+  }
+  installed(){return this.tasks.filter(t=>t.status==='installed').length}
+}
+
+// VIEW: Three.js construction world, procedural prefab meshes, clickable components.
+class WorldView {
+ constructor(canvas){
+  this.canvas=canvas;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#0e1b27');this.scene.fog=new THREE.Fog('#0e1b27',45,100);
+  this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  this.camera=new THREE.PerspectiveCamera(45,1,.1,160);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.maxPolarAngle=Math.PI/2.1;this.controls.minDistance=13;this.controls.maxDistance=65;
+  this.resetCamera();
+  this.scene.add(new THREE.HemisphereLight('#c6e6ff','#293826',2.3));let light=new THREE.DirectionalLight('#fff1db',3.5);light.position.set(-10,24,15);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-26;light.shadow.camera.right=26;light.shadow.camera.top=26;light.shadow.camera.bottom=-26;light.shadow.bias=-.0003;this.scene.add(light);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,90),new THREE.MeshStandardMaterial({color:'#1a2c33',roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.24;ground.receiveShadow=true;this.scene.add(ground);
+  const grid=new THREE.GridHelper(75,75,'#476474','#2a4049');grid.position.y=-.214;grid.material.opacity=.2;grid.material.transparent=true;this.scene.add(grid);
+  this.structure=new THREE.Group();this.scene.add(this.structure);this.robots=new THREE.Group();this.scene.add(this.robots);
+  this.sites=new THREE.Group();this.scene.add(this.sites);
+  this.depot=v3(-12,0,-1.2);this.workshop=v3(-12.7,0,-5);this.siteBounds=null;
+  this.createDepot();this.resize();this.placed=[];this.highlit=null;
+  this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();let down=null;
+  canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+  canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;this.pick(e)});
+  window.addEventListener('resize',()=>this.resize());
+ }
+ resetCamera(){this.camera.position.set(19,17,23);this.camera.lookAt(-1,1,0);this.controls.target.set(-1,1,0);this.controls.update()}
+ resize(){const b=this.canvas.getBoundingClientRect();if(!b.width||!b.height)return;this.renderer.setSize(b.width,b.height,false);this.camera.aspect=b.width/b.height;this.camera.updateProjectionMatrix()}
+ box(w,h,d,color,opts={}){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.8,metalness:opts.metalness||0,transparent:!!opts.opacity,opacity:opts.opacity??1}));m.castShadow=opts.shadow!==false;m.receiveShadow=true;return m;
+ }
+ part(g,w,h,d,color,x,y,z,opts={}){const m=this.box(w,h,d,color,opts);m.position.set(x,y,z);g.add(m);return m}
+ outline(w,d,color){const pts=[v3(-w/2,-.17,-d/2),v3(w/2,-.17,-d/2),v3(w/2,-.17,d/2),v3(-w/2,-.17,d/2),v3(-w/2,-.17,-d/2)];const geo=new THREE.BufferGeometry().setFromPoints(pts);return new THREE.Line(geo,new THREE.LineBasicMaterial({color}))}
+ label(text,color){let c=document.createElement('canvas');c.width=512;c.height=128;let x=c.getContext('2d');x.fillStyle='#0d1b27';x.fillRect(0,0,512,128);x.strokeStyle=color;x.lineWidth=5;x.strokeRect(3,3,506,122);x.font='bold 45px sans-serif';x.textAlign='center';x.fillStyle='#e6f2f5';x.fillText(text,256,80);let spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthWrite:false}));spr.scale.set(4,1,1);return spr}
+ createDepot(){const depot=this.box(7,.12,10,'#253b47');depot.position.set(-12,-.155,-1.8);this.sites.add(depot);let edge=this.outline(7,10,'#73c1bd');edge.position.set(-12,0,-1.8);this.sites.add(edge);const text=this.label('PARTS DEPOT','#74beb6');text.position.set(-12,2.1,-7);this.sites.add(text);for(let i=0;i<5;i++){let p=this.box(.9,.18,1,'#446071');p.position.set(-14.5+i*1.2,.02,-5.8);this.sites.add(p)}let bench=this.box(2.4,.4,1.3,'#a67d59');bench.position.set(-12.7,.35,-5);this.sites.add(bench);for(let x of [-13.65,-11.75])for(let z of [-5.4,-4.6]){let leg=this.box(.12,.6,.12,'#506d76');leg.position.set(x,0,z);this.sites.add(leg)}}
+ resetSite(config){for(const obj of [...this.structure.children]){this.dispose(obj);this.structure.remove(obj)}for(const obj of [...this.sites.children]){if(obj.userData.isSite){this.dispose(obj);this.sites.remove(obj)}}this.placed=[];this.highlit=null;
+  let site=this.outline(config.width+.7,config.depth+.7,'#b6f174');site.userData.isSite=true;this.sites.add(site);const sp=this.label('BUILD SITE','#9acb6c');sp.position.set(0,5.9,-config.depth/2-1.4);sp.userData.isSite=true;this.sites.add(sp);
+ }
+ dispose(obj){obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){let mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats){if(m.map)m.map.dispose();m.dispose()}}})}
+ makePiece(task,config){
+  const g=new THREE.Group();g.userData.task=task;const c=type=>META[type].color;
+  switch(task.type){
+   case 'foundation':this.part(g,config.width,.32,config.depth,'#81939e',0,-.01,0);this.part(g,config.width+.14,.06,config.depth+.14,'#a8b8b5',0,.18,0);break;
+   case 'wall':case 'wallWindow':case 'wallDoor':{
+    const h=2.75,w=1.98,t=.19;
+    if(task.type==='wall'){this.part(g,w,h,t,c('wall'),0,h/2,0)}
+    else if(task.type==='wallWindow'){
+      this.part(g,w,1.05,t,c('wall'),0,.525,0);
+      this.part(g,w,.65,t,c('wall'),0,2.425,0);
+      this.part(g,.4,1.05,t,c('wall'),-.8,1.575,0);
+      this.part(g,.4,1.05,t,c('wall'),.8,1.575,0);
+    }else{
+      this.part(g,.39,2.18,t,c('wall'),-.795,1.09,0);
+      this.part(g,.39,2.18,t,c('wall'),.795,1.09,0);
+      this.part(g,w,.57,t,c('wall'),0,2.465,0);
+    }
+    this.part(g,w,.09,t+.03,'#76908a',0,2.75,0);
+    break;}
+   case 'partition':this.part(g,1.96,2.7,.12,c('partition'),0,1.35,0);break;
+   case 'window':{
+    this.part(g,1.16,1.01,.065,'#72cce4',0,1.575,0,{metalness:.3,opacity:.72});
+    for(let x of [-.62,.62])this.part(g,.07,1.12,.12,'#41545c',x,1.575,0);
+    for(let y of [1.02,2.13])this.part(g,1.3,.07,.12,'#41545c',0,y,0);
+    this.part(g,.05,1.1,.12,'#7f9eaa',0,1.575,0);break;}
+   case 'door':this.part(g,1.2,2.14,.1,'#b66e48',0,1.08,0);this.part(g,.11,2.18,.18,'#40585a',-.62,1.09,0);this.part(g,.11,2.18,.18,'#40585a',.62,1.09,0);this.part(g,1.3,.1,.18,'#40585a',0,2.2,0);this.part(g,.07,.07,.12,'#f3d09b',.42,1.05,.12);break;
+   case 'ceiling':this.part(g,task.width||2,.17,config.depth,'#8fa6ad',0,0,0);break;
+   case 'roof':{let p=this.part(g,task.length,.22,task.depth,c('roof'),0,0,0);p.rotation.z=task.slope;this.part(g,.09,.13,task.depth,'#f2c599',0,0,0).rotation.z=task.slope;break;}
+   case 'roofFlat':this.part(g,task.width,.18,task.depth,c('roofFlat'),0,0,0);break;
+   case 'solar':{let p=this.part(g,1.7,.055,1.6,'#2b4d83',0,0,0,{metalness:.45});p.rotation.z=task.angle||0;for(let i=-1;i<=1;i++){let line=this.part(g,.025,.07,1.61,'#72a9c9',i*.47,.035,0);line.rotation.z=task.angle||0}break;}
+   case 'porch':this.part(g,2.8,.24,1.45,'#abb5a9',0,0,0);break;
+  }
+  this.structure.add(g);g.position.set(-12,.2,0);g.visible=false;return g;
+ }
+ depotPoint(){return v3(-11.5,0,-1.2)}
+ deliveryPoint(task,config){let p=v3(...task.pos);if(Math.abs(p.x)>=config.width/2-.1)p.x +=Math.sign(p.x)*2.3;else p.z +=p.z>=0?2.5:-2.5;if(Math.abs(p.x)<.01&&Math.abs(p.z)<.01)p.x= config.width/2+2.5;return p.setY(0)}
+ setPiecePosition(task,position,rotation=0){if(!task.mesh)return;task.mesh.visible=true;task.mesh.position.copy(position);task.mesh.rotation.y=rotation}
+ install(task){if(!task.mesh)return;this.setPiecePosition(task,v3(...task.pos),task.rotation);this.placed.push(task.mesh)}
+ pick(event){let r=this.canvas.getBoundingClientRect();this.pointer.set(((event.clientX-r.left)/r.width)*2-1,-((event.clientY-r.top)/r.height)*2+1);this.raycaster.setFromCamera(this.pointer,this.camera);let intersects=this.raycaster.intersectObjects(this.placed,true);if(!intersects.length)return;let obj=intersects[0].object;while(obj&&!obj.userData.task)obj=obj.parent;if(obj&&obj.userData.task){const t=obj.userData.task;this.highlit=t;$('selected').textContent=t.id+' · '+META[t.type].name+' · '+t.phase+' · installed';}}
+ render(){this.controls.update();this.renderer.render(this.scene,this.camera)}
+}
+
+// ROBOT AVATAR: walking animation and task state machine.
+class RobotAgent {
+ constructor(view,name,role,color,start){
+  this.view=view;this.name=name;this.role=role;this.color=color;this.status='Idle';this.mode='idle';this.pos=v3(...start);this.destination=null;this.onDone=null;this.timeLeft=0;this.carrying=null;
+  this.group=new THREE.Group();this.group.position.copy(this.pos);view.robots.add(this.group);
+  const mat=(color)=>new THREE.MeshStandardMaterial({color,roughness:.62,metalness:.25});
+  this.body=new THREE.Mesh(new THREE.BoxGeometry(.52,.65,.38),mat(color));this.body.position.y=.9;this.body.castShadow=true;this.group.add(this.body);
+  this.head=new THREE.Mesh(new THREE.BoxGeometry(.45,.36,.4),mat('#dfedf1'));this.head.position.y=1.45;this.head.castShadow=true;this.group.add(this.head);
+  for(let x of [-.12,.12]){let eye=new THREE.Mesh(new THREE.BoxGeometry(.065,.06,.03),mat('#1c3540'));eye.position.set(x,1.49,.216);this.group.add(eye)}
+  this.legs=[];for(let x of [-.16,.16]){let leg=new THREE.Mesh(new THREE.BoxGeometry(.17,.53,.2),mat('#72909b'));leg.position.set(x,.32,0);this.group.add(leg);this.legs.push(leg)}
+  for(let x of [-.33,.33]){let arm=new THREE.Mesh(new THREE.BoxGeometry(.14,.52,.14),mat('#6c8995'));arm.position.set(x,.93,0);this.group.add(arm)}
+  this.halo=view.label(name.toUpperCase(),color);this.halo.scale.set(1.55,.4,1);this.halo.position.set(0,2.05,0);this.group.add(this.halo);
+  this.phase=0;
+ }
+ move(point,done,status){this.destination=point.clone();this.mode='moving';this.onDone=done;this.status=status}
+ work(duration,done,status){this.mode='working';this.timeLeft=duration;this.onDone=done;this.status=status}
+ idle(){this.mode='idle';this.status='Idle';this.destination=null;this.onDone=null}
+ update(dt){this.phase+=dt*8;let walking=this.mode==='moving';this.legs[0].rotation.x=walking?Math.sin(this.phase)*.5:0;this.legs[1].rotation.x=walking?-Math.sin(this.phase)*.5:0;
+  if(this.mode==='moving'){
+   let dx=this.destination.x-this.pos.x,dz=this.destination.z-this.pos.z,dist=Math.hypot(dx,dz);const step=Math.min(dist,5.7*dt);
+   if(dist>.01){this.pos.x+=dx/dist*step;this.pos.z+=dz/dist*step;this.group.rotation.y=Math.atan2(dx,dz)}
+   if(dist<=step+.05){this.pos.copy(this.destination);const cb=this.onDone;this.idle();if(cb)cb()}
+  }else if(this.mode==='working'){
+   this.timeLeft-=dt;this.body.rotation.z=Math.sin(this.phase*2)*.05;
+   if(this.timeLeft<=0){this.body.rotation.z=0;let cb=this.onDone;this.idle();if(cb)cb()}
+  }
+  if(this.mode!=='working')this.body.rotation.z=0;
+  this.group.position.copy(this.pos);this.group.position.y=walking?.025*Math.sin(this.phase*2):0;
+  if(this.carrying){this.view.setPiecePosition(this.carrying,v3(this.pos.x,1.25+this.group.position.y,this.pos.z),this.group.rotation.y)}
+ }
+ reset(start){this.pos.set(...start);this.group.position.copy(this.pos);this.group.rotation.y=0;this.carrying=null;this.idle()}
+}
+
+// CONTROLLER: assigns jobs and moves parts through make -> haul -> install.
+class BuildController {
+ constructor(){this.view=new WorldView($('scene'));this.model=new PlanModel();this.time=0;this.running=true;this.speed=3;this.last=0;this.uiLast=0;this.events=[];
+  this.agents=[
+   new RobotAgent(this.view,'MAKER-01','Maker','#b6f174',[-13,0,-6]),
+   new RobotAgent(this.view,'HAUL-01','Carrier','#59c9c1',[-11,0,-7]),
+   new RobotAgent(this.view,'BUILD-01','Builder','#f3a862',[7,0,6]),
+   new RobotAgent(this.view,'BUILD-02','Builder','#dd91dc',[9,0,3])
+  ];
+  this.installHandlers();this.generate();this.loop=this.loop.bind(this);requestAnimationFrame(this.loop);
+ }
+ log(s){this.events.unshift({time:this.time,text:s});this.events=this.events.slice(0,35)}
+ generate(){
+  this.running=false;const brief=$('prompt').value.trim()||'A simple cabin';const seed=$('seed').value.trim()||'42';const complexity=$('complexity').value;
+  this.model.generate(brief,seed,complexity);this.view.resetSite(this.model.config);
+  this.agents.forEach((a,i)=>a.reset([[-13,0,-6],[-11,0,-7],[7,0,6],[9,0,3]][i]));
+  this.time=0;this.events=[];
+  this.log('Plan '+seed+' created · '+this.model.tasks.length+' components');this.log('Ready to fabricate foundation');
+  $('dimensions').textContent=this.model.config.width+' × '+this.model.config.depth;
+  $('totalParts').textContent=this.model.tasks.length;
+  $('planName').textContent=this.model.config.title;
+  $('planDetail').textContent=(this.model.config.flat?'Flat roof':'Gable roof')+' · '+(complexity==='expanded'?'Expanded detailing':'Basic shell')+' · '+this.model.config.width*this.model.config.depth+' m² footprint';
+  this.running=true;this.view.resetCamera();this.updateUI();
+ }
+ installHandlers(){
+  $('generate').onclick=()=>this.generate();
+  $('random').onclick=()=>{$('seed').value=String(Math.floor(Math.random()*90000)+10000);this.generate()};
+  $('export').onclick=()=>{
+   const m=this.model;const data={schema:'habitat.plan.v1',planner:'procedural-seed',brief:m.brief,config:m.config,parts:m.tasks.map(({id,type,phase,pos,rotation,status,mesh,...properties})=>({id,type,phase,position:pos,rotationY:rotation,properties}))};
+   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download='habitat-plan-'+m.config.seed+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  $('toggle').onclick=()=>{this.running=!this.running;this.updateUI()};
+  document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{this.speed=Number(b.dataset.speed);document.querySelectorAll('[data-speed]').forEach(c=>c.classList.toggle('active',c===b));this.updateUI()});
+  $('camera').onclick=()=>this.view.resetCamera();
+  document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target===document.body){e.preventDefault();this.running=!this.running;this.updateUI()}});
+ }
+ supplyMaker(){
+  const a=this.agents[0],m=this.model;if(a.mode!=='idle')return;
+  const active=m.activePhase();if(!active)return;
+  const outstanding=m.tasks.filter(t=>t.phase===active.id&&['making','ready','carrying','delivered','installing'].includes(t.status)).length;
+  if(outstanding>=3)return;
+  const t=m.tasks.find(t=>t.status==='queued'&&t.phase===active.id);if(!t)return;
+  t.status='making';a.move(this.view.workshop,()=>{
+   a.work(.36,()=>{
+    t.mesh=this.view.makePiece(t,m.config);this.view.setPiecePosition(t,this.view.depotPoint(),0);t.status='ready';this.log('MAKER fabricated '+t.id+' · '+META[t.type].name);
+   },'Fabricating '+t.id)
+  },'At workshop');
+ }
+ supplyCarrier(){
+  const a=this.agents[1],m=this.model;if(a.mode!=='idle')return;
+  const t=m.tasks.find(t=>t.status==='ready'&&t.phase===m.activePhase()?.id);if(!t)return;
+  t.status='carrying';a.move(this.view.depotPoint(),()=>{
+   a.carrying=t;
+   a.move(this.view.deliveryPoint(t,m.config),()=>{
+    a.carrying=null;this.view.setPiecePosition(t,this.view.deliveryPoint(t,m.config),t.rotation);t.status='delivered';this.log('HAUL delivered '+t.id+' to assembly zone');
+   },'Delivering '+t.id);
+  },'Picking '+t.id);
+ }
+ supplyBuilders(){
+  const m=this.model;for(const a of this.agents.slice(2)){
+   if(a.mode!=='idle')continue;
+   const t=m.tasks.find(t=>t.status==='delivered'&&t.phase===m.activePhase()?.id);if(!t)continue;
+   t.status='installing';a.move(this.view.deliveryPoint(t,m.config),()=>{
+    a.carrying=t;
+    let dest=v3(...t.pos);dest.y=0;
+    if(Math.abs(dest.x)<.2&&Math.abs(dest.z)<.2)dest.x+=1;
+    a.move(dest,()=>{
+     a.carrying=null;
+     a.work(.29,()=>{
+      this.view.install(t);t.status='installed';this.log(a.name+' snapped '+t.id+' · '+META[t.type].name);
+      if(m.checkAdvance())this.log(m.activePhase()?'Next stage: '+m.activePhase().name:'Construction complete!');
+     },'Securing '+t.id);
+    },'Positioning '+t.id);
+   },'Collecting '+t.id);
+  }
+ }
+ updateUI(){
+  const m=this.model,done=m.installed(),total=m.tasks.length,percent=total?Math.round(done/total*100):0;
+  $('progressText').textContent=done+' / '+total+' components placed';$('percent').textContent=percent+'%';$('progressFill').style.width=percent+'%';
+  $('stageName').textContent=m.activePhase()?'STAGE '+String(m.phaseIndex+1).padStart(2,'0')+' / '+m.activePhase().name.toUpperCase():'✓ HOUSE COMPLETE';
+  $('phaseBar').innerHTML=PHASES.filter(p=>m.tasks.some(t=>t.phase===p.id)).map(p=>{let ix=PHASES.findIndex(q=>q.id===p.id);return `<div class="phase ${ix<m.phaseIndex?'done':ix===m.phaseIndex?'current':''}">${p.name}</div>`}).join('');
+  $('toggle').textContent=this.running?'Ⅱ Pause robots':'▶ Resume robots';$('topStatus').textContent=percent===100?'HOUSE COMPLETE':this.running?'CREW ACTIVE':'PAUSED';
+  $('robots').innerHTML=this.agents.map(a=>`<div class="robot-line"><div class="robot-dot" style="background:${a.color}">${a.role[0]}</div><div class="robot-text"><strong>${a.name}</strong><small>${a.role}</small></div><div class="robot-state">${a.status}</div></div>`).join('');
+  $('catalog').innerHTML=Object.entries(META).filter(([type])=>m.tasks.some(t=>t.type===type)).map(([type,meta])=>{let tasks=m.tasks.filter(t=>t.type===type);return `<div class="catalog-row"><span class="swatch" style="background:${meta.color}"></span><span>${meta.name}</span><span class="count">${tasks.filter(t=>t.status==='installed').length}/${tasks.length}</span></div>`}).join('');
+  $('feed').innerHTML=this.events.slice(0,14).map(e=>`<div class="feed-item"><span class="feed-time">${Math.floor(e.time/60).toString().padStart(2,'0')}:${Math.floor(e.time%60).toString().padStart(2,'0')}</span><span>${e.text}</span></div>`).join('');
+ }
+ loop(now){
+  try{
+   const dt=Math.min(.055,(now-this.last)/1000||.016);this.last=now;
+   if(this.running){const step=dt*this.speed;this.time+=step;
+    for(const a of this.agents)a.update(step);
+    this.supplyMaker();this.supplyCarrier();this.supplyBuilders();
+   }
+   if(now-this.uiLast>230){this.updateUI();this.uiLast=now}
+   this.view.render();
+  }catch(e){console.error(e);this.running=false;$('error').style.display='block';$('error').textContent='Simulation error: '+e.message;}
+  requestAnimationFrame(this.loop);
+ }
+}
+try{new BuildController()}catch(e){console.error(e);$('error').style.display='block';$('error').textContent='Three.js could not start: '+e.message+'\nPlease open this file over HTTP with an internet connection (Three.js loads from CDN).';$('topStatus').textContent='ERROR'}
+</script>
+</body>
+</html>
