@@ -19,7 +19,7 @@ class WorkstationUITests(unittest.TestCase):
         self.assertIn('planetlab:app-ready',self.world)
         self.assertIn('planetlab:app-ready',self.flow)
         self.assertIn("if(mode==='world')$('planetMode').click()",self.flow)
-        self.assertIn('id="workflowEntry" hidden',self.page)
+        self.assertIn('id="workflowEntry" aria-label="Welcome and getting started"',self.page)
     def test_site_massing_and_robots_controls(self):
         for control in ('viewMassing','viewPlan','viewAgents','showVegetation'):
             self.assertIn('id="'+control+'"',self.page)

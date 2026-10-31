@@ -1,9 +1,8 @@
-/* v0.4.10: focused, functional workspaces layered on the existing simulation.
+/* v0.4.11: focused, functional workspaces layered on the existing simulation.
  * Does not generate pretend AI output or create data without the user's action.
  */
 const $=id=>document.getElementById(id);
 const workspace=$('mainWorkspace');
-const intro=$('workflowEntry');
 const hint=$('workflowTip');
 const buttons={world:'flowWorld',city:'flowCity',build:'flowBuild',places:'flowPlaces',insights:'flowInsights'};
 const descriptions={
@@ -16,12 +15,17 @@ const descriptions={
 function show(mode){
  if(!buttons[mode])return;
  workspace.dataset.flow=mode;
- intro.hidden=true;
  for(const [name,id] of Object.entries(buttons))$(id).setAttribute('aria-pressed',String(name===mode));
  hint.textContent=descriptions[mode];hint.hidden=false;
  if(mode==='world')$('planetMode').click();
  if(mode==='city'||mode==='build'||mode==='insights')$('regionMode').click();
- if(mode==='places')window.planetLabPlaces?.refresh?.().catch?.(()=>{});
+ if(mode==='city')$('citySection').scrollIntoView({block:'start',behavior:'smooth'});
+ if(mode==='build')$('aiStudio').scrollIntoView({block:'start',behavior:'smooth'});
+ if(mode==='places'){
+   $('placebookSection').scrollIntoView({block:'start',behavior:'smooth'});
+   window.planetLabPlaces?.refresh?.().catch?.(()=>{});
+ }
+ if(mode==='world')workspace.querySelector('.left').scrollTop=0;
 }
 $('flowWorld').onclick=()=>show('world');
 $('flowCity').onclick=()=>show('city');
@@ -31,7 +35,14 @@ $('flowInsights').onclick=()=>show('insights');
 $('flowSave').onclick=()=>{show('places');$('snapshotName')?.focus()};
 $('startCity').onclick=()=>{show('city');$('plan').click()};
 $('startHouse').onclick=()=>{show('build');$('manualBuilding').click()};
-$('startExplore').onclick=()=>{show('world');$('planetMode').click()};
+$('startExplore').onclick=()=>show('world');
+function welcomeFor(user){
+ // Never interpolate the handle into HTML: usernames are untrusted text.
+ const handle=typeof user?.handle==='string'?user.handle:'';
+ $('welcomeUser').textContent=handle?`Welcome back, ${handle}`:'Welcome to PlanetLab';
+}
+window.addEventListener('planetlab:auth-changed',event=>welcomeFor(event.detail.user));
+welcomeFor(window.planetLabAuthState?.user);
 window.addEventListener('planetlab:open-pin',()=>show('places'));
 window.addEventListener('planetlab:site-selected',()=>show('city'));
 if(window.planetLabApp)show('world');

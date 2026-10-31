@@ -1,7 +1,7 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.10';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.11';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.10';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.11';
 
 const $=id=>document.getElementById(id);
 let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
@@ -85,11 +85,13 @@ function enterBuilding(){const s=sim(),b=currentBuilding;if(!b)throw new Error('
 function requireConnection(provider='meta'){
   if(!connected(provider)){
     openAiSetup();
-    throw new Error(`Connect your ${provider==='meta'?'Meta':'Tripo'} API key in AI Setup first.`);
+    const error=new Error(`Connect your ${provider==='meta'?'Meta':'Tripo'} API key in AI Setup first.`);
+    error.code='AI_KEY_REQUIRED';
+    throw error;
   }
 }
 function currentWorld(){const value=Number($('worldList').value);if(!Number.isInteger(value)||value<1)throw new Error('Save and select a world first');return value}
-async function studioAction(fn){try{await fn()}catch(e){notice(`Error: ${e.message} · Open API Console for details.`);console.error(e);openApiConsole()}}
+async function studioAction(fn){try{await fn()}catch(e){notice(e.code==='AI_KEY_REQUIRED'?e.message:`Error: ${e.message} · Open API Console for details.`);if(e.code!=='AI_KEY_REQUIRED'){console.error(e);openApiConsole()}}}
 async function listMedia(){const id=currentWorld();const result=await api(`/api/worlds/${id}/media`);
   const select=$('assetList');select.replaceChildren(new Option('Select imported GLB',''));
   for(const item of result.media.filter(m=>/\.glb$/i.test(m.filename)))select.add(new Option(`${item.filename} (${(item.size/1048576).toFixed(1)} MB)`,item.id));

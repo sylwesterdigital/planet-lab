@@ -2,6 +2,15 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.11",
+      "date": "2026-10-31",
+      "changes": [
+        "Explain PlanetLab, the globe and first steps directly in a persistent sidebar welcome",
+        "Greet signed-in users from verified session without obscuring the scene",
+        "Request optional AI keys only when an AI action is selected"
+      ]
+    },
+    {
       "version": "0.4.10",
       "date": "2026-10-31",
       "changes": [
@@ -40,5 +49,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.10"
+  "currentVersion": "0.4.11"
 }

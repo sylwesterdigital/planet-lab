@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.10';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.11';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -192,7 +192,7 @@ class CityApp{
   $('export').onclick=()=>{if(!this.plan)return;const data={...this.plan,governance:$('freeZone').checked?'voluntary-free-zone':'unspecified',tasks:this.plan.tasks.map(t=>({...t}))};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='planet-city-'+this.config.seed.replace(/[^a-z0-9_-]/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
   $('map').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),x=((e.clientX-r.left)/r.width-.5)*156,z=((e.clientY-r.top)/r.height-.5)*156;this.changeSite(chooseSite([x,z],this.readConfig()))};
  }
- updateMode(){let p=this.world.mode==='planet';$('planetMode').classList.toggle('active',p);$('regionMode').classList.toggle('active',!p);$('sceneHelp').innerHTML=p?'Drag to orbit · Scroll to zoom<br/>Click globe to explore a new region':'Drag to orbit · Scroll to zoom<br/>Click terrain to propose a settlement site';this.updateLocation()}
+ updateMode(){let p=this.world.mode==='planet';$('planetMode').classList.toggle('active',p);$('regionMode').classList.toggle('active',!p);$('sceneHelp').innerHTML=p?'Fictional world map · Drag to rotate · Scroll to zoom<br/>Click the globe to choose a region':'Selected fictional region · Drag to orbit · Scroll to zoom<br/>Click terrain to place a settlement';this.updateLocation()}
  chooseTask(robot){const pending=this.plan.tasks.filter(t=>t.status==='queued');if(!pending.length)return null;const earliest=Math.min(...pending.map(t=>STAGES.findIndex(s=>s[0]===t.stage)));const tasks=pending.filter(t=>STAGES.findIndex(s=>s[0]===t.stage)===earliest);const matched=tasks.filter(t=>robot.capabilities.includes(t.stage));const choices=matched.length?matched:tasks;return choices.reduce((a,b)=>!a||Math.hypot(b.x-robot.position[0],b.z-robot.position[1])<Math.hypot(a.x-robot.position[0],a.z-robot.position[1])?b:a,null)}
  update(dt){if(!this.plan)return;this.time+=dt;
   for(const bot of this.robots)bot.update(dt);

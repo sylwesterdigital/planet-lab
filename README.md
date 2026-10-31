@@ -1,4 +1,4 @@
-# PlanetLab v0.4.10 — conceptual spatial workstation
+# PlanetLab v0.4.11 — conceptual spatial workstation
 
 PlanetLab is a Three.js frontend with a Flask API, local world snapshots, optional
 AI provider integrations, and a staged macOS-to-Ubuntu deployment workflow.
@@ -18,6 +18,13 @@ estimation, or a construction-ready design tool.
 - **House demo:** the original single-house assembly example remains at
   `/house/index.html`.
 
+## Changes in v0.4.11
+
+- Provide a persistent start-here panel explaining the fictional globe and project goals.
+- Greet the verified signed-in user without a welcome modal or lost navigation.
+- Keep AI setup closed on entry; request provider keys only for explicitly chosen AI actions.
+- Keep the globe unobscured and existing city/building/save workflows operational.
+
 ## Changes in v0.4.10
 
 - Allow only known frontend assets through Flask's static route. This denies
@@ -34,6 +41,7 @@ estimation, or a construction-ready design tool.
 
 ```sh
 node test-planner.mjs
+node test-entry.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
@@ -43,7 +51,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.10.zip` in the Mac repository's
+The watcher accepts `PLANETLAB_RELEASE_v0.4.11.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

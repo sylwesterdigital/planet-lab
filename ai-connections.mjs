@@ -1,8 +1,7 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.10';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.11';
 /* Session-only BYOK: never persist keys into cookies, Storage, URL or the server DB. */
 const el=id=>document.getElementById(id);
 const ephemeral = {meta:'',tripo:'',model:'muse-spark-1.3'};
-let autoOpened=false;
 let previousFocus=null;
 export function connected(provider){return Boolean(ephemeral[provider]);}
 export function getAiHeaders(path){
@@ -73,7 +72,6 @@ el('aiStartDesign').addEventListener('click',()=>{
   closeAiSetup();el('aiStudio').scrollIntoView({behavior:'smooth',block:'start'});el('aiBrief').focus();
 });
 window.addEventListener('planetlab:auth-changed',event=>{
-  if(!event.detail.user){ephemeral.meta='';ephemeral.tripo='';autoOpened=false;closeAiSetup();return}
-  if(!autoOpened){autoOpened=true;queueMicrotask(()=>{if(!connected('meta'))openAiSetup()})}
+  // Sign-out clears all ephemeral provider keys. A login never opens a modal.
+  if(!event.detail.user){ephemeral.meta='';ephemeral.tripo='';closeAiSetup();setStatus('No Meta key connected for this tab.')}
 });
-if(window.planetLabAuthState?.user&&!autoOpened){autoOpened=true;queueMicrotask(()=>openAiSetup())}
