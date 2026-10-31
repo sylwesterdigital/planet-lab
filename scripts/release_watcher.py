@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Planet Lab: signed-by-hash release ZIP -> tests -> remote prepare -> git -> activation/rollback.
+"""Planet Lab: integrity-verified release ZIP -> tests -> remote prepare -> Git SSH -> activation/rollback.
 
 Run on macOS in the cloned repository root. Never copies live DBs or media.
 """
@@ -127,61 +127,89 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','test-planner.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','test-planner.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     log(output)
+    log(run(['python3','tests/test_auth_ui.py'], cwd=stage, timeout=20))
     import ast
-    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py']:
+    for filename in ['backend/app.py','backend/models.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_ai.py','tests/test_auth_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
     run(['bash', '-n', 'scripts/install-ubuntu.sh'], cwd=stage, timeout=15)
+    if (stage / 'scripts/install-macos-watcher.sh').is_file():
+        run(['bash', '-n', 'scripts/install-macos-watcher.sh'], cwd=stage, timeout=15)
     installer=(stage / 'scripts/install-ubuntu.sh').read_text()
     watcher=(stage / 'scripts/release_watcher.py').read_text()
     if 'APPROOT=/opt/planetlab' not in installer or 'VENV_ROOT="$APPROOT/venvs"' not in installer or "APPROOT = '/opt/planetlab'" not in watcher:
         raise ReleaseError('Deployment must keep releases and virtualenvs outside the Nginx webroot')
     index = (stage / 'index.html').read_text()
-    if 'collab.mjs' not in index or 'app.mjs' not in index or 'xrControls' not in index:
+    if 'collab.mjs' not in index or 'app.mjs' not in index or 'xrControls' not in index or 'id="authBackdrop"' not in index:
         raise ReleaseError('Missing required multiplayer/Three.js/XR interface entrypoints')
     log('Local JS, planner, Python syntax, shell, frontend tests passed')
 
 
+def normalize_git_ssh():
+    """Fix only known Planet Lab HTTPS/SSH URL variants; never touch other repositories."""
+    repo_ok = {
+        GITHUB,
+        'ssh://git@github.com/sylwesterdigital/planet-lab.git',
+        'https://github.com/sylwesterdigital/planet-lab.git',
+        'https://github.com/sylwesterdigital/planet-lab',
+    }
+    fetch_url = run(['git','remote','get-url','origin'], cwd=ROOT)
+    if fetch_url not in repo_ok:
+        raise ReleaseError('Unexpected origin URL; refusing to rewrite: ' + fetch_url)
+    push_urls = subprocess.run(['git','config','--get-all','remote.origin.pushurl'],
+                               cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    if push_urls.returncode not in (0,1):
+        raise ReleaseError('Could not examine Git push URL')
+    configured = [x.strip() for x in push_urls.stdout.splitlines() if x.strip()]
+    if any(x not in repo_ok for x in configured):
+        raise ReleaseError('Unexpected Git push URL; refusing to overwrite: ' + ', '.join(configured))
+    if fetch_url != GITHUB:
+        run(['git','remote','set-url','origin',GITHUB], cwd=ROOT)
+        log('Git origin automatically switched to GitHub SSH')
+    if configured != [GITHUB]:
+        # Explicitly replace any old HTTPS pushurl, removing extras.
+        for old in configured:
+            run(['git','config','--unset-all','remote.origin.pushurl'], cwd=ROOT)
+            break
+        run(['git','remote','set-url','--push','origin',GITHUB],cwd=ROOT)
+        log('Git push remote automatically configured for SSH keys')
+
+
 def git_preflight(stage, hashes):
     if not (ROOT / '.git').exists():
-        raise ReleaseError('Not in cloned Git repository. Run setup-macos.sh first.')
+        raise ReleaseError('Not in cloned Git repository: ' + str(ROOT))
     branch = run(['git','branch','--show-current'],cwd=ROOT)
     if branch != 'main':
         raise ReleaseError(f'Expected main branch, found {branch}')
-    remote = run(['git','remote','get-url','origin'],cwd=ROOT)
-    if remote != GITHUB:
-        raise ReleaseError('Git origin must use SSH: git remote set-url origin ' + GITHUB)
-    push_remote = run(['git','remote','get-url','--push','origin'],cwd=ROOT)
-    if push_remote != GITHUB:
-        raise ReleaseError('Git push URL must be SSH: git remote set-url --push origin ' + GITHUB)
-    staged = run(['git', 'diff', '--cached','--name-only'],cwd=ROOT)
+    normalize_git_ssh()
+    staged = run(['git','diff','--cached','--name-only'],cwd=ROOT)
     if staged:
-        raise ReleaseError('Existing staged changes: ' + staged)
+        raise ReleaseError('Existing staged changes: '+staged)
     dirty = set(run(['git','diff','--name-only'], cwd=ROOT).splitlines())
     for rel in hashes:
         target=ROOT/rel
         if target.is_symlink():
-            raise ReleaseError('Refusing to overwrite symlink: ' + rel)
+            raise ReleaseError('Refusing to overwrite symlink: '+rel)
         if rel in dirty and (not target.is_file() or target.read_bytes() != (stage/rel).read_bytes()):
-            raise ReleaseError('Release conflicts with uncommitted edits: ' + rel)
-    run(['git', 'var', 'GIT_AUTHOR_IDENT'], cwd=ROOT)
-    remote_main = run(['git', '-c', 'core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
-                       'ls-remote', GITHUB, 'refs/heads/main'], cwd=ROOT, timeout=35)
-    # Accept empty repositories but refuse to overwrite diverged histories.
+            raise ReleaseError('Release conflicts with uncommitted edits: '+rel)
+    run(['git','var','GIT_AUTHOR_IDENT'],cwd=ROOT)
+    remote_main = run(['git','-c','core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
+                       'ls-remote',GITHUB,'refs/heads/main'],cwd=ROOT,timeout=35)
     if remote_main:
-        run(['git', 'fetch', '--no-tags', GITHUB, 'main'], cwd=ROOT, timeout=45)
+        run(['git','-c','core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10',
+             'fetch','--no-tags',GITHUB,'main'],cwd=ROOT,timeout=45)
         if subprocess.run(['git','rev-parse','--verify','HEAD'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode == 0:
             relation = subprocess.run(['git','merge-base','--is-ancestor','FETCH_HEAD','HEAD'],cwd=ROOT,
                                       stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             if relation.returncode:
-                raise ReleaseError('GitHub main diverged; use git pull --ff-only, then retry')
+                raise ReleaseError('GitHub main diverged; automatic deployment stopped to preserve history')
         else:
-            raise ReleaseError('Remote main has history but local main has no commits; clone repository properly')
+            raise ReleaseError('Remote main has history but local main has no commits')
     ssh('test -d /var/www/planetlab.me && command -v nginx && command -v rsync && command -v python3 && command -v curl')
-    log('GitHub, working-tree and Ubuntu SSH preflight passed')
+    log('GitHub SSH, working tree and Ubuntu SSH preflight passed')
 
 
 def deploy_stage(stage, version):
@@ -294,8 +322,16 @@ def main():
     mode.add_argument('--once',action='store_true',help='Consume pending ZIPs once then exit')
     mode.add_argument('--dry-run',action='store_true',help='Validate ZIPs locally without GitHub or server changes')
     mode.add_argument('--status',action='store_true')
+    mode.add_argument('--check-zip',type=Path,metavar='FILE',help='Validate one release and exit (no Git or deploy)')
     parser.add_argument('--interval',type=int,default=4)
     args=parser.parse_args()
+    if args.check_zip:
+        STATE.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='zip-check-',dir=STATE) as tmp:
+            manifest=verify(args.check_zip,Path(tmp))
+            local_tests(Path(tmp))
+            log('CHECK PASSED v'+manifest['version']+'; GitHub and server unchanged')
+        return 0
     if args.status:
         log('Last watcher-confirmed version: v'+get_deployed())
         try:

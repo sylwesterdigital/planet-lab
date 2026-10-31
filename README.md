@@ -1,4 +1,17 @@
-# PLANET / LAB — v0.3.2
+# PLANET / LAB — v0.4.2
+
+## v0.4.2 — First-load account experience and persistent sessions
+
+- **Registration/sign-in overlay:** The first page load queries `/api/session`. Signed-in users enter the scene immediately; unauthenticated visitors see a full-screen, keyboard-accessible account form with tabs for **Create account** and **Sign in**. The multiplayer sidebar no longer contains duplicate registration buttons or passwords.
+- **Single-form validation:** Handle must be 3–32 characters (letters/numbers/`_`/`-`); registration passwords must be 12–200 characters. Backend errors appear directly on the form. Register and login both sign in automatically.
+- **Session persistence:** Flask signs the session into an `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie with a rolling 30-day expiry. The browser stores **no password, CSRF token or session secret in localStorage**. Signing out clears the browser session and reopens the overlay.
+- **Avoided CSRF startup race:** Studio settings now listen to the same authenticated session event as multiplayer. Two independent startup calls to `/api/session` could previously create conflicting anonymous CSRF cookies.
+- **Admin is NOT automatically granted to the first public signup.** Register normally in the overlay; the server operator must separately authorise the correct account before enabling paid AI integrations. This protects the site against a random visitor claiming the first administrator account.
+- **No manually executed GitHub or deployment commands per release:** With the v0.4.1 `launchd` watcher installed, drop `PLANETLAB_RELEASE_v0.4.2.zip` directly into `updates/`. The watcher validates, commits, pushes using SSH, stages and tests Ubuntu, activates and verifies the site. To enable the launchd watcher on a workstation where it has never been installed, run `bash scripts/install-macos-watcher.sh install` once.
+
+**Verification:** Built-in frontend-auth contracts and 48 planner checks run locally. The remote watcher must still run full Flask integration tests and HTTPS smoke checks before marking a deployment successful. No remote services or GitHub accounts are changed simply by unpacking this release.
+
+---
 
 **Deployment correction:** App code and shared Python environments live in `/opt/planetlab`, not in `/var/www`. The v0.3.1 first deployment failed when the `planetlab` service user could not execute the release-owned `.venv/bin/python` under the web directory. The exact original permission/mount cause was not established; v0.3.2 removes that risky arrangement, checks readability and executability as `planetlab`, and prints `namei` and mount details on failure.
 
@@ -205,3 +218,24 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 Full backend integration tests need packages from `backend/requirements.txt`; the watcher installs them on Ubuntu in an isolated virtual environment. New AI tests mock Meta responses and never spend API credits. Check actual provider API versions and your agreement before enabling paid calls.
+
+---
+
+## v0.4.1 — Always-on macOS release watcher
+
+Planet Lab is designed for **zero manual deploy commands after one-time setup**. The watcher runs as an unprivileged `launchd` LaunchAgent (label `me.planetlab.release-watcher`) and starts at user login. While Mac is powered on and the user session is active, it scans `<repo>/updates/` every four seconds, waiting for `PLANETLAB_RELEASE_vX.Y.Z.zip`. It needs no separate `--once`, `--dry-run` or manual `git push` per release.
+
+The one-time starter installer (`Install Planet Lab Watcher.command`) copies the verified watcher files into the cloned repository, places the initial versioned ZIP in `updates/`, performs local release checks, and registers the LaunchAgent. This step **cannot be done remotely from a chat**; the Mac user runs it once.
+
+**Future releases**: drag the ZIP into `updates/` using Finder. The watcher verifies checksums/paths, runs tests, checks GitHub and Ubuntu access, stages a release, runs remote integration tests, commits only the release's declared files, pushes using `git@github.com:sylwesterdigital/planet-lab.git`, activates via SSH `root@planetlab.me` port `333`, verifies HTTPS and records deployment. Successful ZIPs move to `updates/processed/`; failed ZIPs move to `updates/failed/` and require diagnostics before retry. Server data/media under `/var/lib/planetlab` remain out of release sync.
+
+Commands for occasional administration (not required for deployments):
+
+- `bash scripts/install-macos-watcher.sh status` — see launchd service and last deployment.
+- `bash scripts/install-macos-watcher.sh logs` — inspect watcher logs.
+- `bash scripts/install-macos-watcher.sh stop` — stop until next user login.
+- `bash scripts/install-macos-watcher.sh install` — repair/restart launchd service.
+
+Logs: `.planetlab/logs/watcher.out.log` and `.planetlab/logs/watcher.err.log`. Deployment history: `.planetlab/deployed.json` and `updates/processed/`. SSH keys must be usable noninteractively by the macOS login session. For passphrase-protected keys, use macOS SSH agent/Keychain. Do not put private keys or API secrets inside ZIP releases. The watcher **does not deploy when the Mac is off or nobody is logged in**; untrusted ZIPs should never be put into `updates/` because release scripts are executable code.
+
+**Note:** Checksums in the ZIP establish integrity relative to its manifest, not cryptographic authenticity of the publisher. Only accept release bundles from a trusted source. Pending failures are not silently retried to avoid repeated potentially destructive deployment attempts; inspect logs and move the verified ZIP back from `updates/failed/` to `updates/` after fixing the cause.

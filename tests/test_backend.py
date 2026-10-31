@@ -47,6 +47,34 @@ class PlanetBackendTest(unittest.TestCase):
         self.assertTrue(self.client.get('/api/media/'+upload.json['id']).headers['Content-Disposition'].startswith('attachment;'))
         self.assertEqual(self.client.get('/api/worlds').json['worlds'][0]['revision'], 2)
 
+    def test_registration_login_session_persistence_and_logout(self):
+        anonymous = self.client.get('/api/session').json
+        self.assertIsNone(anonymous['user'])
+        self.assertTrue(anonymous['csrf'])
+        too_short = self.post('/api/register', {'handle':'builder', 'password':'short'})
+        self.assertEqual(too_short.status_code, 400)
+        registered = self.post('/api/register', {'handle':'Builder', 'password':'a-secure-and-long-password'})
+        self.assertEqual(registered.status_code, 201, registered.json)
+        self.assertEqual(registered.json['handle'], 'builder')
+        cookie = self.client.get_cookie(self.app.config['SESSION_COOKIE_NAME'])
+        self.assertIsNotNone(cookie)
+        self.assertTrue(cookie.http_only)
+        self.assertEqual(cookie.same_site, 'Lax')
+        with self.client.session_transaction() as live_session:
+            self.assertTrue(live_session.permanent)
+            self.assertEqual(live_session['uid'], registered.json['id'])
+        self.assertEqual(self.client.get('/api/session').json['user']['handle'], 'builder')
+        self.csrf = registered.json['csrf']
+        logged_out = self.post('/api/logout', {})
+        self.assertEqual(logged_out.status_code, 200)
+        self.assertIsNone(self.client.get('/api/session').json['user'])
+        self.csrf = logged_out.json['csrf']
+        logged_in = self.post('/api/login', {'handle':'builder', 'password':'a-secure-and-long-password'})
+        self.assertEqual(logged_in.status_code, 200, logged_in.json)
+        with self.client.session_transaction() as live_session:
+            self.assertTrue(live_session.permanent)
+        self.assertEqual(self.client.get('/api/session').json['user']['handle'], 'builder')
+
     def test_cookies_permissions_and_csrf(self):
         self.assertEqual(self.client.post('/api/register', json={'handle': 'nope', 'password': 'long-enough-test-password'}).status_code, 403)
         self.post('/api/register', {'handle': 'owner', 'password': 'a-long-valid-password'})

@@ -81,7 +81,9 @@ function enterBuilding(){const s=sim(),b=currentBuilding;if(!b)throw new Error('
   notice('Interior inspection. Drag to orbit; reset camera to return. No collision physics yet.');
 }
 async function refreshAuth(){
-  const s=await api('/api/session');csrf=s.csrf;activeUser=s.user;isAdmin=false;
+  const state=window.planetLabAuthState;
+  if(!state)return;
+  csrf=state.csrf;activeUser=state.user;isAdmin=false;
   try{const settings=await api('/api/integrations');isAdmin=true;for(const [p,vals] of Object.entries(settings.providers)){
       $(p+'Model').value=vals.model;
       if(p==='meta'){for(const [id,key] of [['metaImageModel','image_model'],['metaComplexModel','complex_model'],['metaSegmentationModel','segmentation_model'],['metaVoiceModel','voice_model']])$(id).value=vals[key]||'';}
@@ -159,4 +161,8 @@ $('assetRefresh').onclick=()=>studioAction(listMedia);
 $('assetPlace').onclick=()=>studioAction(()=>placeAsset($('assetList').value));
 // Persist the parametric studio building alongside the original procedural blueprint.
 window.planetLabStudio={applyStored:(plan)=>{const b=plan?.studioBuildings?.[0];if(b){currentBuilding=b;setInputs(b);putBuilding(b,false)}},getBuilding:()=>currentBuilding};
-setTimeout(()=>studioAction(refreshAuth),700);
+window.addEventListener('planetlab:auth-changed', event=>{
+  csrf=event.detail.csrf;activeUser=event.detail.user;
+  studioAction(refreshAuth);
+});
+if(window.planetLabAuthState)studioAction(refreshAuth);

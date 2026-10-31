@@ -5,6 +5,7 @@ import json
 import os
 import secrets
 import threading
+from datetime import timedelta
 import uuid
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
 from .ai_routes import setup_ai
 
-VERSION = '0.4.0'
+VERSION = '0.4.2'
 MAX_PLAN = 2 * 1024 * 1024
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
@@ -46,6 +47,8 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=not config.get('TESTING', False) and os.environ.get('PLANETLAB_DEV_HTTP', '0') != '1',
         SESSION_COOKIE_SAMESITE='Lax',
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+        SESSION_REFRESH_EACH_REQUEST=True,
         SOCK_SERVER_OPTIONS={'ping_interval': 25, 'max_message_size': 8192},
     )
     engine = create_engine(db_url, pool_pre_ping=True, connect_args={'check_same_thread': False} if db_url.startswith('sqlite:') else {})
@@ -140,6 +143,7 @@ def create_app(test_config=None):
             db.flush()
             uid = new_user.id
         session.clear()
+        session.permanent = True
         session['uid'] = uid
         session['csrf'] = secrets.token_urlsafe(32)
         return jsonify(id=uid, handle=handle, csrf=session['csrf']), 201
@@ -155,6 +159,7 @@ def create_app(test_config=None):
                 return fail('Invalid credentials', 401)
             uid = user.id
         session.clear()
+        session.permanent = True
         session['uid'] = uid
         session['csrf'] = secrets.token_urlsafe(32)
         return jsonify(id=uid, handle=handle, csrf=session['csrf'])

@@ -12,7 +12,21 @@ async function call(path, options={}) {
   if(!response.ok)throw new Error(data.error || `HTTP ${response.status}`);
   return data;
 }
-async function sessionInfo(){const s=await call('/api/session'); csrf=s.csrf;currentUser=s.user;note(s.user?`Signed in as ${s.user.handle}`:'API online · sign in to save and collaborate');return s;}
+function setSession(user, token) {
+  currentUser = user || null;
+  csrf = token || '';
+  const strip = el('accountStrip');
+  strip.hidden = !currentUser;
+  el('accountName').textContent = currentUser ? `@${currentUser.handle}` : '';
+  note(currentUser ? `Signed in as ${currentUser.handle}` : 'Sign in to save and collaborate');
+  window.planetLabAuthState = {user: currentUser, csrf};
+  window.dispatchEvent(new CustomEvent('planetlab:auth-changed', {detail: {user: currentUser, csrf}}));
+}
+async function sessionInfo() {
+  const s = await call('/api/session');
+  setSession(s.user, s.csrf);
+  return s;
+}
 async function worlds(){const d=await call('/api/worlds');const list=el('worldList'),selected=list.value;list.replaceChildren(new Option('Select world',''));
 for(const w of d.worlds){list.add(new Option(`#${w.id} · ${w.title} · ${w.owner}${w.is_public?' · public':''}`,String(w.id)));}
 if(Array.from(list.options).some(o=>o.value===selected))list.value=selected;
@@ -40,12 +54,98 @@ else{const d=await call('/api/worlds',{method:'POST',body:JSON.stringify(payload
 await worlds();el('worldList').value=String(worldId);connect(worldId);}
 async function load(){const id=Number(el('worldList').value);if(!id)throw new Error('Choose a saved world');const d=await call(`/api/worlds/${id}`);readIntoScene(d.blueprint);worldId=id;revision=d.revision;el('worldTitle').value=d.title;el('worldPublic').checked=d.is_public;state(`Loaded #${id} · revision ${revision}`);el('chatLog').replaceChildren();const chat=await call(`/api/worlds/${id}/messages`);for(const msg of chat.messages)log(`${msg.user}: ${msg.text}`);connect(id);}
 async function action(fn){try{await fn();}catch(e){note(`Error: ${e.message}`);}}
-el('register').onclick=()=>action(async()=>{const d=await call('/api/register',{method:'POST',body:JSON.stringify({handle:el('handle').value,password:el('password').value})});csrf=d.csrf;el('password').value='';await sessionInfo();await worlds();});
-el('login').onclick=()=>action(async()=>{const d=await call('/api/login',{method:'POST',body:JSON.stringify({handle:el('handle').value,password:el('password').value})});csrf=d.csrf;el('password').value='';await sessionInfo();await worlds();});
-el('logout').onclick=()=>action(async()=>{if(socket)socket.close();const d=await call('/api/logout',{method:'POST'});csrf=d.csrf;currentUser=null;worldId=null;revision=null;await sessionInfo();await worlds();});
-el('saveWorld').onclick=()=>action(save);el('loadWorld').onclick=()=>action(load);el('refreshWorlds').onclick=()=>action(worlds);
+
+/* Initial experience: one modal, one form, session cookie managed by Flask. */
+const overlay=el('authBackdrop'), form=el('authForm'), message=el('authMessage');
+let authMode='register', authBusy=false;
+function showAuth() {
+  overlay.hidden=false;
+  el('authLoading').hidden=true;
+  el('authFailed').hidden=true;
+  el('authPanel').hidden=false;
+  message.hidden=true;
+  el('authHandle').focus();
+}
+function hideAuth() {
+  overlay.hidden=true;
+  el('authPassword').value='';
+  message.hidden=true;
+}
+function authError(error){message.textContent=error;message.hidden=false;}
+function mode(value) {
+  if(authBusy)return;
+  authMode=value;
+  const signingIn=value==='login';
+  el('authTabRegister').setAttribute('aria-selected',String(!signingIn));
+  el('authTabLogin').setAttribute('aria-selected',String(signingIn));
+  el('authFormTitle').textContent=signingIn?'Welcome back':'Create your account';
+  el('authPassword').autocomplete=signingIn?'current-password':'new-password';
+  el('authPassword').placeholder=signingIn?'Your password':'At least 12 characters';
+  el('authPassword').minLength=signingIn?1:12;
+  el('authPasswordHelp').textContent=signingIn?'Sign in with your existing password.':'At least 12 characters; stored securely on the server.';
+  el('authHandleHelp').hidden=signingIn;
+  el('authSubmit').textContent=signingIn?'Sign in & enter':'Create account & enter';
+  message.hidden=true;
+}
+el('authTabRegister').onclick=()=>mode('register');
+el('authTabLogin').onclick=()=>mode('login');
+form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(authBusy)return;
+  const handle=el('authHandle').value.trim();
+  const password=el('authPassword').value;
+  if(!/^[a-z0-9_-]{3,32}$/i.test(handle))return authError('Username must be 3–32 letters, numbers, _ or -.');
+  if(authMode==='register' && (password.length<12||password.length>200))return authError('Choose a password between 12 and 200 characters.');
+  if(!password)return authError('Enter your password.');
+  authBusy=true;
+  el('authSubmit').disabled=true;
+  el('authSubmit').textContent=authMode==='register'?'Creating account…':'Signing in…';
+  message.hidden=true;
+  try {
+    const response=await call(authMode==='register'?'/api/register':'/api/login',{
+      method:'POST',body:JSON.stringify({handle,password})
+    });
+    setSession({id:response.id,handle:response.handle},response.csrf);
+    hideAuth();
+    await action(worlds);
+  } catch (error) {
+    authError(error.message);
+  } finally {
+    authBusy=false;
+    el('authSubmit').disabled=false;
+    el('authSubmit').textContent=authMode==='register'?'Create account & enter':'Sign in & enter';
+  }
+});
+
+el('accountSignout').onclick=()=>action(async()=>{
+  const result=await call('/api/logout',{method:'POST'});
+  if(socket){socket.close();socket=null;}
+  worldId=null;revision=null;
+  setSession(null,result.csrf);
+  mode('login');
+  showAuth();
+  await worlds();
+});
+el('saveWorld').onclick=()=>action(save);
+el('loadWorld').onclick=()=>action(load);
+el('refreshWorlds').onclick=()=>action(worlds);
 el('worldList').onchange=()=>{worldId=null;revision=null;state('Selected world; press Load world.');};
 function sendChat(){if(!socket||socket.readyState!==WebSocket.OPEN){note('Load a world and connect first');return;}const text=el('chatInput').value.trim();if(text){socket.send(JSON.stringify({type:'chat',text}));el('chatInput').value='';}}
-el('chatSend').onclick=sendChat;el('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
+el('chatSend').onclick=sendChat;
+el('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 el('uploadMedia').onclick=()=>action(async()=>{if(!worldId)throw new Error('Load or save a world first');const file=el('mediaFile').files[0];if(!file)throw new Error('Select a media file');if(file.size>50*1024*1024)throw new Error('50 MB maximum');const form=new FormData();form.append('file',file);const result=await call(`/api/worlds/${worldId}/media`,{method:'POST',body:form});state(`Uploaded ${result.filename} (${result.size} bytes) to world #${worldId}`);el('mediaFile').value='';});
-await action(async()=>{await sessionInfo();await worlds();});
+async function bootAuth(){
+  el('authLoading').hidden=false;el('authPanel').hidden=true;el('authFailed').hidden=true;overlay.hidden=false;
+  try {
+    const user=await sessionInfo();
+    if(user.user){hideAuth();}
+    else {mode('register');showAuth();}
+    await action(worlds);
+  } catch(error) {
+    el('authLoading').hidden=true;el('authPanel').hidden=true;el('authFailed').hidden=false;
+    note('API unavailable');
+    console.error('Session check failed',error);
+  }
+}
+el('authRetry').onclick=bootAuth;
+await bootAuth();
