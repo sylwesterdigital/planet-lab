@@ -1,3 +1,24 @@
+# Planet Lab v0.4.5 — AI Setup error handling hotfix
+
+This patch addresses the Ubuntu integration-test failure in v0.4.4: a missing Meta key from a signed-in non-admin user returned HTTP 502 (upstream failure), while the UI correctly requires HTTP 400 (user configuration error). The v0.4.5 backend returns **400** for missing/invalid per-session provider keys and invalid model names, without making a paid request. Genuine Meta/Tripo provider errors still return **502**. Both paths have offline-mocked regression tests in `tests/test_ai.py`. No changes to database schema or persistent secrets.
+
+**Drop the versioned ZIP into `updates/`.** The watcher runs static/remote integration tests, publishes source over GitHub SSH, then activates Ubuntu only on success. Existing v0.4.4 in `updates/failed/` need not be retried. No additional terminal commands are necessary if the watcher is running.
+
+---
+
+# Planet Lab v0.4.4 — AI Setup that works without admin approval
+
+1. Sign in to Planet Lab. An **AI Setup** overlay opens automatically (or click **AI Setup** at the top).
+2. Paste your Meta Model API key and choose a model.
+3. Click **Use key in this tab**, then **Test connection** (makes one small potentially billable Meta request).
+4. Click **Go to Building Studio** to write a brief and select **Ask Meta to design building**.
+
+**Security:** BYOK keys remain only in this browser tab's JavaScript memory, not in localStorage, sessionStorage, cookies or Planet Lab's database. They are sent via same-origin HTTPS request headers to the Flask backend, which forwards them to the allowlisted provider endpoint for each explicitly initiated call. Closing/reloading the page clears the keys. Any script executing in the same page origin can access browser memory; keep browser extensions and third-party scripts trusted. The previously existing admin-only persistent integration settings backend is retained for backward compatibility, but no longer needed for per-user BYOK calls.
+
+**Important:** Connection tests and model requests can incur provider charges. No connection is made by the watcher or on sign-in. The Tripo3D optional key is session-only and validated on first generation. Generated assets still require a saved world. The building planner produces conceptual geometry, not engineering designs.
+
+---
+
 # Planet Lab v0.4.3 — Auth bootstrap and deployment diagnostics
 
 This release addresses a mixed-version browser cache failure where v0.4.0 `collab.mjs` attempted to access removed registration controls from v0.4.2 HTML, leaving the first-load overlay stuck. It does not alter persistent databases, media or the live deployment paths.

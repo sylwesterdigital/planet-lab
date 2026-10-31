@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.5';
 
 const $=id=>document.getElementById(id);
-let csrf='', activeUser=null, isAdmin=false, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
+let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
 const libLoader = new GLTFLoader();
 const notice=(msg)=>{$('studioStatus').textContent=msg};
 async function api(path,options={}){
-  const method=options.method||'GET';const headers={...(!(options.body instanceof FormData)&&options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})};
+  const method=options.method||'GET';const headers={...(!(options.body instanceof FormData)&&options.body?{'Content-Type':'application/json'}:{}),...getAiHeaders(path),...(options.headers||{})};
   if(method!=='GET')headers['X-CSRF-Token']=csrf;
   const r=await fetch(path,{credentials:'same-origin',...options,headers});
   const obj=await r.json().catch(()=>({error:'Invalid API response'}));
@@ -80,33 +81,11 @@ function enterBuilding(){const s=sim(),b=currentBuilding;if(!b)throw new Error('
   s.world.controls.target.set(x,y+1.7,z-1.5);s.world.controls.update();
   notice('Interior inspection. Drag to orbit; reset camera to return. No collision physics yet.');
 }
-async function refreshAuth(){
-  const state=window.planetLabAuthState;
-  if(!state)return;
-  csrf=state.csrf;activeUser=state.user;isAdmin=false;
-  if(!state.isAdmin){
-    $('integrationsAdmin').hidden=true;
-    $('studioAdminNote').textContent=activeUser?'Admin access is required to configure AI providers.':'Sign in to access AI settings.';
-    return;
+function requireConnection(provider='meta'){
+  if(!connected(provider)){
+    openAiSetup();
+    throw new Error(`Connect your ${provider==='meta'?'Meta':'Tripo'} API key in AI Setup first.`);
   }
-  try{const settings=await api('/api/integrations');isAdmin=true;for(const [p,vals] of Object.entries(settings.providers)){
-      $(p+'Model').value=vals.model;
-      if(p==='meta'){for(const [id,key] of [['metaImageModel','image_model'],['metaComplexModel','complex_model'],['metaSegmentationModel','segmentation_model'],['metaVoiceModel','voice_model']])$(id).value=vals[key]||'';}
-      $(p+'Endpoint').value=vals.base_url;
-      $(p+'Enabled').checked=vals.enabled;
-      $(p+'Connected').textContent=vals.configured?'Key saved (hidden)':'No key configured';
-    }}catch{}
-  $('integrationsAdmin').hidden=!isAdmin;
-  $('studioAdminNote').textContent=isAdmin?'Admin settings enabled. Provider operations may incur API charges.':'Sign in as configured PLANETLAB_ADMIN_HANDLE to use AI integrations.';
-}
-async function saveProvider(provider){
-  const payload={base_url:$(provider+'Endpoint').value,model:$(provider+'Model').value,
-    enabled:$(provider+'Enabled').checked};
-  if(provider==='meta'){for(const [id,key] of [['metaImageModel','image_model'],['metaComplexModel','complex_model'],['metaSegmentationModel','segmentation_model'],['metaVoiceModel','voice_model']])payload[key]=$(id).value;}
-  const key=$(provider+'Key').value.trim();if(key)payload.api_key=key;
-  const result=await api(`/api/integrations/${provider}`,{method:'PUT',body:JSON.stringify(payload)});
-  $(provider+'Key').value='';$(provider+'Connected').textContent=result.provider.configured?'Key saved (hidden)':'No key';
-  notice(`${provider} settings saved server-side.`);
 }
 function currentWorld(){const value=Number($('worldList').value);if(!Number.isInteger(value)||value<1)throw new Error('Save and select a world first');return value}
 async function studioAction(fn){try{await fn()}catch(e){notice(`Error: ${e.message}`);console.error(e)}}
@@ -123,28 +102,22 @@ function placeAsset(id){const s=sim();if(!id)throw new Error('Select GLB asset')
     libraryGroup.add(object);notice('GLB placed on terrain near building.');
   },undefined,()=>notice('Unable to load GLB asset'));
 }
-for(const p of ['meta','tripo']){
-  $(p+'Save').onclick=()=>studioAction(()=>saveProvider(p));
-  $(p+'Test').onclick=()=>studioAction(async()=>{const d=await api(`/api/integrations/${p}/test`,{method:'POST',body:'{}'});notice(`${p}: ${d.status|| (d.ok?'connection OK':'check settings')}`)});
-}
-$('integrationsForm').addEventListener('submit',e=>e.preventDefault());
-$('studioRefresh').onclick=()=>studioAction(refreshAuth);
 $('aiBuilding').onclick=()=>studioAction(async()=>{
-  notice('Requesting AI building specification…');const result=await api('/api/ai/building',{method:'POST',body:JSON.stringify({brief:$('aiBrief').value,tier:$('aiTier').value})});
+  requireConnection('meta');notice('Requesting AI building specification…');const result=await api('/api/ai/building',{method:'POST',body:JSON.stringify({brief:$('aiBrief').value,tier:$('aiTier').value,model:selectedModel()})});
   currentBuilding=result.building;setInputs(result.building);putBuilding(result.building);
 });
 $('manualBuilding').onclick=()=>studioAction(()=>{const b=specFromInputs();putBuilding(b)});
 $('enterBuilding').onclick=()=>studioAction(enterBuilding);
 $('aiImage').onclick=()=>studioAction(async()=>{
-  notice('Generating concept image…');const id=currentWorld();const d=await api('/api/ai/image',{method:'POST',body:JSON.stringify({world_id:id,prompt:$('aiBrief').value})});
+  requireConnection('meta');notice('Generating concept image…');const id=currentWorld();const d=await api('/api/ai/image',{method:'POST',body:JSON.stringify({world_id:id,prompt:$('aiBrief').value})});
   $('conceptPreview').src=d.url;$('conceptPreview').hidden=false;notice('Concept image saved to world media.');
 });
 $('tripoCreate').onclick=()=>studioAction(async()=>{
-  const id=currentWorld();const d=await api('/api/ai/tripo',{method:'POST',body:JSON.stringify({world_id:id,prompt:$('tripoPrompt').value})});
+  requireConnection('tripo');const id=currentWorld();const d=await api('/api/ai/tripo',{method:'POST',body:JSON.stringify({world_id:id,prompt:$('tripoPrompt').value})});
   currentJob=d.job_id;$('tripoProgress').textContent=`Task ${currentJob}: queued`;notice('Tripo 3D generation submitted. Use Check job to poll.');
 });
 $('tripoCheck').onclick=()=>studioAction(async()=>{
-  if(!currentJob)throw new Error('Submit a Tripo job first');const d=await api(`/api/ai/tripo/${currentJob}`);
+  requireConnection('tripo');if(!currentJob)throw new Error('Submit a Tripo job first');const d=await api(`/api/ai/tripo/${currentJob}`);
   $('tripoProgress').textContent=`${d.status} · ${d.progress||0}%`;
   $('tripoImport').disabled=!d.can_import;
 });
@@ -169,6 +142,5 @@ $('assetPlace').onclick=()=>studioAction(()=>placeAsset($('assetList').value));
 window.planetLabStudio={applyStored:(plan)=>{const b=plan?.studioBuildings?.[0];if(b){currentBuilding=b;setInputs(b);putBuilding(b,false)}},getBuilding:()=>currentBuilding};
 window.addEventListener('planetlab:auth-changed', event=>{
   csrf=event.detail.csrf;activeUser=event.detail.user;
-  studioAction(refreshAuth);
 });
-if(window.planetLabAuthState)studioAction(refreshAuth);
+if(window.planetLabAuthState){csrf=window.planetLabAuthState.csrf;activeUser=window.planetLabAuthState.user;}

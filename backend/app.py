@@ -19,7 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import Base, User, World, Message, Media
 from .ai_routes import setup_ai
 
-VERSION = '0.4.3'
+VERSION = '0.4.5'
 MAX_PLAN = 2 * 1024 * 1024
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}

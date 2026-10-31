@@ -31,6 +31,14 @@
 .account-name{color:#b8ed8e;font-size:11px;font-weight:750}
 .account-signout{border:1px solid #3c5362;background:#172a36;border-radius:6px;padding:7px 9px;font-size:10px;font-weight:700;color:#dcebf1}
 @media(max-width:600px){.auth-card{padding:21px 17px}.auth-card h2{font-size:25px}.top{flex-wrap:wrap;padding:8px 12px}.account-name{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+/* AI setup: single clear experience, not a sidebar admin form. */
+.ai-modal-backdrop[hidden]{display:none!important}.ai-modal-backdrop{position:fixed;inset:0;z-index:11000;background:#050d15db;display:grid;place-items:center;overflow-y:auto;padding:22px}
+.ai-modal-card{width:min(100%,620px);padding:27px;background:#142432;border:1px solid #50727f;border-radius:20px;box-shadow:0 26px 100px #0009}
+.ai-modal-head{display:flex;align-items:flex-start;gap:16px;justify-content:space-between}.ai-modal-head h2{font-size:32px;letter-spacing:-.04em;margin:4px 0 8px}.ai-modal-head p{color:#adc4d1;font-size:13px;line-height:1.6;margin:0 0 22px}.ai-modal-card .lab{font-size:11px;margin-top:13px}.ai-modal-card .field{min-height:42px;font-size:13px}.ai-key-row{display:flex;gap:8px}.ai-key-row input{min-width:0;flex:1}.ai-modal-actions{display:flex;gap:10px;margin:16px 0 12px}.ai-modal-actions .btn{flex:1}.ai-inline-status{color:#d5e6ec;font-size:12px;border:1px solid #426270;border-radius:9px;padding:12px;background:#10212a;line-height:1.5;min-height:44px}
+.ai-inline-status.error{color:#ffaaaa;border-color:#99575b}.ai-inline-status.success{color:#b8ed8e;border-color:#528969}
+.ai-details{margin-top:15px;border-top:1px solid #345263;padding-top:15px}.ai-details summary{cursor:pointer;font-weight:700;color:#b8ced9;font-size:12px}.ai-modal-footer{border-top:1px solid #345263;margin-top:19px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:14px}.ai-modal-footer span{max-width:335px;color:#9aafbc;font-size:11px;line-height:1.6}.ai-modal-footer button{white-space:normal;min-width:145px}
+@media(max-width:650px){.ai-modal-card{padding:17px}.ai-modal-head h2{font-size:25px}.ai-modal-footer{flex-direction:column;align-items:stretch}.ai-modal-footer button{width:100%}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
@@ -66,7 +74,7 @@
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.3 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PLANET / LAB</strong><small>AUTONOMOUS SETTLEMENT SYSTEMS · ALPHA 0.4.5 · AI STUDIO</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="status" id="status">INITIALISING</div></header>
 <div class="workspace"><aside class="sidebar left">
 <p class="eyebrow">01 / World configuration</p><h1 class="title">From planet<br>to neighbourhood.</h1><p class="desc">Generate a natural world, choose a site, fund a settlement masterplan and watch specialised robots construct it.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">▦ Region</button><button id="planetMode">◉ Planet</button></div>
@@ -123,28 +131,33 @@
 <div class="buttons"><button id="assetRefresh" class="btn mini">Refresh assets</button><button id="assetPlace" class="btn mini">Place in scene</button></div>
 <div class="hint">Automatic GLB import requires an approved Tripo CDN host. If blocked, download the GLB and use the existing world media uploader.</div>
 </div></div>
-<div class="section"><h3>07 / Integrations & Models</h3><div id="studioAdminNote" class="hint">Checking administrator permissions…</div>
-<button class="btn mini full" id="studioRefresh">Refresh authentication / settings</button>
-<div id="integrationsAdmin" hidden><form id="integrationsForm" autocomplete="off">
-<div class="notice">Operator-only. Keys are sent to Flask over HTTPS, stored with file mode 0600 outside the webroot, and never returned by the API. They are not encrypted at rest; restrict server and backups.</div>
-<label class="lab" for="metaEndpoint">META BASE ENDPOINT</label>
-<input class="field" id="metaEndpoint" value="https://api.meta.ai/v1"/>
-<label class="lab" for="metaModel">META REASONING MODEL</label><input class="field" id="metaModel" value="muse-spark-1.3"/>
-<label class="lab" for="metaImageModel">META IMAGE MODEL</label><input class="field" id="metaImageModel" value="muse-image-1.0"/>
-<label class="lab" for="metaComplexModel">COMPLEX MODEL ID (OPTIONAL)</label><input class="field" id="metaComplexModel" placeholder="Your enabled Muse Wonder model ID"/>
-<label class="lab" for="metaSegmentationModel">SEGMENTATION MODEL ID (FUTURE)</label><input class="field" id="metaSegmentationModel" value="sam-3.1"/>
-<label class="lab" for="metaVoiceModel">VOICE TRANSCRIPTION MODEL ID (FUTURE)</label><input class="field" id="metaVoiceModel" value="muse-voice-transcribe-1.0"/>
-<label class="lab" for="metaKey">META API KEY (LEAVE BLANK TO KEEP EXISTING)</label><input class="field" type="password" id="metaKey" autocomplete="off"/>
-<label class="checkbox"><input type="checkbox" id="metaEnabled"/> Enable Meta</label><div class="hint" id="metaConnected"></div>
-<div class="buttons"><button class="btn mini" id="metaSave">Save Meta</button><button class="btn mini" id="metaTest">Test Meta</button></div>
-<label class="lab" for="tripoEndpoint">TRIPO BASE ENDPOINT</label><input class="field" id="tripoEndpoint" value="https://openapi.tripo3d.ai/v3"/>
-<label class="lab" for="tripoModel">TRIPO MODEL ID</label><input class="field" id="tripoModel" value="v3.1-20260211"/>
-<label class="lab" for="tripoKey">TRIPO API KEY (LEAVE BLANK TO KEEP EXISTING)</label><input class="field" type="password" id="tripoKey" autocomplete="off"/>
-<label class="checkbox"><input type="checkbox" id="tripoEnabled"/> Enable Tripo</label><div class="hint" id="tripoConnected"></div>
-<div class="buttons"><button class="btn mini" id="tripoSave">Save Tripo</button><button class="btn mini" id="tripoTest">Check configuration</button></div>
-</form></div></div>
+<div class="section" id="aiConnectionsSection"><h3>07 / AI Connections</h3>
+<div class="notice">Use your own Meta key to generate editable buildings and images. No administrator approval needed.</div>
+<div id="aiConnectionInline" class="hint" role="status">No Meta key connected for this tab.</div>
+<button type="button" id="aiSetupOpen" class="btn primary full">Connect Meta AI / Tripo3D</button>
+<div class="hint">Session-only mode: keys are kept in browser memory, never in localStorage, cookies, or the Planet Lab database. Reloading clears them.</div>
+</div>
 </aside></div></div>
-<script type="module" src="./app.mjs?v=0.4.3"></script>
-<script type="module" src="./collab.mjs?v=0.4.3"></script>
-<script type="module" src="./studio.mjs?v=0.4.3"></script>
+<div class="ai-modal-backdrop" id="aiSetupBackdrop" hidden role="dialog" aria-modal="true" aria-labelledby="aiSetupTitle">
+  <div class="ai-modal-card">
+    <div class="ai-modal-head"><div><span class="eyebrow">PLANET LAB / AI</span><h2 id="aiSetupTitle">Connect your AI</h2>
+      <p>Paste your Meta API key once, test it, and start building. No admin setup or terminal commands.</p></div>
+      <button id="aiSetupClose" type="button" class="btn mini" aria-label="Close AI setup">Close ×</button></div>
+    <form id="aiSetupForm" autocomplete="off">
+      <label class="lab" for="aiMetaKey">META MODEL API KEY</label>
+      <div class="ai-key-row"><input class="field" type="password" id="aiMetaKey" autocomplete="off" spellcheck="false" placeholder="Paste your Meta Model API key"/><button class="btn mini" id="aiKeyReveal" type="button">Show</button></div>
+      <label class="lab" for="aiMetaModel">MODEL</label>
+      <select class="field" id="aiMetaModel"><option value="muse-spark-1.3">Muse Spark 1.3 · default</option><option value="muse-spark-1.3-contributor">Muse Spark 1.3 Contributor</option><option value="muse-spark-1.2">Muse Spark 1.2</option><option value="muse-wonder-1.0">Muse Wonder (if available)</option></select>
+      <div class="ai-modal-actions"><button id="aiSessionSave" type="submit" class="btn primary">Use key in this tab</button><button id="aiTestKey" type="button" class="btn">Test connection</button></div>
+      <div class="ai-inline-status" id="aiSetupStatus" role="status" aria-live="polite">Not connected</div>
+      <details class="ai-details"><summary>Optional · Tripo3D 3D asset generation</summary><label class="lab" for="aiTripoKey">TRIPO API KEY</label><input class="field" type="password" id="aiTripoKey" autocomplete="off" spellcheck="false" placeholder="Paste Tripo3D key"/><button id="aiTripoSave" type="button" class="btn mini" style="margin-top:8px">Use Tripo key in this tab</button></details>
+      <div class="ai-modal-footer"><span>No browser disk storage. Keys are transmitted only to Planet Lab over HTTPS for the provider requests you initiate. Model usage may incur charges.</span>
+      <button id="aiStartDesign" type="button" class="btn primary">Go to Building Studio →</button></div>
+    </form>
+  </div>
+</div>
+<script type="module" src="./app.mjs?v=0.4.5"></script>
+<script type="module" src="./collab.mjs?v=0.4.5"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.5"></script>
+<script type="module" src="./studio.mjs?v=0.4.5"></script>
 </body></html>

@@ -10,8 +10,8 @@ class ReleaseFrontendTest(unittest.TestCase):
     def test_versioned_module_entrypoints(self):
         html = (ROOT / 'index.html').read_text()
         for module in ('app', 'collab', 'studio'):
-            self.assertIn(f'src="./{module}.mjs?v=0.4.3"', html)
-        self.assertIn("from './planner.mjs?v=0.4.3'", (ROOT / 'app.mjs').read_text())
+            self.assertIn(f'src="./{module}.mjs?v=0.4.5"', html)
+        self.assertIn("from './planner.mjs?v=0.4.5'", (ROOT / 'app.mjs').read_text())
 
     def test_uncacheable_html_and_scripts(self):
         backend = (ROOT / 'backend/app.py').read_text()
@@ -24,12 +24,17 @@ class ReleaseFrontendTest(unittest.TestCase):
         self.assertIn('await bootAuth()', collab)
         self.assertIn('await sessionInfo();', collab)
 
-    def test_integrations_are_not_probed_for_regular_users(self):
+    def test_session_only_ai_setup_is_available_to_signed_in_users(self):
+        html = (ROOT / 'index.html').read_text()
         studio = (ROOT / 'studio.mjs').read_text()
-        self.assertIn('if(!state.isAdmin)', studio)
-        self.assertIn('integrationsForm', (ROOT / 'index.html').read_text())
-        self.assertIn("$('integrationsForm').addEventListener('submit',e=>e.preventDefault());", studio)
-        self.assertIn('is_admin=bool(', (ROOT / 'backend/app.py').read_text())
+        setup = (ROOT / 'ai-connections.mjs').read_text()
+        self.assertIn('id="aiSetupBackdrop"', html)
+        self.assertIn('id="aiMetaKey"', html)
+        self.assertIn('id="aiTestKey"', html)
+        self.assertIn('id="aiSetupTop"', html)
+        self.assertIn("getAiHeaders(path)", studio)
+        self.assertIn("'/api/ai/connection-test'", setup)
+        self.assertNotIn('localStorage', setup.replace('localStorage, cookies, or the Planet Lab database.', ''))
 
     def test_watcher_has_coloured_start_and_finish(self):
         watcher = (ROOT / 'scripts/release_watcher.py').read_text()

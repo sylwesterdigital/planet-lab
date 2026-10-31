@@ -15,12 +15,22 @@ from pathlib import Path
 from flask import abort, jsonify, request, session
 from sqlalchemy import select
 
-from .integrations import (IntegrationError, public_settings, update, required,
+from .integrations import (IntegrationError, DEFAULTS, public_settings, update, required,
                            provider_request, parse_building, build_prompt, extract_chat_text)
 from .models import AssetJob, Media, User, World
 
 
+class ClientProviderInputError(IntegrationError):
+    """Invalid or missing per-request settings; the request must not call a paid provider."""
+
+
 def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
+    def ai_error(exc, fallback):
+        """Keep client setup errors (400) separate from upstream failures (502)."""
+        if isinstance(exc, ClientProviderInputError):
+            return fail(str(exc), 400)
+        return fail(str(exc) if isinstance(exc, IntegrationError) else fallback, 502)
+
     def admin_user(db):
         user = actor(db)
         handle = os.environ.get('PLANETLAB_ADMIN_HANDLE', '').strip().lower()
@@ -28,6 +38,36 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
         if not handle or not admin_id.isdecimal() or user is None or user.handle != handle or user.id != int(admin_id):
             abort(403)
         return user
+
+    def signed_in(db):
+        user = actor(db)
+        if user is None:
+            abort(401)
+        return user
+
+    def provider_for_request(name):
+        # Per-request BYOK keys belong to the currently signed-in user. No persistence.
+        header_name = 'X-PlanetLab-Meta-Key' if name == 'meta' else 'X-PlanetLab-Tripo-Key'
+        key = request.headers.get(header_name, '').strip()
+        if key:
+            if not (12 <= len(key) <= 4096) or any(ch in key for ch in ('\r', '\n')):
+                raise ClientProviderInputError('Invalid provider key')
+            return {**DEFAULTS[name], 'api_key': key, 'enabled': True}
+        # Backward compatibility: old operator-managed server key stays admin-only.
+        uid = session.get('uid')
+        with db_session() as db:
+            user = actor(db)
+            admin_id = os.environ.get('PLANETLAB_ADMIN_USER_ID', '').strip()
+            admin_handle = os.environ.get('PLANETLAB_ADMIN_HANDLE', '').strip().lower()
+            if user and admin_id.isdecimal() and user.id == int(admin_id) and user.handle == admin_handle:
+                return required(data_dir, name)
+        raise ClientProviderInputError(f'Open AI Setup and enter your {name} API key.')
+
+    def requested_model(value):
+        model = str(value.get('model') or 'muse-spark-1.3').strip()
+        if not re.fullmatch(r'muse-[a-z0-9.-]{2,75}', model):
+            raise ClientProviderInputError('Invalid Meta model name')
+        return model
 
     def world_owner(db, id):
         user = actor(db)
@@ -70,18 +110,39 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
         except IntegrationError as exc:
             return fail(str(exc), 502)
 
+    @app.post('/api/ai/connection-test')
+    def ai_connection_test():
+        require_csrf()
+        with db_session() as db:
+            signed_in(db)
+        payload = request.get_json(silent=True) or {}
+        if payload.get('provider') != 'meta':
+            return fail('Only Meta connection tests are supported; Tripo is verified on generation.')
+        try:
+            cfg = provider_for_request('meta')
+            model = requested_model(payload)
+            # One minimal completion, as documented by Meta. This can incur a small charge.
+            result = provider_request(cfg, '/chat/completions', {
+                'model': model,
+                'messages': [{'role': 'user', 'content': 'Reply with only the word ready'}],
+                'max_completion_tokens': 15}, timeout=25)
+            reply = str(extract_chat_text(result)).strip()[:80]
+            return jsonify(ok=True, model=model, reply=reply)
+        except (IntegrationError, KeyError, TypeError, IndexError) as exc:
+            return ai_error(exc, 'Unexpected Meta API response')
+
     @app.post('/api/ai/building')
     def ai_building():
         require_csrf()
         with db_session() as db:
-            admin_user(db)
+            signed_in(db)
         value = request.get_json(silent=True) or {}
         brief = str(value.get('brief','')).strip()
         if not 4 <= len(brief) <= 1800:
             return fail('Brief must contain 4–1800 characters')
         try:
-            settings = required(data_dir, 'meta')
-            model=(settings.get('complex_model') or settings['model']) if value.get('tier')=='complex' else settings['model']
+            settings = provider_for_request('meta')
+            model=requested_model(value)
             result = provider_request(settings, '/chat/completions', {
                 'model':model,
                 'messages':[
@@ -92,7 +153,7 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
             return jsonify(building=building, model=model,
                            note='Concept geometry only; not engineering or real-estate advice')
         except (IntegrationError, KeyError, IndexError, TypeError) as exc:
-            return fail(str(exc) if isinstance(exc, IntegrationError) else 'Provider response could not be read', 502)
+            return ai_error(exc, 'Provider response could not be read')
 
     @app.post('/api/ai/image')
     def ai_image():
@@ -103,11 +164,11 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
         if not 4 <= len(prompt) <= 1600 or not isinstance(world_id, int):
             return fail('World ID and a 4–1600 character prompt are required')
         with db_session() as db:
-            admin_user(db)
+            signed_in(db)
             user = world_owner(db, world_id)
             uid = user.id
         try:
-            cfg = required(data_dir, 'meta')
+            cfg = provider_for_request('meta')
             data = provider_request(cfg, '/images/generations', {
                 'model':cfg['image_model'], 'prompt':prompt, 'n':1,
                 'response_format':'b64_json','output_format':'webp'}, timeout=100)
@@ -131,7 +192,7 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
                 raise
             return jsonify(media_id=mid, url='/api/media/'+mid+'/raw', size=len(raw))
         except (IntegrationError, KeyError, IndexError, TypeError, ValueError) as exc:
-            return fail(str(exc) if isinstance(exc, IntegrationError) else 'Image generation failed',502)
+            return ai_error(exc, 'Image generation failed')
 
     @app.post('/api/ai/tripo')
     def ai_tripo():
@@ -142,10 +203,10 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
         if not 4 <= len(prompt) <= 1024 or not isinstance(world_id,int):
             return fail('World ID and a 4–1024 character prompt are required')
         with db_session() as db:
-            admin_user(db)
+            signed_in(db)
             uid=world_owner(db,world_id).id
         try:
-            cfg=required(data_dir,'tripo')
+            cfg=provider_for_request('tripo')
             response=provider_request(cfg,'/generation/text-to-model',{
                 'prompt':prompt,'model':cfg['model']},timeout=35)
             task=response['data']['task_id']
@@ -157,7 +218,7 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
                     external_task_id=task,prompt=prompt,status='queued'))
             return jsonify(job_id=jid,status='queued'),202
         except (IntegrationError,KeyError,TypeError) as exc:
-            return fail(str(exc) if isinstance(exc,IntegrationError) else 'Malformed Tripo response',502)
+            return ai_error(exc, 'Malformed Tripo response')
 
     @app.get('/api/ai/tripo/<job_id>')
     def tripo_progress(job_id):
@@ -170,7 +231,7 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
             if job.media_id:
                 return jsonify(job_id=job.id,status='imported',media_id=job.media_id)
         try:
-            cfg=required(data_dir,'tripo')
+            cfg=provider_for_request('tripo')
             response=provider_request(cfg,'/tasks/'+task, timeout=20)
             data=response['data']
             status=str(data.get('status','unknown'))[:32]
@@ -183,7 +244,7 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
                            progress=data.get('progress',0),
                            can_import=bool(link) and status=='success')
         except (IntegrationError,KeyError,TypeError) as exc:
-            return fail(str(exc) if isinstance(exc,IntegrationError) else 'Tripo status unavailable',502)
+            return ai_error(exc, 'Tripo status unavailable')
 
     @app.post('/api/ai/tripo/<job_id>/import')
     def tripo_import(job_id):
