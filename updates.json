@@ -2,6 +2,13 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.31",
+      "date": "2026-11-01",
+      "changes": [
+        "Versioned reissue of the v0.4.30 implementation; satisfies the release watcher’s monotonically increasing version requirement."
+      ]
+    },
+    {
       "version": "0.4.30",
       "date": "2026-11-01",
       "changes": [
@@ -145,5 +152,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.30"
+  "currentVersion": "0.4.31"
 }

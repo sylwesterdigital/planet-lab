@@ -1,3 +1,7 @@
+## v0.4.31 — Reissue of v0.4.30 with a new release identifier
+
+- Repackages the v0.4.30 implementation as v0.4.31 to satisfy the watcher’s strictly increasing deployment version requirement. No new application functionality.
+
 ## v0.4.30 — Unified providers, mapped buildings, and AI diagnostics
 
 - xAI perspective image editing only sends supported aspect ratios, while retaining the exact selected source crop.

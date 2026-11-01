@@ -20,7 +20,7 @@ from .models import Base, User, World, Message, Media
 from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.30'
+VERSION = '0.4.31'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
 # Only client-facing entrypoints may be fetched from the release directory.
