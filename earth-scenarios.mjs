@@ -1,6 +1,6 @@
 /* Browser-local, georeferenced AI concept imagery. Never overwrites Earth data. */
 import {patchBounds,rasterRect,siteKey,validLayer} from './scenario-core.mjs';
-import {getAiHeaders} from './ai-connections.mjs?v=0.4.23';
+import {getAiHeaders} from './ai-connections.mjs?v=0.4.24';
 const $=id=>document.getElementById(id);
 const state={site:null,selecting:false,first:null,bounds:null,layers:[],current:null,keys:{meta:'',xai:'',openai:''},busy:false};
 let dbPromise;

@@ -44,12 +44,18 @@ def decode_data_image(uri, limit=MAX_SOURCE_BYTES):
     return data, mime
 
 
-def provider_payload(provider, prompt, source, size=1024):
-    # Preserve the planimetric footprint: output is a visual concept, not GIS edits.
-    instruction = ('Edit this exact top-down satellite/orthophoto patch. Preserve the original '
-                   'view orientation, scale, boundaries, road alignments outside the requested edit, '
-                   'and perspective. Do not add text, symbols, borders, or legends. '
-                   'This is a visual planning scenario, not a map survey. Edit instruction: ' + prompt)
+def provider_payload(provider, prompt, source, size=1024, mode='plan'):
+    if mode == 'perspective':
+        instruction = ('Edit this exact perspective view crop. Preserve the original camera angle, '
+                       'scene perspective, building proportions, and the visible spatial layout. '
+                       'Do not add text, symbols, borders, or legends. '
+                       'This is a visual design concept, not a photogrammetric survey. Edit instruction: ' + prompt)
+    else:
+        # Preserve the planimetric footprint: output is a visual concept, not GIS edits.
+        instruction = ('Edit this exact top-down satellite/orthophoto patch. Preserve the original '
+                       'view orientation, scale, boundaries, road alignments outside the requested edit, '
+                       'and perspective. Do not add text, symbols, borders, or legends. '
+                       'This is a visual planning scenario, not a map survey. Edit instruction: ' + prompt)
     model = PROVIDERS[provider][1]
     if provider == 'xai':
         return {'model': model, 'prompt': instruction, 'image': {'url': source, 'type': 'image_url'},
@@ -130,11 +136,14 @@ def setup_scenario_edits(app, db_session, actor, require_csrf):
         size = body.get('size', 1024)
         if size not in (1024, 1536, 2048):
             return jsonify(error='Choose 1024, 1536 or 2048 for the AI patch size.'), 400
+        mode = body.get('mode', 'plan')
+        if mode not in ('plan', 'perspective'):
+            return jsonify(error='Unknown image-edit mode.'), 400
         try:
             # The image is a crop of the user-selected patch; no arbitrary URL input.
             source = body.get('image')
             decode_data_image(source)
-            payload = provider_payload(provider, prompt.strip(), source, size)
+            payload = provider_payload(provider, prompt.strip(), source, size, mode)
             image = call_provider(provider, key, payload)
             return jsonify(image=image, provider=provider, model=PROVIDERS[provider][1],
                            note='Visual mockup only; no real buildings or GIS data changed.')
