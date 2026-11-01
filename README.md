@@ -1,22 +1,51 @@
-# PlanetLab v0.4.13 — conceptual spatial workstation
+# PlanetLab v0.4.15 — real Earth terrain exploration and release verification
 
-PlanetLab is a Three.js frontend with a Flask API, local world snapshots, optional
-AI provider integrations, and a staged macOS-to-Ubuntu deployment workflow.
-It is a **conceptual simulator**, not BIM, actual GIS, engineering analysis, cost
-estimation, or a construction-ready design tool.
+The default globe is now **Earth**: MapLibre GL renders actual
+OpenStreetMap cartography via OpenFreeMap with Mapterhorn elevation tiles.
+No API key is required for this initial stack; both services operate as
+public, best-effort providers. Their data must be attributed on the map.
 
-## Main workflows
+## Release pipeline correction (v0.4.15)
 
-- **Globe / City-site:** choose fictional geography and a site; generate
-  a procedural settlement and inspect its task plan and schematic infrastructure.
-- **Building Studio:** edit conceptual house massing (dimensions, floors, roof,
-  partitions); switch between massing, site plan and schematic agent views.
-- **Saved Places:** save privately by default, browse planetary geo-pins, restore
-  snapshots and mark your own snapshots as favourites. Public sharing is opt-in.
-- **AI Setup / API Console:** configure supported external providers using session
-  or explicitly configured server credentials; third-party calls require valid keys.
-- **House demo:** the original single-house assembly example remains at
-  `/house/index.html`.
+The prior v0.4.14 archive was **rejected by Mac watcher local tests before any
+changes reached GitHub or Ubuntu**. A new test file directly imported `backend`
+while being launched by path (`python3 tests/test_building_generation.py`),
+which excludes the repository root from Python's import search path.
+The watcher now invokes the full test suite with `python3 -m unittest discover`
+from the staged project directory, identical to how the Ubuntu preflight
+runs it. The building test also works directly, and a regression test checks
+both paths. No changes to live database layout or deployment architecture.
+
+## Earth functionality included from the rejected v0.4.14
+
+
+- **Real Earth globe and actual places:** zoom/rotate an OpenStreetMap-powered
+  globe. Selecting a location stores real WGS84 latitude and longitude.
+- **Actual local topography:** the 1.56 km local Three.js district is sampled
+  from Mapterhorn Terrarium DEM raster tiles (512 px, zoom 12). The city
+  planner uses the same sampled elevations; no procedural fallback is permitted
+  when new Earth terrain fails to load. DEM is **not** a soil, parcel,
+  geohazard or permitted-development dataset. 10 m per local scene unit.
+- **Saved locations:** newly created Earth snapshots include `geoSource:
+  earth-dem` and real anchor coordinates. The original fictional snapshots
+  remain loadable in their original legacy simulation and **are not** drawn
+  as misleading Earth pins. Their simulated coordinates have no safe
+  automatic conversion to Earth addresses.
+- **Interface:** the globe and three entry actions replace the lengthy
+  first-run instruction wall. Empty city telemetry is hidden on the globe.
+- **No surprise provider charges:** OpenFreeMap and Mapterhorn currently
+  need no API key. Optional high-resolution satellite imagery, more reliable production geocoding,
+  building footprints and jurisdiction-specific data are separate layers.
+
+**Limitations:** Real DEM may be coarse (zoom 12 globally), and coastline
+and inland water classification is approximate. The city generator's road,
+parcel, utility and cost data remain illustrative; no flood-risk or
+regulatory claims should be derived from elevation alone. MapLibre and
+DEM tiles are live online dependencies, so a provider outage can prevent
+loading a new Earth site. The visual transition is from MapLibre globe to a
+Three.js terrain mesh derived from those same DEM samples; it is not yet an
+orthophoto-textured scene. Verify MapLibre's CDN and elevation-tile access
+in the browser before production rollout.
 
 ## Changes in v0.4.13
 
@@ -76,6 +105,8 @@ estimation, or a construction-ready design tool.
 
 ```sh
 node test-planner.mjs
+node test-earth.mjs
+node test-earth-map.mjs
 node test-entry.mjs
 node test-studio.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
@@ -87,7 +118,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.13.zip` in the Mac repository's
+The watcher accepts `PLANETLAB_RELEASE_v0.4.15.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

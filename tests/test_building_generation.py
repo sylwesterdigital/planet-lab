@@ -1,6 +1,8 @@
 """Regression tests for a Meta response that consumed its reasoning budget."""
 import unittest
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from backend.integrations import IntegrationError, extract_chat_text, building_response_format
 
 ROOT=Path(__file__).resolve().parents[1]

@@ -1,7 +1,8 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.13';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.15';
 import * as THREE from 'three';
+import {sampleElevation} from './earth-terrain.mjs?v=0.4.15';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.13';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.15';
 
 const $=id=>document.getElementById(id);
 let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
@@ -51,12 +52,19 @@ function setInputs(b){
     if($(id)&&b[key]!=null)$(id).value=String(b[key]);
 }
 function putBuilding(b,store=true){
-  const s=sim();const x=s.site[0],z=s.site[1],w=Number(b.width),d=Number(b.depth),floors=Math.min(20,Number(b.floors)),fh=Number(b.floorHeight)||3,h=floors*fh;
+  const s=sim();
+  if(!s.config)throw new Error('Choose a location on Earth before designing a building.');
+  if(s.geoSource==='earth-dem'&&!s.earthDem)throw new Error('Real elevation is required before placing a building.');
+  const x=s.site[0],z=s.site[1],w=Number(b.width),d=Number(b.depth),floors=Math.min(20,Number(b.floors)),fh=Number(b.floorHeight)||3,h=floors*fh;
   if(!Number.isFinite(w*d*h)||w<3||d<3||floors<1)throw new Error('Invalid geometry dimensions');
   const footprint=[[0,0],[-w/20,-d/20],[-w/20,d/20],[w/20,-d/20],[w/20,d/20]];
   const elevations=footprint.map(([dx,dz])=>s.world.height(x+dx,z+dz));
   if(elevations.some(y=>!Number.isFinite(y)))throw new Error('Terrain height unavailable at building site');
-  if(Math.min(...elevations)<=.35)throw new Error('The proposed building footprint overlaps water or exposed shoreline. Select a drier site.');
+  if(s.geoSource==='earth-dem'){
+    const elevationsMetres=footprint.map(([dx,dz])=>sampleElevation(s.earthDem,x+dx,z+dz));
+    if(elevationsMetres.some(y=>!Number.isFinite(y)))throw new Error('Measured elevation unavailable at building footprint');
+    if(Math.min(...elevationsMetres)<=.25)throw new Error('The building site is at or below sea level; verify flood and coastal conditions before designing.');
+  }else if(Math.min(...elevations)<=.35)throw new Error('The proposed building footprint overlaps water or exposed shoreline. Select a drier site.');
   const relief=(Math.max(...elevations)-Math.min(...elevations))*10;
   const terrain=Math.max(...elevations);
   if(buildingGroup){s.world.studioGroup.remove(buildingGroup);buildingGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose?.()})}

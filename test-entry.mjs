@@ -16,7 +16,7 @@ function environment(){
   });
   return elements.get(id);
  };
- const window={planetLabApp:{},planetLabAuthState:{user:{handle:'existing_user'}},
+ const window={planetLabApp:{config:{}},planetLabAuthState:{user:{handle:'existing_user'}},
    addEventListener(name,cb){(events.get(name)||events.set(name,[]).get(name)).push(cb)},
    emit(name,detail){for(const cb of events.get(name)||[])cb({detail})},
    planetLabPlaces:{refresh:()=>Promise.resolve()}};
@@ -44,6 +44,16 @@ x.get('startHouse').click();
 assert.equal(x.get('mainWorkspace').dataset.flow,'build');
 assert.equal(x.get('manualBuilding').clicks,1);
 assert.equal(x.get('aiStudio').scrolls,1,'Building settings should become visible');
+x.window.planetLabApp.config=null;
+const buildClicks=x.get('manualBuilding').clicks;
+x.get('startHouse').click();
+assert.equal(x.get('mainWorkspace').dataset.flow,'world','No-sited user is directed to real Earth map');
+assert.match(x.get('earthStatus').textContent,/Choose an Earth location/);
+assert.equal(x.get('manualBuilding').clicks,buildClicks,'Cannot build before selecting Earth site');
+x.get('flowCity').click();
+assert.equal(x.get('mainWorkspace').dataset.flow,'world','Unsited City action stays on map');
+x.get('flowBuild').click();
+assert.equal(x.get('mainWorkspace').dataset.flow,'world','Unsited Building action stays on map');
 x.get('startExplore').click();
 assert.equal(x.get('mainWorkspace').dataset.flow,'world');
 assert.equal(x.get('workflowEntry').hidden,false,'Welcome remains available after navigation');

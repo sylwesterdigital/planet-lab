@@ -9,7 +9,7 @@ class WorkflowUITests(unittest.TestCase):
             self.assertIn('id="'+identifier+'"',page)
     def test_no_auto_city_on_load(self):
         app=(ROOT/'app.mjs').read_text()
-        self.assertIn('this.generateWorld();this.loop=',app)
+        self.assertIn("this.world.setMode('planet');this.updateMode();this.updateUi();this.initEarthMap();",app)
         self.assertNotIn('this.generateWorld();this.createPlan();',app)
     def test_actions_use_existing_builders(self):
         script=(ROOT/'workflow.mjs').read_text()
@@ -18,6 +18,6 @@ class WorkflowUITests(unittest.TestCase):
         self.assertIn("$('planetMode').click()",script)
         self.assertIn("$('snapshotName')?.focus()",script)
     def test_no_fake_economy(self):
-        self.assertIn('fictional geography', (ROOT/'README.md').read_text())
-        self.assertIn('no real-world planning', (ROOT/'index.html').read_text())
+        self.assertIn('real Earth terrain exploration', (ROOT/'README.md').read_text())
+        self.assertIn('no real-world planning', (ROOT/'index.html').read_text().lower())
 if __name__=='__main__':unittest.main()

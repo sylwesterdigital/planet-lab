@@ -1,6 +1,6 @@
 /* Persistent per-account snapshot pins, backed by existing world blueprints.
  * Uses only the current authenticated user's owned worlds for modifications.
- * Coordinates belong to the procedurally generated fictional planet, not Earth.
+ * Legacy snapshots are procedural; only explicit earth-dem snapshots belong on Earth.
  */
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>window.planetLabWorlds.api(path,options);
@@ -15,9 +15,10 @@ function visible(){
 function refreshPins(){
  const sim=window.planetLabApp;
  if(sim?.world){
-  const markers=cache.filter(w=>w.anchor&&w.seed===sim.config?.seed);
+  const markers=cache.filter(w=>w.anchor&&w.geoSource==='earth-dem');
   if(sim.plan?.tasks?.length)markers.push({id:'__draft__',anchor:{...sim.anchor},seed:sim.config?.seed,starred:false,draft:true,title:'Unsaved plan'});
-  sim.world.renderPlacePins(markers);
+  sim.world.earthMap?.pinsFor(markers,id=>window.dispatchEvent(new CustomEvent('planetlab:open-pin',{detail:{id}})));
+  sim.world.renderPlacePins(cache.filter(w=>w.geoSource!=='earth-dem'&&w.anchor));
  }
 }
 function render(){
@@ -52,7 +53,7 @@ function render(){
   visit.disabled=!w.anchor;
   visit.addEventListener('click',()=>{
     const sim=window.planetLabApp;if(!sim)return;
-    if(w.seed)$('seed').value=w.seed;
+    if(w.geoSource!=='earth-dem'){say('Legacy fictional location: open the saved project to inspect it. Its coordinates are not Earth coordinates.');return}
     sim.changeAnchor(w.anchor);
     say(`Visited saved planetary region ${key(w.anchor)}. Open snapshot to restore the built plan.`);
     render();refreshPins();
@@ -80,7 +81,7 @@ async function snapshot(){
  const blueprint=window.planetLabWorlds.getBlueprint();
  const codename=$('snapshotType').value||'settlement';
  blueprint.place={starred:false,codename, savedAt:new Date().toISOString(),
-   site:sim.site.slice(),source:'PlanetLab fictional procedural geography'};
+   site:sim.site.slice(),source:sim.geoSource==='earth-dem'?'Mapterhorn Earth elevation':'Legacy procedural geography'};
  const title=$('snapshotName').value.trim()||`${codename} · ${sim.config.profile} · ${new Date().toLocaleString()}`;
  const body={title:title.slice(0,100),is_public:$('worldPublic').checked,blueprint};
  const result=await api('/api/worlds',{method:'POST',body:JSON.stringify(body)});
@@ -109,6 +110,7 @@ window.addEventListener('planetlab:open-pin',e=>{
 if(window.planetLabAuthState?.user)act(update);
 const sim=window.planetLabApp;
 // Repaint saved pin markers after changing planets or regenerating terrain.
+window.addEventListener('planetlab:earth-ready',refreshPins);
 if(sim){const old=sim.generateWorld.bind(sim);sim.generateWorld=function(...args){const result=old(...args);queueMicrotask(()=>refreshPins());return result};
  const oldPlan=sim.createPlan.bind(sim);sim.createPlan=function(...args){const result=oldPlan(...args);queueMicrotask(()=>render());return result};}
 window.planetLabPlaces={refresh:update};

@@ -20,7 +20,7 @@ from .models import Base, User, World, Message, Media
 from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.13'
+VERSION = '0.4.15'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
 # Only client-facing entrypoints may be fetched from the release directory.
@@ -29,7 +29,7 @@ ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp
 PUBLIC_ASSETS = frozenset({
     'index.html', 'house/index.html', 'updates.json',
     'app.mjs', 'planner.mjs', 'collab.mjs', 'studio.mjs',
-    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs',
+    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs', 'earth-map.mjs', 'earth-terrain.mjs',
     'ai-connections.mjs', 'api-console.mjs', 'update-feed.mjs',
 })
 
@@ -113,6 +113,7 @@ def create_app(test_config=None):
         return dict(id=w.id, title=w.title, owner=w.owner.handle, revision=w.revision,
                     is_public=w.is_public, updated_at=w.updated_at.isoformat() if w.updated_at else None,
                     anchor=anchor, seed=str(config.get('seed', ''))[:60] if isinstance(config, dict) else '',
+                    geoSource=str(config.get('geoSource', 'fictional')) if isinstance(config, dict) else 'fictional',
                     starred=bool(place.get('starred')) if isinstance(place, dict) and viewer and viewer.id == w.owner_id else False,
                     codename=str(place.get('codename', ''))[:60] if isinstance(place, dict) else '')
 

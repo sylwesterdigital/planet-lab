@@ -238,24 +238,22 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','test-earth.mjs','test-earth-map.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
+    detail(run(['node', 'test-earth.mjs'], cwd=stage, timeout=25))
+    detail(run(['node', 'test-earth-map.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-entry.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-studio.mjs'], cwd=stage, timeout=15))
-    run(['python3','tests/test_blueprints_unit.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_public_assets.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_auth_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_release_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_ai_setup.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_api_console.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_places_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_workstation_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_workflow_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_entry_experience.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_geography_ui.py'], cwd=stage, timeout=20)
-    run(['python3','tests/test_building_generation.py'], cwd=stage, timeout=20)
+    # Use module discovery from the staged project root: direct execution of
+    # tests/test_*.py puts tests/ (not the project root) on sys.path and breaks
+    # imports such as `from backend.integrations import ...`.
+    output = run(['python3', '-m', 'unittest', 'discover', '-s', 'tests',
+                  '-p', 'test_*.py', '-v'], cwd=stage, timeout=60)
+    if 'Ran ' not in output or 'OK' not in output:
+        raise ReleaseError('Local Python test discovery did not complete successfully')
+    detail(output)
     import ast
     for filename in ['backend/app.py','backend/models.py','backend/blueprints.py','backend/ai_routes.py','backend/integrations.py','tests/test_building_generation.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_blueprints_unit.py','tests/test_public_assets.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py','tests/test_geography_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)

@@ -39,6 +39,9 @@ for(const id of ['seed','geography','profile','level','budget','teams','brief'])
 if(c.anchor && Number.isFinite(c.anchor.lat) && Number.isFinite(c.anchor.lon) &&
    Math.abs(c.anchor.lat)<=90 && Math.abs(c.anchor.lon)<=180)
   sim.anchor={lat:c.anchor.lat,lon:c.anchor.lon};
+if(c.geoSource==='earth-dem'){
+ sim.geoSource='earth-dem';sim.earthDem=c.dem;
+}else{sim.geoSource='fictional';sim.earthDem=null}
 sim.generateWorld();
 if(Array.isArray(c.site)){sim.site=c.site;sim.world.setSite(sim.site);sim.updateLocation();}
 sim.createPlan();

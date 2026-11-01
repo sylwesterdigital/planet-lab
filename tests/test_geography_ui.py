@@ -7,9 +7,10 @@ class GeographyUiTests(unittest.TestCase):
  def test_same_geography_in_globe_and_local_view(self):
   planner=(ROOT/'planner.mjs').read_text()
   app=(ROOT/'app.mjs').read_text()
-  self.assertIn('planetSurfaceHeight(planetPatchPoint(config.anchor,x,z),config.seed)',planner)
-  self.assertIn('planetSurfaceHeight([x,y,z],seed)',app)
-  self.assertIn('worldToLocal(hit.point.clone())',app)
+  self.assertIn('sceneElevation(config.dem,x,z)',planner)
+  self.assertIn("geoSource==='earth-dem'",planner)
+  self.assertIn('fetchEarthGrid(anchor)',app)
+  self.assertIn('this.world.earthMap',app)
   self.assertIn('10 / 6371000',planner)
   self.assertIn('clearGroup(this.regionGroup)',app)
  def test_snapshot_pin_opens_saved_plan(self):
@@ -20,7 +21,7 @@ class GeographyUiTests(unittest.TestCase):
   self.assertIn("'planet.city.plan.v2'",(ROOT/'collab.mjs').read_text())
  def test_constraints_visible_without_claims_of_certification(self):
   page=(ROOT/'index.html').read_text()
-  for text in ('id="feasibilityList"','id="feasibilityState"','No verified','1.56 km','Illustrative cost'):
+  for text in ('id="feasibilityList"','id="feasibilityState"','Measured elevation','id="earthMap"','Illustrative cost'):
    self.assertIn(text,page)
   planner=(ROOT/'planner.mjs').read_text()
   for text in ('assessTerrain(', 'roadAccessParcels:', 'roadConnected:', 'stormwater strategy requires catchment study', 'utilities operator', 'airport'):

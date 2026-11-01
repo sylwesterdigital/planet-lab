@@ -1,3 +1,4 @@
+import {sceneElevation,sampleElevation,validateEarthGrid} from './earth-terrain.mjs';
 /* PLANET / SETTLEMENT procedural planning model. Browser-free and testable in Node. */
 export const STAGES = [
   ['survey','Survey + staking'], ['roads','Road network'], ['paths','Paths + transit'],
@@ -111,6 +112,7 @@ export function planetSurfaceHeight(normal,seed){
  return .23+Math.max(.015,continental*125+relief*(watershed+hills+local+mountain));
 }
 export function terrainHeight(x,z,config){
+ if(config?.geoSource==='earth-dem'){if(!config.dem)throw new Error('Real Earth elevations are required');return sceneElevation(config.dem,x,z)}
  return planetSurfaceHeight(planetPatchPoint(config.anchor,x,z),config.seed);
 }
 export const atLand=(x,z,c)=>terrainHeight(x,z,c)>.24;
@@ -127,6 +129,15 @@ export function slopeAt(x,z,c,d=2.1){
 // flood maps, utilities operator data, building codes or surveyed elevations.
 export function assessTerrain(x,z,c){
  const elevation=terrainHeight(x,z,c),grade=terrainGrade(x,z,c);
+ if(c?.geoSource==='earth-dem'){
+  const alt=sampleElevation(c.dem,x,z);
+  const nearby=[[9,0],[-9,0],[0,9],[0,-9]].map(([dx,dz])=>sampleElevation(c.dem,x+dx,z+dz));
+  const water=alt<=.25,coast=nearby.some(v=>v<=.25);
+  // Only screen visible height/grade; DEM alone is not a flood model.
+  const flood=false,steep=grade>.28;
+  const viable=!water&&grade<=.16;
+  return {elevation,altitudeMetres:alt,grade,water,flood,steep,viable,roadViable:!water&&grade<=.14,coast};
+ }
  const coast= [[9,0],[-9,0],[0,9],[0,-9]].some(([dx,dz])=>terrainHeight(x+dx,z+dz,c)<=.23);
  const water=elevation<=.23;
  const flood= !water && (elevation<1.15 || coast && elevation<1.9);
@@ -152,8 +163,10 @@ export function chooseSite(request,c){
  }
  return best; // null means no suitable site exists in this patch
 }
-export function citySpec({seed='42',geography='mainland',anchor={lat:0,lon:0},profile='mixed',level='average',budget=60,teams=8,brief='',site}={}){
- return {seed:String(seed),geography,anchor,profile:PROFILES[profile]?profile:'mixed',level:LEVELS[level]?level:'average',budget:Math.max(.1,Number(budget)||60),teams:Math.min(22,Math.max(2,Math.round(Number(teams)||8))),brief:String(brief),site:site||[0,0]};
+export function citySpec({seed='42',geography='mainland',anchor={lat:0,lon:0},profile='mixed',level='average',budget=60,teams=8,brief='',site,geoSource,dem}={}){
+ const c={seed:String(seed),geography,anchor,profile:PROFILES[profile]?profile:'mixed',level:LEVELS[level]?level:'average',budget:Math.max(.1,Number(budget)||60),teams:Math.min(22,Math.max(2,Math.round(Number(teams)||8))),brief:String(brief),site:site||[0,0]};
+ if(geoSource==='earth-dem'){if(!validateEarthGrid(dem))throw new Error('Real Earth elevation tiles missing');c.geoSource=geoSource;c.dem=dem}
+ return c;
 }
 const money=(v)=>Math.round(v*1000)/1000;
 function styleFromPrompt(s,profile){const p=s.toLowerCase();if(/farm|agric|rolni/.test(p))return'agricultural';if(/resort|holiday|hotel|touris|vegas|wakac/.test(p))return'resort';if(/industrial|factory|fabryk/.test(p))return'industrial';if(/data cent|datacentre|server|gpu/.test(p))return'datacenter';if(/tower|skyscraper|dense|metro|wieżow/.test(p))return'metropolis';if(/spa|wellness/.test(p))return'spa';return profile}
@@ -313,9 +326,9 @@ export function generateCity(inConfig){
  const usable=connected&&roads.size===roadTasks.length&&(!fundedBuildings.size||['grid','water','wastewater'].every(type=>utilityTypes.has(type)));
  return {schema:'planet.city.plan.v2',planner:'terrain-constrained-screening',config:c,gridSize:N,cellSize:cell,cityCentre:[sx,sz],
   tasks,landuse:[...grid.values()].map(({i,j,x,z,y,usage,buildable,grade,reason})=>({i,j,x,z,y,usage,buildable,grade,reason})),
-  feasibility:{status:!connected?'blocked':usable?'screened':'incomplete',findings,excluded:data,roadConnected:connected,buildableParcels:[...grid.values()].filter(g=>g.buildable).length,roadAccessParcels:[...grid.values()].filter(g=>g.buildable&&!roads.has(key(g.i,g.j))&&neighbours(g).some(n=>roads.has(key(n.i,n.j)))).length,limitations:'Procedural terrain and indicative unit costs only. Not measured DEM, hydrology, GIS, engineering or statutory approval.'},
+  feasibility:{status:!connected?'blocked':usable?'screened':'incomplete',findings,excluded:data,roadConnected:connected,buildableParcels:[...grid.values()].filter(g=>g.buildable).length,roadAccessParcels:[...grid.values()].filter(g=>g.buildable&&!roads.has(key(g.i,g.j))&&neighbours(g).some(n=>roads.has(key(n.i,n.j)))).length,limitations:c.geoSource==='earth-dem'?'Measured DEM for topography only; no verified flood, soils, services, parcels, road access or legal permission.':'Procedural terrain and indicative unit costs only. Not measured DEM, hydrology, GIS, engineering or statutory approval.'},
   stats:{tasks:tasks.length,buildings:fundedBuildings.size,roads:roadTasks.length,parkLots:tasks.filter(t=>t.stage==='nature').length,protectedLots:[...grid.values()].filter(g=>g.usage==='protected').length,budget:c.budget,estimatedCost:money(spend),deferred,types},
-  createdBy:'PLANET LAB feasibility-screened procedural planner; no real GIS or verified utility data'};
+  createdBy:c.geoSource==='earth-dem'?'PLANET LAB measured elevation / conceptual infrastructure; no verified utilities or parcels':'PLANET LAB feasibility-screened procedural planner; no real GIS or verified utility data'};
 }
 export const TEAM_ROLES=[
  ['ROADS','Road crew','#f2b374',['roads']],

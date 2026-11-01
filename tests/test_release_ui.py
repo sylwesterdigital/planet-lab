@@ -10,8 +10,8 @@ class ReleaseFrontendTest(unittest.TestCase):
     def test_versioned_module_entrypoints(self):
         html = (ROOT / 'index.html').read_text()
         for module in ('app', 'collab', 'studio'):
-            self.assertIn(f'src="./{module}.mjs?v=0.4.13"', html)
-        self.assertIn("from './planner.mjs?v=0.4.13'", (ROOT / 'app.mjs').read_text())
+            self.assertIn(f'src="./{module}.mjs?v=0.4.15"', html)
+        self.assertIn("from './planner.mjs?v=0.4.15'", (ROOT / 'app.mjs').read_text())
 
     def test_uncacheable_html_and_scripts(self):
         backend = (ROOT / 'backend/app.py').read_text()

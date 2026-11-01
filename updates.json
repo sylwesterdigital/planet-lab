@@ -2,6 +2,17 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.15",
+      "date": "2026-11-01",
+      "changes": [
+        "Replace fictional default globe with real WGS84 Earth map from MapLibre and OpenFreeMap",
+        "Load true local elevation from Mapterhorn DEM for city planning without procedural fallback",
+        "Keep fictional legacy snapshots separate from real-world location pins",
+        "Replace verbose welcome manual with focused Earth navigation and primary actions",
+        "Fix Mac staged local tests by running full Python unittest discovery and add standalone building-test import regression"
+      ]
+    },
+    {
       "version": "0.4.13",
       "date": "2026-11-01",
       "changes": [
@@ -69,5 +80,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.13"
+  "currentVersion": "0.4.15"
 }

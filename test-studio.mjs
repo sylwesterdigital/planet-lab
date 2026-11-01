@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import {sampleElevation} from './earth-terrain.mjs';
 const source=fs.readFileSync(new URL('./studio.mjs',import.meta.url),'utf8');
 const start=source.indexOf('function putBuilding('), end=source.indexOf('function enterBuilding()',start);
 assert.ok(start>=0&&end>start,'putBuilding implementation found');
@@ -18,9 +19,9 @@ class Group{
 const world={height:()=>surface,studioGroup:new Group(),scene:{},mode:'planet',
   setMode(mode){this.mode=mode},camera:{position:{set(...v){saved.push(v)}}},
   controls:{target:{set(...v){saved.push(v)}},update(){}}};
-const app={site:[1,2],world,updateMode(){},plan:{}};
+const app={site:[1,2],world,config:{geoSource:'fictional'},geoSource:'fictional',updateMode(){},plan:{}};
 const ctx={THREE:{Group},sim:()=>app,box:(group)=>group.add({geometry:{dispose(){}},material:{dispose(){}}}),
-  roof:()=>{},showResult:()=>{},notice:()=>{},Number,Math};
+  roof:()=>{},showResult:()=>{},notice:()=>{},sampleElevation,Number,Math};
 vm.runInNewContext(`let buildingGroup=null,currentBuilding=null;${source.slice(start,end)}\n`+
   `putBuilding({name:'Lakeside house',width:10,depth:8,floors:2,floorHeight:3,style:'modern',roof:'gable',windowsPerSide:3,interiorRooms:3,material:'wood and glass'});`,ctx);
 assert.equal(world.studioGroup.children.length,1,'model attached to visible local-world group');
@@ -32,4 +33,14 @@ const oldGroup=world.studioGroup.children[0];
 surface=0;
 assert.throws(()=>vm.runInNewContext(`putBuilding({width:10,depth:8,floors:2})`,ctx),/shoreline/);
 assert.equal(world.studioGroup.children[0],oldGroup,'invalid site does not destroy previous preview');
+// Measured coastline guard must not confuse scene-relative elevations with sea level.
+surface=2;app.geoSource='earth-dem';app.config={geoSource:'earth-dem'};
+const n=104,heights=new Array((n+1)**2).fill(-2);
+app.earthDem={steps:n,half:78,heights,centerAltitude:-2};
+assert.throws(()=>vm.runInNewContext(`putBuilding({width:10,depth:8,floors:2})`,ctx),/sea level/);
+heights.fill(45);
+vm.runInNewContext(`putBuilding({width:10,depth:8,floors:2})`,ctx);
+assert.equal(world.studioGroup.children.length,1,'Measured dry site is accepted');
+app.config=null;
+assert.throws(()=>vm.runInNewContext(`putBuilding({width:10,depth:8,floors:2})`,ctx),/Choose a location/);
 console.log('Building Studio scene attachment, camera, scale, saving and shoreline checks passed');
