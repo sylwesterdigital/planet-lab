@@ -8,6 +8,8 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import collections
+import traceback
 import os
 import re
 import shlex
@@ -188,54 +190,104 @@ def get_deployed():
 
 
 def verify(archive, output):
-    with zipfile.ZipFile(archive) as zipfile_obj:
-        members = zipfile_obj.infolist()
-        if len(members) > 300 or sum(x.file_size for x in members) > 25_000_000:
-            raise ReleaseError('Release ZIP too large')
-        names = [m.filename for m in members if not m.is_dir()]
-        if len(names) != len(set(names)) or 'manifest.json' not in names:
-            raise ReleaseError('Missing manifest or duplicated ZIP filenames')
+    """Verify a watcher-native archive, with actionable evidence in the release log."""
+    archive = Path(archive)
+    detail(f'ZIP path: {archive.resolve()}')
+    if not archive.is_file():
+        raise ReleaseError(f'Release ZIP not found: {archive}')
+    detail(f'ZIP compressed size: {archive.stat().st_size:,} bytes')
+    try:
+        return _verify_zip_contents(archive, output)
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError) as exc:
+        raise ReleaseError(f'ZIP archive is corrupt or unreadable: {exc}') from exc
+
+
+def _verify_zip_contents(archive, output):
+    with zipfile.ZipFile(archive) as z:
+        members = z.infolist()
+        names = [member.filename for member in members if not member.is_dir()]
+        unpacked = sum(member.file_size for member in members)
+        roots = sorted({member.filename.split('/', 1)[0] for member in members})
+        detail(f'ZIP inventory: entries={len(members)}, files={len(names)}, '
+               f'uncompressed={unpacked:,} bytes, root entries={roots[:20]}')
+        if len(members) > 300 or unpacked > 25_000_000:
+            raise ReleaseError(f'ZIP safety limit exceeded: {len(members)}/300 entries, '
+                               f'{unpacked:,}/25,000,000 unpacked bytes')
+        duplicates = [name for name, count in collections.Counter(names).items() if count > 1]
+        if duplicates:
+            detail('Duplicate ZIP names: ' + ', '.join(duplicates[:30]))
+            raise ReleaseError(f'ZIP contains {len(duplicates)} duplicated filename(s): '
+                               + ', '.join(duplicates[:5]))
+        if 'manifest.json' not in names:
+            detail('Missing required root file: manifest.json')
+            detail('Actual ZIP root entries: ' + ', '.join(roots[:30]))
+            raise ReleaseError('ZIP missing manifest.json at archive root. '
+                               'Build with scripts/make-release.py, not a generic ZIP command.')
+        detail('ZIP manifest.json present; no duplicate filenames')
         for member in members:
             path = PurePosixPath(member.filename)
             if path.is_absolute() or '..' in path.parts or '\\' in member.filename:
                 raise ReleaseError('Unsafe ZIP path: ' + member.filename)
             if stat.S_ISLNK(member.external_attr >> 16):
-                raise ReleaseError('Symlinks in release ZIP forbidden')
+                raise ReleaseError('Symlinks in release ZIP forbidden: ' + member.filename)
             if member.filename != 'manifest.json' and (not path.parts or path.parts[0] != 'app'):
-                raise ReleaseError('Unexpected ZIP entry: ' + member.filename)
+                raise ReleaseError('Unexpected entry outside app/: ' + member.filename)
             if member.compress_size and member.file_size > 200 * member.compress_size and member.file_size > 2_000_000:
-                raise ReleaseError('Unreasonable ZIP compression ratio')
-        manifest = json.loads(zipfile_obj.read('manifest.json'))
+                raise ReleaseError('Unreasonable ZIP compression ratio: ' + member.filename)
+        try:
+            manifest = json.loads(z.read('manifest.json'))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ReleaseError(f'ZIP manifest.json contains invalid JSON: {exc}') from exc
+        if not isinstance(manifest, dict):
+            raise ReleaseError('ZIP manifest.json must contain a JSON object')
         version = manifest.get('version')
         if not isinstance(version, str) or not SEMVER.fullmatch(version):
-            raise ReleaseError('Invalid version')
+            raise ReleaseError(f'Invalid manifest version: {version!r}')
         match = re.search(r'v(\d+\.\d+\.\d+)', archive.name)
         if not match or match.group(1) != version:
-            raise ReleaseError('Filename and manifest version mismatch')
+            raise ReleaseError(f'ZIP filename / manifest version mismatch: '
+                               f'{match.group(1) if match else "missing"!r} vs {version!r}')
         if semver(version) <= semver(get_deployed()):
-            raise ReleaseError(f'Version must exceed last deployed v{get_deployed()}')
+            raise ReleaseError(f'Version v{version} must exceed deployed v{get_deployed()}')
         hashes = manifest.get('sha256')
-        if not isinstance(hashes, dict) or not hashes or set('app/' + p for p in hashes) != set(n for n in names if n.startswith('app/')):
-            raise ReleaseError('SHA256 manifest does not match included files')
+        if not isinstance(hashes, dict) or not hashes:
+            raise ReleaseError('manifest.json missing its sha256 filename-to-digest map')
+        expected_files = {'app/' + name for name in hashes}
+        actual_files = {name for name in names if name.startswith('app/')}
+        if expected_files != actual_files:
+            missing = sorted(expected_files - actual_files)
+            unexpected = sorted(actual_files - expected_files)
+            detail(f'Manifest inventory difference: {len(missing)} missing, {len(unexpected)} unlisted')
+            if missing:
+                detail('Manifest-listed files absent from ZIP: ' + ', '.join(missing[:25]))
+            if unexpected:
+                detail('ZIP files absent from manifest: ' + ', '.join(unexpected[:25]))
+            first = (missing or unexpected)[0]
+            raise ReleaseError(f'SHA256 file inventory mismatch: {len(missing)} missing, '
+                               f'{len(unexpected)} unlisted. Example: {first}')
         if not isinstance(manifest.get('changes'), list) or not manifest['changes']:
-            raise ReleaseError('Manifest must explain changes')
+            raise ReleaseError('Manifest must explain release changes')
+        detail(f'Manifest v{version}: {len(hashes)} SHA256 entries, exact ZIP inventory match')
         for rel, expected in hashes.items():
             path = PurePosixPath(rel)
-            if path.is_absolute() or '..' in path.parts or not re.fullmatch(r'[a-f0-9]{64}', expected):
-                raise ReleaseError('Unsafe file/hash: ' + rel)
-            contents = zipfile_obj.read('app/' + rel)
-            if hashlib.sha256(contents).hexdigest() != expected:
+            if path.is_absolute() or '..' in path.parts or not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected):
+                raise ReleaseError('Unsafe filename/hash in manifest: ' + repr(rel))
+            data = z.read('app/' + rel)
+            actual = hashlib.sha256(data).hexdigest()
+            if actual != expected:
+                detail(f'SHA256 mismatch: {rel}; expected={expected}; actual={actual}')
                 raise ReleaseError('SHA256 mismatch: ' + rel)
             destination = output.joinpath(*path.parts)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(contents)
-        for item in REQUIRED:
-            if not (output / item).is_file():
-                raise ReleaseError('Missing required release file: ' + item)
+            destination.write_bytes(data)
+        for required in REQUIRED:
+            if not (output / required).is_file():
+                raise ReleaseError('Missing required release file: ' + required)
         if f"VERSION = '{version}'" not in (output / 'backend/app.py').read_text():
-            raise ReleaseError('Backend code version mismatch')
+            raise ReleaseError(f'backend/app.py VERSION differs from manifest v{version}')
+        detail(f'ZIP VERIFIED: v{version}, all {len(hashes)} SHA256 checks pass, '
+               'required files present, backend version matches')
         return manifest
-
 
 def local_tests(stage):
     for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','earth-imagery.mjs','earth-buildings.mjs','earth-views.mjs','earth-history.mjs','test-earth-views.mjs','test-scenarios.mjs','scenario-core.mjs','earth-scenarios.mjs','test-buildings.mjs','test-earth.mjs','test-earth-map.mjs','test-imagery.mjs']:
@@ -478,11 +530,21 @@ def main():
     VERBOSE = args.verbose
     if args.check_zip:
         STATE.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix='zip-check-',dir=STATE) as tmp:
-            manifest=verify(args.check_zip,Path(tmp))
-            local_tests(Path(tmp))
-            log('CHECK PASSED v'+manifest['version']+'; GitHub and server unchanged', 'SUCCESS')
-        return 0
+        begin_run(args.check_zip, True)
+        try:
+            with tempfile.TemporaryDirectory(prefix='zip-check-', dir=STATE) as tmp:
+                stage('1/6 ZIP validation')
+                manifest = verify(args.check_zip, Path(tmp))
+                stage('2/6 Local tests')
+                local_tests(Path(tmp))
+                log('CHECK PASSED v' + manifest['version'] + '; GitHub and server unchanged', 'SUCCESS')
+            finish_run(True, True)
+            return 0
+        except Exception as exc:
+            detail('FAILURE TYPE: ' + type(exc).__name__)
+            detail('EXCEPTION TRACEBACK:\n' + traceback.format_exc())
+            finish_run(False, True, str(exc))
+            return 1
     if args.status:
         log('Last watcher-confirmed version: v'+get_deployed())
         try:
@@ -514,6 +576,10 @@ def main():
                     finish_run(True,args.dry_run)
                 except Exception as exc:
                     failed=True
+                    detail('FAILURE PHASE: ' + RUN['phase'])
+                    detail('FAILURE TYPE: ' + type(exc).__name__)
+                    detail('FAILURE MESSAGE: ' + str(exc))
+                    detail('EXCEPTION TRACEBACK:\n' + traceback.format_exc())
                     if not args.dry_run:
                         dest=UPDATES/'failed'/archive.name
                         if dest.exists():dest=dest.with_name(archive.stem+'-'+str(int(time.time()))+'.zip')

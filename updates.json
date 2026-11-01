@@ -2,6 +2,26 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.29",
+      "date": "2026-11-01",
+      "changes": [
+        "Use required SHA256 release manifest and diagnose ZIP errors with exact missing/duplicated filenames.",
+        "Include ZIP inventory, manifest differences, verified digests, phase and exception traceback in complete release logs.",
+        "Fix mapped-building visibility flag shadowing OSM rendering method.",
+        "Preserve perspective patch aspect ratio in displayed screen pixels."
+      ]
+    },
+    {
+      "version": "0.4.28",
+      "date": "2026-11-01",
+      "changes": [
+        "Perspective crops now preserve the drawn rectangle or a chosen aspect ratio instead of forcing 1:1.",
+        "Perspective generation shows a clear processing state and the review modal stays front-and-centre during AI work.",
+        "OpenStreetMap 3D/outline buildings can now be shown/hidden or isolated by themselves.",
+        "AI setup now links directly to the full Meta / xAI / OpenAI key manager."
+      ]
+    },
+    {
       "version": "0.4.21",
       "date": "2026-11-01",
       "summary": "High-visibility red site patch selection with first-corner markers."
@@ -115,5 +135,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.15"
+  "currentVersion": "0.4.29"
 }

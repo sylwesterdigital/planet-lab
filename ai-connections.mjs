@@ -56,6 +56,7 @@ async function testMeta(){
   setStatus(`Connected to Meta Model API · ${data.model} · response: ${data.reply}`,'success');
 }
 el('aiSetupOpen').addEventListener('click',openAiSetup);
+el('aiOpenProviderKeys')?.addEventListener('click',()=>{document.getElementById('providerKeysDialog').hidden=false;});
 el('aiSetupTop').addEventListener('click',openAiSetup);
 el('aiSetupClose').addEventListener('click',closeAiSetup);
 el('aiSetupBackdrop').addEventListener('click',e=>{if(e.target===el('aiSetupBackdrop'))closeAiSetup()});

@@ -44,7 +44,7 @@ def decode_data_image(uri, limit=MAX_SOURCE_BYTES):
     return data, mime
 
 
-def provider_payload(provider, prompt, source, size=1024, mode='plan'):
+def provider_payload(provider, prompt, source, size=1024, width=None, height=None, mode='plan'):
     if mode == 'perspective':
         instruction = ('Edit this exact perspective view crop. Preserve the original camera angle, '
                        'scene perspective, building proportions, and the visible spatial layout. '
@@ -57,15 +57,18 @@ def provider_payload(provider, prompt, source, size=1024, mode='plan'):
                        'and perspective. Do not add text, symbols, borders, or legends. '
                        'This is a visual planning scenario, not a map survey. Edit instruction: ' + prompt)
     model = PROVIDERS[provider][1]
+    width = int(width or size)
+    height = int(height or size)
+    ratio = f'{width}:{height}'
     if provider == 'xai':
         return {'model': model, 'prompt': instruction, 'image': {'url': source, 'type': 'image_url'},
-                'aspect_ratio': '1:1', 'resolution': '2k' if size > 1024 else '1k',
+                'aspect_ratio': ratio, 'resolution': '2k' if max(width, height) > 1024 else '1k',
                 'quality': 'medium', 'response_format': 'b64_json'}
     if provider == 'meta':
         # No provider-independent high-res option documented for this model.
         return {'model': model, 'prompt': instruction, 'images': [{'image_url': source}], 'n': 1}
     return {'model': model, 'prompt': instruction, 'images': [{'image_url': source}],
-            'n': 1, 'size': f'{size}x{size}', 'quality': 'high'}
+            'n': 1, 'size': f'{width}x{height}', 'quality': 'high'}
 
 
 def extract_provider_image(body):
@@ -136,6 +139,10 @@ def setup_scenario_edits(app, db_session, actor, require_csrf):
         size = body.get('size', 1024)
         if size not in (1024, 1536, 2048):
             return jsonify(error='Choose 1024, 1536 or 2048 for the AI patch size.'), 400
+        width = body.get('width', size)
+        height = body.get('height', size)
+        if not all(isinstance(v, int) for v in (width, height)) or min(width, height) < 256 or max(width, height) > 2048:
+            return jsonify(error='Invalid output image dimensions.'), 400
         mode = body.get('mode', 'plan')
         if mode not in ('plan', 'perspective'):
             return jsonify(error='Unknown image-edit mode.'), 400
@@ -143,7 +150,7 @@ def setup_scenario_edits(app, db_session, actor, require_csrf):
             # The image is a crop of the user-selected patch; no arbitrary URL input.
             source = body.get('image')
             decode_data_image(source)
-            payload = provider_payload(provider, prompt.strip(), source, size, mode)
+            payload = provider_payload(provider, prompt.strip(), source, size, width, height, mode)
             image = call_provider(provider, key, payload)
             return jsonify(image=image, provider=provider, model=PROVIDERS[provider][1],
                            note='Visual mockup only; no real buildings or GIS data changed.')
