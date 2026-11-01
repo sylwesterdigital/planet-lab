@@ -266,7 +266,20 @@ class WorldView{
  }
  setFootprintVisibility(visible){this.existingGroup.children.forEach(o=>{if(o.userData.kind==='mapped-footprint')o.visible=!!visible})}
  setExistingBuildingVisibility(visible){this.mappedBuildingsVisible=!!visible;this.existingGroup.visible=this.mode==='region'&&this.mappedBuildingsVisible}
- setExistingBuildingIsolation(visible){this.onlyExistingBuildings=!!visible;const region=this.mode==='region';this.regionGroup.visible=region&&!this.onlyExistingBuildings;this.buildGroup.visible=region&&!this.onlyExistingBuildings;this.studioGroup.visible=region&&!this.onlyExistingBuildings;this.robotsGroup.visible=region&&this.showAgents&&!this.onlyExistingBuildings;this.vegetationGroup.visible=region&&this.showVegetation&&!this.onlyExistingBuildings;this.ghostGroup.visible=region&&!this.onlyExistingBuildings;this.scenarioLayerGroup.visible=region&&!this.onlyExistingBuildings}
+ setExistingBuildingIsolation(visible){
+  if(visible&&this.existingGroup.children.length===0){
+   document.getElementById('showOnlyExistingBuildings').checked=false;
+   document.getElementById('quickOnlyBuildings').checked=false;
+   const note=document.getElementById('existingBuildingsState');
+   if(note)note.textContent='No mapped buildings loaded for this location. Retry building data before isolating them.';
+   visible=false;
+  }
+  this.onlyExistingBuildings=!!visible;
+  const region=this.mode==='region';
+  this.regionGroup.visible=region&&!this.onlyExistingBuildings;this.buildGroup.visible=region&&!this.onlyExistingBuildings;this.studioGroup.visible=region&&!this.onlyExistingBuildings;
+  this.robotsGroup.visible=region&&this.showAgents&&!this.onlyExistingBuildings;this.vegetationGroup.visible=region&&this.showVegetation&&!this.onlyExistingBuildings;
+  this.ghostGroup.visible=region&&!this.onlyExistingBuildings;this.scenarioLayerGroup.visible=region&&!this.onlyExistingBuildings
+ }
  showViewBookmarks(entries=[]){
   clearGroup(this.bookmarkGroup);
   if(this.config?.geoSource!=='earth-dem')return;
@@ -414,7 +427,7 @@ class CityApp{
  removeRobots(){for(const a of this.robots){this.world.robotsGroup.remove(a.group);a.group.traverse(o=>o.geometry?.dispose())}this.robots=[]}
  async changeAnchor(anchor){return this.selectEarthSite(anchor)}
  async initEarthMap(){try{const container=$('earthMap');container.hidden=false;const {EarthMap}=await import('./earth-map.mjs?v=0.4.19');this.world.earthMap=new EarthMap(container,anchor=>this.selectEarthSite(anchor));this.world.earthMap.show();this.world.earthMap.connectSearch($('earthSearch'),$('earthQuery'),$('earthStatus'));this.world.earthMap.map.resize();const status=$('earthStatus');status.textContent='Click a real location on Earth to inspect terrain.';window.dispatchEvent(new Event('planetlab:earth-ready'));}catch(error){$('earthStatus').textContent='Earth map unavailable: '+error.message;console.error(error)}}
- async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level${dem.artifactsCorrected?` · ${dem.artifactsCorrected} isolated DEM outliers interpolated`:''}`;this.updateUi();this.loadBuildings(ticket);return true;}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error);return false}}
+ async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.world.setExistingBuildingIsolation(false);this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level${dem.artifactsCorrected?` · ${dem.artifactsCorrected} isolated DEM outliers interpolated`:''}`;this.updateUi();this.loadBuildings(ticket);return true;}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error);return false}}
  async loadBuildings(ticket=this._earthRequest){
   if(!this.earthDem)return;
   this.buildingsState='loading';this.updateBuildingCoverage();
@@ -422,7 +435,7 @@ class CityApp{
   try{
    const data=await fetchSiteBuildings(anchor);
    if(ticket!==this._earthRequest)return;
-   this.siteBuildings=data;this.buildingsState='ready';this.world.showExistingBuildings(data);
+   this.siteBuildings=data;this.buildingsState=data.cacheStatus==='stale'?'cached':'ready';this.world.showExistingBuildings(data);
   }catch(error){
    if(ticket!==this._earthRequest)return;
    this.siteBuildings=null;this.buildingsState='unavailable';
@@ -433,17 +446,23 @@ class CityApp{
  updateBuildingCoverage(){
   const note=$('existingBuildingsState');if(!note)return;
   const status=this.buildingsState;
+  const quick=$('quickBuildingStatus');
+  if(quick){
+   const count=this.siteBuildings?.buildings?.length;
+   quick.textContent=status==='loading'?'OSM: loading…':status==='cached'?'OSM: cached '+count:status==='ready'?'OSM: '+count+' mapped':status==='unavailable'?'OSM: unavailable':'OSM: waiting';
+   quick.title=status==='unavailable'?'All public building providers failed. Retry later.':status==='cached'?'Verified footprints recovered from local cache.':'Real OpenStreetMap building data';
+  }
   if(status==='loading')note.textContent='Loading real building footprints…';
-  else if(status==='ready'){
+  else if(status==='ready'||status==='cached'){
    const buildings=this.siteBuildings.buildings,measured=buildings.filter(b=>b.heightMetres!==null).length,estimated=buildings.filter(b=>b.heightMetres===null&&b.estimatedHeightMetres!==null).length;
-   note.textContent=`${buildings.length} mapped footprints from OpenStreetMap · ${measured} measured heights · ${estimated} approximate 3D from mapped storeys · ${buildings.length-measured-estimated} outline only. Rendered locally in the browser with Three.js; no invented heights for untagged buildings.`;
+   note.textContent=`${status==='cached'?'CACHED · public OSM server unavailable · ':''}${buildings.length} mapped footprints from OpenStreetMap · ${measured} measured heights · ${estimated} approximate 3D from mapped storeys · ${buildings.length-measured-estimated} outline only. Rendered locally in the browser with Three.js; no invented heights for untagged buildings.`;
   }else if(status==='unavailable')note.textContent='Building data unavailable. Planning paused; retry loading.';
   else note.textContent='Select an Earth location to load mapped buildings.';
-  $('plan').disabled=this.geoSource==='earth-dem'&&status!=='ready';
+  $('plan').disabled=this.geoSource==='earth-dem'&&status!=='ready'&&status!=='cached';
  }
  changeSite(site){if(!site){this.log('No safe site identified inside the selected region. Choose another location on the globe.');this.updateUi();return}this.site=site;this.world.setSite(site);this.updateLocation();this.drawMap();window.dispatchEvent(new Event('planetlab:site-changed'));this.log('New site proposed — generate masterplan to update layout.');this.updateUi()}
  updateLocation(){const [x,z]=this.site;$('siteText').textContent=`Site: x ${x.toFixed(1)}, z ${z.toFixed(1)} · ${this.geoSource==='earth-dem'?'Earth':'Legacy planet'} ${this.anchor.lat.toFixed(4)}°, ${this.anchor.lon.toFixed(4)}°.`;$('locationTag').innerHTML=`<b>${this.world.mode==='planet'?'EARTH':this.geoSource==='earth-dem'?'DEM REGION':'LEGACY REGION'}</b> · ${this.anchor.lat.toFixed(4)}°, ${this.anchor.lon.toFixed(4)}°`}
- createPlan(){this.running=false;if(this.geoSource==='earth-dem'&&this.buildingsState!=='ready'){this.updateBuildingCoverage();return}if(!this.config){$('earthStatus').textContent='Choose an Earth location before planning.';return}this.config=this.readConfig();this.plan=generateCity(this.config);this.world.setPlan(this.plan,$('showPlan').checked);this.world.setVoluntaryZone($('freeZone').checked);this.removeRobots();this.robots=[];
+ createPlan(){this.running=false;if(this.geoSource==='earth-dem'&&!['ready','cached'].includes(this.buildingsState)){this.updateBuildingCoverage();return}if(!this.config){$('earthStatus').textContent='Choose an Earth location before planning.';return}this.config=this.readConfig();this.plan=generateCity(this.config);this.world.setPlan(this.plan,$('showPlan').checked);this.world.setVoluntaryZone($('freeZone').checked);this.removeRobots();this.robots=[];
  const baseX=clamp(this.site[0]-25,-70,70),baseZ=clamp(this.site[1]-25,-70,70);for(let i=0;i<this.config.teams;i++){const role=TEAM_ROLES[i][0],start=[baseX+(i%6)*1.8,baseZ+Math.floor(i/6)*2.0];this.robots.push(new Robot(this.world,i,role,start))}
  this.time=0;this.events=[];this._complete=null;this.log(`${this.config.profile} / ${this.config.level}: ${this.plan.feasibility.status} · ${this.plan.stats.tasks} tasks.`);this.log(`Funding $${this.plan.stats.estimatedCost.toFixed(2)}M / $${this.config.budget.toFixed(2)}M. ${this.plan.stats.deferred} tasks deferred.`);this.running=this.plan.feasibility.status==='screened'&&this.plan.tasks.length>0;this.world.setMode('region');this.updateMode();this.drawMap();this.updateUi()}
  installEvents(){

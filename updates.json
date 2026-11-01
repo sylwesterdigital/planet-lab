@@ -2,6 +2,16 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.34",
+      "date": "2026-11-01",
+      "changes": [
+        "Prefer Private.coffee Overpass, fail over across three independent public endpoints with bounded attempts.",
+        "Persist verified OpenStreetMap footprints per location for offline/stale-on-error display without synthetic buildings.",
+        "Replace obsolete hidden API password inputs and one oversized provider form with individual credential forms.",
+        "Show cached building status rather than clearing already-verified mapped geometry when services fail."
+      ]
+    },
+    {
       "version": "0.4.33",
       "date": "2026-11-01",
       "changes": [
@@ -162,5 +172,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.33"
+  "currentVersion": "0.4.34"
 }

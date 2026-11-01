@@ -4,11 +4,44 @@
  */
 import {nearbyLatLon,EARTH_RADIUS_M,PATCH_HALF_UNITS,METRES_PER_UNIT} from './earth-terrain.mjs';
 const RAD=Math.PI/180,HALF_M=PATCH_HALF_UNITS*METRES_PER_UNIT;
-export const OVERPASS_URL='https://overpass-api.de/api/interpreter';
-export const OVERPASS_FALLBACK_URL='https://overpass.private.coffee/api/interpreter';
+// Try the currently less-loaded public instance before the often-overloaded main server.
+// Both providers are best-effort; do not turn failures into fabricated footprints.
+export const OVERPASS_URL='https://overpass.private.coffee/api/interpreter';
+export const OVERPASS_FALLBACK_URL='https://overpass-api.de/api/interpreter';
+export const OVERPASS_THIRD_URL='https://maps.mail.ru/osm/tools/overpass/api/interpreter';
+const ENDPOINTS=[OVERPASS_URL,OVERPASS_FALLBACK_URL,OVERPASS_THIRD_URL];
 const BACKOFF_MS=45_000;
 const failures=new Map();
-const cache=new Map(),CACHE_MS=15*60*1000;
+const cache=new Map(),CACHE_MS=20*60*1000;
+const PERSIST_MS=7*24*60*60*1000;
+const STALE_MS=30*24*60*60*1000;
+const DB_NAME='planetlab-osm-footprints-v1';
+let storagePromise;
+function openStorage(){
+ if(typeof indexedDB==='undefined')return Promise.resolve(null);
+ if(!storagePromise)storagePromise=new Promise(resolve=>{
+  try{const req=indexedDB.open(DB_NAME,1);
+   req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('footprints'))req.result.createObjectStore('footprints',{keyPath:'key'})};
+   req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null);req.onblocked=()=>resolve(null);
+  }catch{resolve(null)}
+ });
+ return storagePromise;
+}
+async function persisted(key){
+ const db=await openStorage();if(!db)return null;
+ return new Promise(resolve=>{try{const req=db.transaction('footprints','readonly').objectStore('footprints').get(key);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>resolve(null)}catch{resolve(null)}});
+}
+async function saveFootprints(key,data){
+ const db=await openStorage();if(!db)return;
+ return new Promise(resolve=>{try{const transaction=db.transaction('footprints','readwrite');transaction.objectStore('footprints').put({key,at:Date.now(),data});transaction.oncomplete=()=>resolve();transaction.onerror=()=>resolve()}catch{resolve()}});
+}
+function validStored(record,anchor){
+ if(!record||!Number.isFinite(record.at)||Date.now()-record.at>STALE_MS)return false;
+ const d=record.data;
+ return d?.source==='openstreetmap'&&d.anchor?.lat===anchor.lat&&d.anchor?.lon===anchor.lon&&Array.isArray(d.buildings)&&d.buildings.length<=1800&&d.buildings.every(b=>
+  typeof b.id==='string'&&b.id.startsWith('way/')&&Array.isArray(b.outline)&&b.outline.length>=3&&b.outline.length<=350&&b.outline.every(v=>Array.isArray(v)&&v.length===2&&v.every(n=>Number.isFinite(n)&&Math.abs(n)<=78))&&b.bounds&&Object.values(b.bounds).every(Number.isFinite));
+}
+function cachedResult(record,stale=false){return {...record.data,cacheStatus:stale?'stale':'fresh',cachedAt:record.at}}
 export function bboxForSite(anchor,half=HALF_M){
  const sw=nearbyLatLon(anchor,-half,-half),ne=nearbyLatLon(anchor,half,half);
  return {south:sw.lat,west:sw.lon,north:ne.lat,east:ne.lon};
@@ -57,7 +90,16 @@ export function parseBuildings(payload,anchor,{limit=1800}={}){
   // Entirely clipping complex polygons can corrupt the shape; omit buildings outside the patch.
   if(Math.max(...ring.map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1])))) > PATCH_HALF_UNITS-1){clipped++;continue}
   buildings.push({id:`way/${item.id}`,outline:ring,bounds,heightMetres:recordedHeight(item.tags),estimatedHeightMetres:recordedHeight(item.tags)===null?estimatedStoreyHeight(item.tags):null,levels:item.tags['building:levels']||null,kind:item.tags.building});
-  if(buildings.length>=limit)throw new Error('Site has more mapped buildings than preview supports; choose a smaller study area');
+ }
+ // Dense city centers can contain more than the renderer's safe preview budget.
+ // Keep real footprints nearest the selected point rather than failing the entire site.
+ if(buildings.length>limit){
+  buildings.sort((a,b)=>{
+   const da=((a.bounds.minX+a.bounds.maxX)/2)**2+((a.bounds.minZ+a.bounds.maxZ)/2)**2;
+   const db=((b.bounds.minX+b.bounds.maxX)/2)**2+((b.bounds.minZ+b.bounds.maxZ)/2)**2;
+   return da-db;
+  });
+  clipped+=buildings.length-limit;buildings.length=limit;
  }
  return {source:'openstreetmap',attribution:'© OpenStreetMap contributors (ODbL)',anchor:{...anchor},buildings,clipped,updatedAt:payload.osm3s?.timestamp_osm_base||null};
 }
@@ -85,23 +127,46 @@ export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal}={}){
  const key=`${anchor.lat.toFixed(7)},${anchor.lon.toFixed(7)}`;
  const previous=cache.get(key);
  if(previous&&Date.now()-previous.at<CACHE_MS)return previous.data;
+ const disk=await persisted(key);
+ const known=validStored(disk,anchor)?disk:null;
+ if(known&&Date.now()-known.at<PERSIST_MS){
+  const saved=cachedResult(known);
+  cache.set(key,{at:Date.now(),data:saved});
+  return saved;
+ }
  const failure=failures.get(key);
- if(failure&&Date.now()-failure.at<BACKOFF_MS)throw new Error('OpenStreetMap building service temporarily unavailable. Retry shortly; no buildings were synthesized. '+failure.message);
- const endpoints=[OVERPASS_URL,OVERPASS_FALLBACK_URL];
+ if(failure&&Date.now()-failure.at<BACKOFF_MS){
+  if(known)return cachedResult(known,true);
+  throw new Error('OpenStreetMap building service temporarily unavailable. Retry shortly. '+failure.message);
+ }
  const issues=[];
- for(const endpoint of endpoints){
+ // Bound each public-provider attempt: an overloaded server must not block the
+ // fallback indefinitely. The caller's cancellation still interrupts the query.
+ for(const endpoint of ENDPOINTS){
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  const cancel=()=>controller?.abort();
+  const timer=controller?setTimeout(cancel,13000):null;
+  if(signal?.aborted){if(timer)clearTimeout(timer);throw new Error('Building request cancelled')}
+  signal?.addEventListener?.('abort',cancel,{once:true});
   try{
-   const response=await fetchImpl(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({data:buildingQuery(anchor)}),mode:'cors',signal});
+   const response=await fetchImpl(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({data:buildingQuery(anchor)}),mode:'cors',signal:controller?.signal||signal});
    if(!response.ok)throw new Error(`HTTP ${response.status}`);
    const body=await response.json(),data=parseBuildings(body,anchor);
+   data.provider=new URL(endpoint).hostname;
    cache.set(key,{at:Date.now(),data});if(cache.size>12)cache.delete(cache.keys().next().value);
-   failures.delete(key);return data;
+   failures.delete(key);
+   void saveFootprints(key,data);
+   return data;
   }catch(error){
    if(signal?.aborted)throw error;
-   issues.push(`${new URL(endpoint).hostname}: ${error.message}`);
+   issues.push(`${new URL(endpoint).hostname}: ${error.name==='AbortError'?'timed out':error.message}`);
+  }finally{
+   if(timer)clearTimeout(timer);
+   signal?.removeEventListener?.('abort',cancel);
   }
  }
  const message=issues.join(' · ');
  failures.set(key,{at:Date.now(),message});
- throw new Error('OpenStreetMap buildings unavailable; both Overpass services failed. '+message);
+ if(known)return cachedResult(known,true);
+ throw new Error('OpenStreetMap buildings unavailable; all public Overpass services failed. '+message);
 }

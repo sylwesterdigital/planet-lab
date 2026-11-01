@@ -14,7 +14,12 @@ export class EarthMap{
  constructor(node,onSelect){
   this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';this.tileTemplate='';
   this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true,
-   pixelRatio:Math.min(typeof window==='undefined'?1:window.devicePixelRatio||1,1.5),maxCanvasSize:[6144,6144]});
+   pixelRatio:Math.min(typeof window==='undefined'?1:window.devicePixelRatio||1,1.5),maxCanvasSize:[6144,6144],
+   // OpenFreeMap Liberty currently ships invalid numeric filters in these US road
+   // shield symbol layers. Removing only the three invalid symbols preserves road
+   // geometry, building map features, and the rest of the cartography.
+   transformStyle:(_prior,next)=>({...next,layers:next.layers.filter(layer=>
+    !['highway-shield-non-us','highway-shield-us-interstate','road_shield_us'].includes(layer.id))})});
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
   // Styles can override projection specified in the constructor. ALWAYS set it after
   // style.load; without this, MapLibre displays a flat world even at globe zoom.

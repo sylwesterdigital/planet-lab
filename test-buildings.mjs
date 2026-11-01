@@ -44,3 +44,9 @@ const fallback=await fetchSiteBuildings(alternateAnchor,{fetchImpl:async url=>{
 }});
 assert.equal(requests.length,2,'Use a second Overpass service after a transient primary 502');
 assert.deepEqual(fallback.buildings,[],'Never synthesize buildings when source data is empty');
+
+// Dense areas should still display an authentic subset rather than fail outright.
+const dense=parseBuildings({elements:Array.from({length:1901},(_,i)=>({type:'way',id:i+100,tags:{building:'yes'},geometry:geometry.map(p=>({lat:p.lat+(i%35)*.00002,lon:p.lon+(i%17)*.00002}))}))},anchor);
+assert.equal(dense.buildings.length,1800);
+assert.ok(dense.clipped>=101);
+console.log('PASS — dense-site clipping retains real OSM geometry');

@@ -135,6 +135,7 @@ async function applyMapImagery(enabled){
  finally{mapLoading=false}
 }
 $('quickImagery').onchange=event=>applyMapImagery(event.target.checked);
+$('quickRetryBuildings').onclick=()=>document.getElementById('retryBuildings')?.click();
 $('quickBuildings').onchange=event=>{$('showExistingBuildings3d').checked=event.target.checked;$('showExistingBuildings3d').dispatchEvent(new Event('change'))};
 $('quickOnlyBuildings').onchange=event=>{$('showOnlyExistingBuildings').checked=event.target.checked;$('showOnlyExistingBuildings').dispatchEvent(new Event('change'))};
 $('showExistingBuildings3d').addEventListener('change',event=>{$('quickBuildings').checked=event.target.checked});
