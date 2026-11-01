@@ -1,3 +1,4 @@
+import {occupiedByBuilding} from './earth-buildings.mjs';
 import {sceneElevation,sampleElevation,validateEarthGrid} from './earth-terrain.mjs';
 /* PLANET / SETTLEMENT procedural planning model. Browser-free and testable in Node. */
 export const STAGES = [
@@ -135,8 +136,9 @@ export function assessTerrain(x,z,c){
   const water=alt<=.25,coast=nearby.some(v=>v<=.25);
   // Only screen visible height/grade; DEM alone is not a flood model.
   const flood=false,steep=grade>.28;
-  const viable=!water&&grade<=.16;
-  return {elevation,altitudeMetres:alt,grade,water,flood,steep,viable,roadViable:!water&&grade<=.14,coast};
+  const occupied=occupiedByBuilding(x,z,c.existingBuildings);
+  const viable=!water&&!occupied&&grade<=.16;
+  return {elevation,altitudeMetres:alt,grade,water,flood,steep,occupied,viable,roadViable:!water&&!occupied&&grade<=.14,coast};
  }
  const coast= [[9,0],[-9,0],[0,9],[0,-9]].some(([dx,dz])=>terrainHeight(x+dx,z+dz,c)<=.23);
  const water=elevation<=.23;
@@ -163,9 +165,9 @@ export function chooseSite(request,c){
  }
  return best; // null means no suitable site exists in this patch
 }
-export function citySpec({seed='42',geography='mainland',anchor={lat:0,lon:0},profile='mixed',level='average',budget=60,teams=8,brief='',site,geoSource,dem}={}){
+export function citySpec({seed='42',geography='mainland',anchor={lat:0,lon:0},profile='mixed',level='average',budget=60,teams=8,brief='',site,geoSource,dem,existingBuildings}={}){
  const c={seed:String(seed),geography,anchor,profile:PROFILES[profile]?profile:'mixed',level:LEVELS[level]?level:'average',budget:Math.max(.1,Number(budget)||60),teams:Math.min(22,Math.max(2,Math.round(Number(teams)||8))),brief:String(brief),site:site||[0,0]};
- if(geoSource==='earth-dem'){if(!validateEarthGrid(dem))throw new Error('Real Earth elevation tiles missing');c.geoSource=geoSource;c.dem=dem}
+ if(geoSource==='earth-dem'){if(!validateEarthGrid(dem))throw new Error('Real Earth elevation tiles missing');c.geoSource=geoSource;c.dem=dem;if(existingBuildings?.source==='openstreetmap'&&Array.isArray(existingBuildings.buildings))c.existingBuildings=existingBuildings}
  return c;
 }
 const money=(v)=>Math.round(v*1000)/1000;
@@ -183,7 +185,7 @@ export function generateCity(inConfig){
  const neighbours=g=>[[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>grid.get(key(g.i+a,g.j+b))).filter(Boolean);
  for(let i=-half;i<=half;i++)for(let j=-half;j<=half;j++){
   const x=sx+i*cell,z=sz+j*cell,a=assessTerrain(x,z,c);
-  grid.set(key(i,j),{i,j,x,z,y:a.elevation,grade:a.grade,roadViable:a.roadViable,buildable:a.viable,usage:a.viable?'unassigned':'protected',reason:a.water?'water':a.flood?'flood':a.steep?'slope':'unsuitable'});
+  grid.set(key(i,j),{i,j,x,z,y:a.elevation,grade:a.grade,roadViable:a.roadViable,buildable:a.viable,usage:a.viable?'unassigned':'protected',reason:a.water?'water':a.occupied?'existing building':a.flood?'flood':a.steep?'slope':'unsuitable'});
  }
  const center=[...grid.values()].filter(g=>g.roadViable).sort((a,b)=>Math.hypot(a.i,a.j)-Math.hypot(b.i,b.j))[0];
  const findings=[];const data={water:[...grid.values()].filter(g=>g.reason==='water').length,

@@ -1,0 +1,36 @@
+/* Real OSM outlines: georeferencing, height provenance, occupancy and API bounds. */
+import assert from 'node:assert/strict';
+import {bboxForSite,buildingQuery,localPoint,parseBuildings,recordedHeight,occupiedByBuilding,fetchSiteBuildings} from './earth-buildings.mjs';
+import {citySpec,assessTerrain,generateCity} from './planner.mjs';
+import {fetchEarthGrid} from './earth-terrain.mjs';
+const anchor={lat:38.8774,lon:4.5099},bbox=bboxForSite(anchor);
+assert.ok(bbox.north>anchor.lat&&bbox.south<anchor.lat&&bbox.east>anchor.lon&&bbox.west<anchor.lon);
+assert.match(buildingQuery(anchor),/way\["building"\]/);
+assert.deepEqual(localPoint(anchor,anchor.lat,anchor.lon),[0,0]);
+assert.ok(Math.abs(localPoint(anchor,anchor.lat+.00008983,anchor.lon)[1]-1)<.02);
+assert.equal(recordedHeight({height:'11.5 m'}),11.5);
+assert.ok(Math.abs(recordedHeight({height:'30 ft'})-9.144)<.001);
+assert.equal(recordedHeight({'building:levels':'3'}),null,'Do not fake missing height from levels');
+assert.equal(recordedHeight({height:'unknown'}),null);
+const lat=anchor.lat,lon=anchor.lon,p=1e-4;
+const poly=[[lat-p,lon-p],[lat-p,lon+p],[lat+p,lon+p],[lat+p,lon-p],[lat-p,lon-p]];
+const geometry=poly.map(([lat,lon])=>({lat,lon}));
+const payload={elements:[{type:'way',id:42,tags:{building:'residential',height:'8.5'},geometry},{type:'way',id:43,tags:{building:'yes','building:levels':'3'},geometry:geometry.map(p=>({lat:p.lat+.001,lon:p.lon}))}]};
+const parsed=parseBuildings(payload,anchor);
+assert.equal(parsed.buildings.length,2);
+assert.equal(parsed.buildings[0].heightMetres,8.5);
+assert.equal(parsed.buildings[1].heightMetres,null);
+assert.ok(occupiedByBuilding(0,0,parsed));
+assert.ok(!occupiedByBuilding(60,60,parsed));
+let calls=0;
+const found=await fetchSiteBuildings(anchor,{fetchImpl:async(url,options)=>{calls++;assert.match(url,/overpass/);assert.match(String(options.body),/data=/);return {ok:true,json:async()=>payload}}});
+assert.equal(calls,1);assert.equal(found.buildings[0].id,'way/42');
+const tile=new Uint8ClampedArray(512*512*4);for(let i=0;i<tile.length;i+=4){tile[i]=128;tile[i+1]=50;tile[i+3]=255}
+const dem=await fetchEarthGrid(anchor,{loadTile:async()=>tile});
+const cfg=citySpec({geoSource:'earth-dem',dem,anchor,existingBuildings:parsed});
+assert.equal(assessTerrain(0,0,cfg).occupied,true);
+assert.equal(assessTerrain(0,0,cfg).viable,false);
+assert.equal(assessTerrain(60,60,cfg).occupied,false);
+const plan=generateCity(cfg);
+assert.ok(!plan.tasks.some(t=>['home','cottage','apartments'].includes(t.type)&&occupiedByBuilding(t.x,t.z,parsed)),'Existing buildings must not be overwritten');
+console.log('PASS — real OSM footprint geometry; measured heights only; no overlap with proposed buildings');

@@ -38,8 +38,10 @@ assert.ok(latestMap.layers.find(([layer])=>layer.id==='earth-blue-marble-layer')
 assert.ok(latestMap.layers.find(([layer])=>layer.id==='earth-sentinel-layer'));
 assert.match(latestMap.options.style,/openfreemap/);
 events.load();
-assert.ok(latestMap.terrain,'Measured elevation is activated');
-assert.equal(latestMap.getSource('real-dem').encoding,'terrarium');
+assert.equal(latestMap.terrain,undefined,'Do not load unsupported z13/z14 DEM on globe');
+assert.equal(latestMap.getSource('real-dem'),undefined,'Local DEM remains separate from globe');
+earth.setImageryKey('TEST_BROWSER_KEY');
+assert.ok(latestMap.getSource('earth-aerial').url.includes('satellite-v4'),'Optional high-resolution imagery is activated');
 events.click({lngLat:{lat:51.5,lng:-.13}});
 assert.equal(selected[0].lat,51.5);
 assert.equal(earth.selectedPin.coordinates[0],-.13);

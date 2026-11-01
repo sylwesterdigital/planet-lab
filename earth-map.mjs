@@ -4,14 +4,15 @@
  */
 import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
 const MAP_STYLE='https://tiles.openfreemap.org/styles/liberty';
-const TERRAIN='https://tiles.mapterhorn.com/tilejson.json';
+// Globe is a spherical imagery viewer; measured DEM is loaded ONLY for the selected site.
+// The previous globe-wide raster-dem source requested non-existent z13/z14 tiles.
 // NASA's 500-m Blue Marble and EOX's CC BY 4.0 2016 Sentinel-2 mosaic.
 // A single coordinate system is shared by this globe and the selected DEM patch.
 const BLUE_MARBLE='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/2004-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
 const SENTINEL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg';
 export class EarthMap{
  constructor(node,onSelect){
-  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;
+  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';
   this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true});
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
   // Styles can override projection specified in the constructor. ALWAYS set it after
@@ -31,13 +32,9 @@ export class EarthMap{
     this.map.addLayer({id:'earth-sentinel-layer',type:'raster',source:'earth-sentinel',minzoom:5,
      paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,0,7,1], 'raster-fade-duration':200}},firstLabel);
    }
+   this.addHighResolutionLayer();
   });
-  this.map.on('load',()=>{
-   this.ready=true;
-   this.map.addSource('real-dem',{type:'raster-dem',url:TERRAIN,tileSize:512,encoding:'terrarium',attribution:'Terrain: Mapterhorn (CC BY 4.0)'});
-   this.map.setTerrain({source:'real-dem',exaggeration:1});
-   this.map.addControl(new maplibregl.TerrainControl({source:'real-dem',exaggeration:1}),'top-right');
-  });
+  this.map.on('load',()=>{this.ready=true});
   this.map.on('click',e=>{
    // Ignore sky clicks (there is no Earth surface there in the globe projection).
    if(this.map.transform?.isPointOnMapSurface && !this.map.transform.isPointOnMapSurface(e.point))return;
@@ -75,6 +72,21 @@ export class EarthMap{
     status.textContent=(name||term)+' · Select an exact building site on the map.';
    }catch(error){status.textContent=error.message;console.warn('Place search:',error)}
   });
+ }
+ addHighResolutionLayer(){
+  if(!this.imageryKey||this.map.getSource('earth-aerial'))return;
+  // The key remains in this browser session; it is never saved with projects.
+  const key=encodeURIComponent(this.imageryKey);
+  this.map.addSource('earth-aerial',{type:'raster',url:`https://api.maptiler.com/tiles/satellite-v4/tiles.json?key=${key}`,tileSize:256,
+   attribution:'Aerial imagery © MapTiler, © imagery providers'});
+  const firstLabel=this.map.getStyle().layers.find(layer=>layer.type==='symbol')?.id;
+  this.map.addLayer({id:'earth-aerial-layer',type:'raster',source:'earth-aerial',minzoom:5},firstLabel);
+ }
+ setImageryKey(key){
+  this.imageryKey=String(key||'').trim();
+  if(this.map.getLayer?.('earth-aerial-layer'))this.map.removeLayer('earth-aerial-layer');
+  if(this.map.getSource('earth-aerial'))this.map.removeSource('earth-aerial');
+  this.addHighResolutionLayer();
  }
  show(){this.node.hidden=false;this.map.resize()}
  hide(){this.node.hidden=true}

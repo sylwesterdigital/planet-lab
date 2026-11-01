@@ -1,3 +1,11 @@
+## v0.4.17 — Real buildings and imagery reliability
+
+- The globe stays spherical and no longer requests Mapterhorn z13/z14 raster-dem tiles. The selected 1.56 km site is still built from DEM elevation (z12).
+- A single bounded Overpass request retrieves OpenStreetMap building **way** footprints for the selected site. Only a recorded `height` tag produces a 3D extrusion. Buildings with missing height appear as ground outlines, not invented blocks. Complex multipolygon relations are not yet supported.
+- Existing OSM buildings protect their footprint (with a buffer) from planned roads and building plots. Planning is disabled if building coverage fails to load; OSM may still be incomplete and cannot establish ownership or planning permissions.
+- The free Sentinel-2 mosaic is 2016 imagery, approximately 10 m ground resolution. Optional MapTiler Satellite v4 provides sharper aerial tiles with a user-supplied API key. Key stays in tab memory; never committed or saved in a world. Use a referer-restricted key to protect against misuse; usage may incur charges.
+- Public Overpass is for low-frequency evaluation; production-scale or commercial usage needs a paid/self-hosted provider. This release is not an engineering survey or authoritative building inventory.
+
 ## v0.4.16: spherical Earth and same-place local terrain
 
 - MapLibre projection is forced to `globe` after `style.load` (v0.4.15 was flattened by the map style).
@@ -125,7 +133,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.16.zip` in the Mac repository's
+The watcher accepts the corresponding versioned `PLANETLAB_RELEASE_vX.Y.Z.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

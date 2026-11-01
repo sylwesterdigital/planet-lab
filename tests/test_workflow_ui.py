@@ -9,7 +9,7 @@ class WorkflowUITests(unittest.TestCase):
             self.assertIn('id="'+identifier+'"',page)
     def test_no_auto_city_on_load(self):
         app=(ROOT/'app.mjs').read_text()
-        self.assertIn("this.world.setMode('planet');this.updateMode();this.updateUi();this.initEarthMap();",app)
+        self.assertIn("this.world.setMode('planet');this.updateMode();this.updateUi();this.updateBuildingCoverage();this.initEarthMap();",app)
         self.assertNotIn('this.generateWorld();this.createPlan();',app)
     def test_actions_use_existing_builders(self):
         script=(ROOT/'workflow.mjs').read_text()

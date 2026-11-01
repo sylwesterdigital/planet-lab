@@ -2,6 +2,16 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.17",
+      "date": "2026-11-01",
+      "changes": [
+        "Stop unsupported high-zoom Mapterhorn DEM globe requests; keep local DEM separate",
+        "Overlay mapped OpenStreetMap building footprints and only recorded heights in 3D",
+        "Protect mapped existing buildings from generated road/building plots",
+        "Optional high-resolution MapTiler aerial imagery with a session-only user key"
+      ]
+    },
+    {
       "version": "0.4.15",
       "date": "2026-11-01",
       "changes": [

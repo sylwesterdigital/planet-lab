@@ -31,6 +31,9 @@ export function sceneElevation(grid,x,z){return 2+(sampleElevation(grid,x,z)-gri
 export function validateEarthGrid(grid){return !!grid&&grid.source==='mapterhorn-dem'&&grid.steps===GRID_STEPS&&grid.half===PATCH_HALF_UNITS&&Array.isArray(grid.heights)&&grid.heights.length===(GRID_STEPS+1)**2&&grid.heights.every(h=>Number.isFinite(h)&&h>=-12000&&h<=9000)&&Number.isFinite(grid.centerAltitude)}
 /* Image decoder is injectable so tile math can be tested without network or canvas. */
 export async function fetchEarthGrid(anchor,{zoom=12,loadTile=loadTileImage}={}){
+ // Mapterhorn global DEM is reliably served at z<=12. High-zoom requests
+ // may return 404 where regional high-resolution archives have no coverage.
+ if(!Number.isInteger(zoom)||zoom<0||zoom>12)throw new Error('Unsupported elevation zoom (maximum 12)');
  if(!Number.isFinite(anchor?.lat)||!Number.isFinite(anchor?.lon)||Math.abs(anchor.lat)>84.95||Math.abs(anchor.lon)>180)throw new Error('Choose a location between 85°N and 85°S');
  const loaded=new Map(), steps=GRID_STEPS, half=PATCH_HALF_UNITS, heights=[];
  async function tileAt(tx,ty){

@@ -207,7 +207,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.16 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.17 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -226,6 +226,8 @@ html,body{height:100%;overflow:hidden}
 <h2 class="title" style="font-size:19px">Select a location</h2><p class="desc">Click Earth to open the same location in 3D terrain.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">Local terrain</button><button id="planetMode">Earth map</button></div>
 <div class="row2"><div hidden><label class="lab" for="seed">LEGACY SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
+<div class="section" id="existingBuildingsSection" style="padding:8px 0"><strong>Existing buildings · OpenStreetMap</strong><div id="existingBuildingsState" class="hint" role="status">Select a location to load mapped buildings.</div><button class="btn mini" id="retryBuildings" type="button">Reload building data</button></div>
+<details class="section" id="aerialOptions" style="padding:7px 0"><summary>Sharper aerial imagery · optional API key</summary><p class="hint">Free Sentinel-2 is about 10 m/pixel. For sharper imagery, provide your own MapTiler API key (usage charges may apply). Key is not saved.</p><input id="imageryKey" type="password" autocomplete="off" placeholder="MapTiler API key" aria-label="MapTiler API key" style="width:100%;box-sizing:border-box;background:#0c1822;color:#f1fff6;border:1px solid #42616a;border-radius:6px;padding:9px"><button class="btn mini" type="button" id="applyImagery">Apply imagery</button><div class="hint" id="imageryState" role="status">Sentinel-2 (2016)</div></details>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Reload elevation</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Select a location on Earth to load measured terrain.</div>
 <section class="section" id="citySection"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
 <div class="row2"><div><label class="lab" for="profile">ECONOMY / CITY PROFILE</label><select id="profile" class="field"><option value="mixed">Balanced settlement</option><option value="agricultural">Agricultural</option><option value="industrial">Industrial</option><option value="resort">Holiday / Vegas</option><option value="spa">Spa / wellness</option><option value="datacenter">Data centre hub</option><option value="metropolis">Dense metropolis</option></select></div><div><label class="lab" for="level">COMPLEXITY</label><select id="level" class="field"><option value="basic" selected>Basic</option><option value="simple">Simple</option><option value="average">Average</option><option value="advanced">Advanced</option><option value="super">Super complex</option></select></div></div>
@@ -346,12 +348,12 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.16"></script>
-<script type="module" src="./collab.mjs?v=0.4.16"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.16"></script>
-<script type="module" src="./studio.mjs?v=0.4.16"></script>
-<script type="module" src="./placebook.mjs?v=0.4.16"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.16"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.16"></script>
-<script type="module" src="./workflow.mjs?v=0.4.16"></script>
+<script type="module" src="./app.mjs?v=0.4.17"></script>
+<script type="module" src="./collab.mjs?v=0.4.17"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.17"></script>
+<script type="module" src="./studio.mjs?v=0.4.17"></script>
+<script type="module" src="./placebook.mjs?v=0.4.17"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.17"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.17"></script>
+<script type="module" src="./workflow.mjs?v=0.4.17"></script>
 </body></html>
