@@ -1,4 +1,4 @@
-# PlanetLab v0.4.11 — conceptual spatial workstation
+# PlanetLab v0.4.12 — conceptual spatial workstation
 
 PlanetLab is a Three.js frontend with a Flask API, local world snapshots, optional
 AI provider integrations, and a staged macOS-to-Ubuntu deployment workflow.
@@ -17,6 +17,23 @@ estimation, or a construction-ready design tool.
   or explicitly configured server credentials; third-party calls require valid keys.
 - **House demo:** the original single-house assembly example remains at
   `/house/index.html`.
+
+## Changes in v0.4.12
+
+- One seeded spherical elevation model underlies the globe and the 1.56 km local
+  district. Clicking a rotating globe uses local (not world) coordinates.
+  The procedural geography is **not Earth data** or a measured DEM.
+  One scene unit represents 10m locally; building studio dimensions remain metres.
+- Existing geo-pins show saved-site labels; selecting one directly loads the
+  saved plan. Old v1 plans keep their saved task coordinates and statuses.
+- The settlement planner now screens coastal exposure, gradients, connected
+  road corridors and direct parcel access. Flood-prone or disconnected sites
+  are excluded instead of being filled with a decorative city grid.
+- Budget-gated conceptual connections for power, water, sewer and stormwater
+  include explicit warnings: no operator capacities, hydrology, permitting,
+  geotechnical conditions or market costs have been validated.
+- Remove automatic large-scale infrastructure (airport, rail, stadium) that
+  could not plausibly be justified on a local district tile.
 
 ## Changes in v0.4.11
 
@@ -51,7 +68,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.11.zip` in the Mac repository's
+The watcher accepts `PLANETLAB_RELEASE_v0.4.12.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

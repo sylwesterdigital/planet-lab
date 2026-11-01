@@ -13,7 +13,7 @@ class WorkflowUITests(unittest.TestCase):
         self.assertNotIn('this.generateWorld();this.createPlan();',app)
     def test_actions_use_existing_builders(self):
         script=(ROOT/'workflow.mjs').read_text()
-        self.assertIn("$('plan').click()",script)
+        self.assertNotIn("$('plan').click()",script)
         self.assertIn("$('manualBuilding').click()",script)
         self.assertIn("$('planetMode').click()",script)
         self.assertIn("$('snapshotName')?.focus()",script)

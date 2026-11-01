@@ -16,7 +16,7 @@ function refreshPins(){
  const sim=window.planetLabApp;
  if(sim?.world){
   const markers=cache.filter(w=>w.anchor&&w.seed===sim.config?.seed);
-  if(sim.plan?.tasks?.length)markers.push({id:'__draft__',anchor:{...sim.anchor},seed:sim.config?.seed,starred:false,draft:true});
+  if(sim.plan?.tasks?.length)markers.push({id:'__draft__',anchor:{...sim.anchor},seed:sim.config?.seed,starred:false,draft:true,title:'Unsaved plan'});
   sim.world.renderPlacePins(markers);
  }
 }
@@ -35,15 +35,7 @@ function render(){
   detail.textContent=`${w.codename||'site'} · ${key(w.anchor)||'unlocated'} · ${date}`;
   const actions=document.createElement('div');actions.className='snapshot-actions';
   const open=document.createElement('button');open.type='button';open.textContent='Open';
-  open.addEventListener('click',()=>act(async()=>{
-    if(w.seed&&window.planetLabApp){
-      // The loaded world carries the original seed and fictional anchor.
-      window.planetLabApp.world.renderPlacePins(cache.filter(row=>row.seed===w.seed));
-    }
-    await window.planetLabWorlds.loadId(w.id);
-    say(`Loaded snapshot #${w.id} · ${w.title}`);
-    render();
-  }));
+  open.addEventListener('click',()=>act(()=>openSnapshot(w)));
   const star=document.createElement('button');star.type='button';star.textContent=w.starred?'★ Unstar':'☆ Star';star.className='snapshot-star';
   const user=window.planetLabWorlds?.user();const owns=user?.handle===w.owner;
   star.disabled=!owns;
@@ -75,6 +67,12 @@ async function update(){
  try{const data=await api('/api/worlds');cache=data.worlds||[];render();say(`${cache.length} accessible snapshots · ${cache.filter(w=>w.starred).length} starred`)}
  finally{loading=false}
 }
+async function openSnapshot(w){
+ if(w.seed&&$('seed'))$('seed').value=w.seed;
+ await window.planetLabWorlds.loadId(w.id);
+ render();say(`Loaded snapshot #${w.id} · ${w.title}`);
+ window.planetLabWorkflow?.show('city');
+}
 async function act(fn){try{await fn()}catch(e){say('Error: '+e.message)}}
 async function snapshot(){
  const sim=window.planetLabApp;
@@ -104,9 +102,8 @@ window.addEventListener('planetlab:open-pin',e=>{
  const w=cache.find(row=>row.id===e.detail.id);
  if(!w)return;
  $('snapshotFilter').value='all';render();
- say(`Selected pin: ${w.title} — use Open to return to the snapshot.`);
- const rows=Array.from($('snapshotList').children);const index=visible().findIndex(row=>row.id===w.id);
- rows[index]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+ say(`Opening saved site: ${w.title}`);
+ act(()=>openSnapshot(w));
 });
 // Existing collab module may finish session boot before this module evaluates.
 if(window.planetLabAuthState?.user)act(update);

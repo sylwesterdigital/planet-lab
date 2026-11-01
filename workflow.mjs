@@ -1,4 +1,4 @@
-/* v0.4.11: focused, functional workspaces layered on the existing simulation.
+/* v0.4.12: focused, functional workspaces layered on the existing simulation.
  * Does not generate pretend AI output or create data without the user's action.
  */
 const $=id=>document.getElementById(id);
@@ -33,7 +33,7 @@ $('flowBuild').onclick=()=>show('build');
 $('flowPlaces').onclick=()=>show('places');
 $('flowInsights').onclick=()=>show('insights');
 $('flowSave').onclick=()=>{show('places');$('snapshotName')?.focus()};
-$('startCity').onclick=()=>{show('city');$('plan').click()};
+$('startCity').onclick=()=>{show('city');/* Select a suitable site first; do not invent a city on an ocean tile. */};
 $('startHouse').onclick=()=>{show('build');$('manualBuilding').click()};
 $('startExplore').onclick=()=>show('world');
 function welcomeFor(user){
@@ -43,7 +43,7 @@ function welcomeFor(user){
 }
 window.addEventListener('planetlab:auth-changed',event=>welcomeFor(event.detail.user));
 welcomeFor(window.planetLabAuthState?.user);
-window.addEventListener('planetlab:open-pin',()=>show('places'));
+// Saved globe pins restore their project directly; placebook handles the loading.
 window.addEventListener('planetlab:site-selected',()=>show('city'));
 if(window.planetLabApp)show('world');
 else window.addEventListener('planetlab:app-ready',()=>show('world'),{once:true});

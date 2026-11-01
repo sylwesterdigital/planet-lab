@@ -1,7 +1,7 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.11';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.12';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.11';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.12';
 
 const $=id=>document.getElementById(id);
 let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
@@ -43,9 +43,9 @@ function putBuilding(b,store=true){
   const s=sim();const x=s.site[0],z=s.site[1],w=Number(b.width),d=Number(b.depth),floors=Math.min(20,Number(b.floors)),fh=Number(b.floorHeight)||3,h=floors*fh;
   if(!Number.isFinite(w*d*h)||w<3||d<3||floors<1)throw new Error('Invalid geometry dimensions');
   if(buildingGroup){s.world.scene.remove(buildingGroup);buildingGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose?.()})}
-  buildingGroup=new THREE.Group();buildingGroup.name='planetlab-studio-building';s.world.scene.add(buildingGroup);
+  buildingGroup=new THREE.Group();buildingGroup.name='planetlab-studio-building';buildingGroup.scale.setScalar(.1); // building dimensions are metres; scene units are 10ms.world.scene.add(buildingGroup);
   const terrain=s.world.height(x,z);
-  buildingGroup.position.set(x,terrain+.42,z);
+  buildingGroup.position.set(x,terrain+.042,z);
   const color={modern:'#cfcbc0',industrial:'#8c999d',rustic:'#c6a780',futuristic:'#a8c8d3',traditional:'#dfc4b1'}[b.style]||'#c8c8c8';
   box(buildingGroup,0,-.2,0,w+.45,.4,d+.45,'#888c86');
   for(let floor=0;floor<floors;floor++){
@@ -78,8 +78,8 @@ function putBuilding(b,store=true){
 }
 function enterBuilding(){const s=sim(),b=currentBuilding;if(!b)throw new Error('Create a building first');
   const x=s.site[0],z=s.site[1],y=s.world.height(x,z);
-  s.world.setMode('region');s.world.camera.position.set(x+Math.min(1,b.width/4),y+2,z+.8);
-  s.world.controls.target.set(x,y+1.7,z-1.5);s.world.controls.update();
+  s.world.setMode('region');s.world.camera.position.set(x+Math.min(.12,b.width/40),y+.2,z+.08);
+  s.world.controls.target.set(x,y+.17,z-.15);s.world.controls.update();
   notice('Interior inspection. Drag to orbit; reset camera to return. No collision physics yet.');
 }
 function requireConnection(provider='meta'){

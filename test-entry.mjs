@@ -1,4 +1,4 @@
-/* DOM-free interaction checks for v0.4.11 initial journey (requires Node only). */
+/* DOM-free interaction checks for v0.4.12 initial journey (requires Node only). */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
@@ -38,7 +38,7 @@ x.window.emit('planetlab:auth-changed',{user:null});
 assert.equal(x.get('welcomeUser').textContent,'Welcome to PlanetLab');
 x.get('startCity').click();
 assert.equal(x.get('mainWorkspace').dataset.flow,'city');
-assert.equal(x.get('plan').clicks,1);
+assert.equal(x.get('plan').clicks,0,'Do not generate a city before a suitable site is chosen');
 assert.equal(x.get('citySection').scrolls,1,'City settings should become visible');
 x.get('startHouse').click();
 assert.equal(x.get('mainWorkspace').dataset.flow,'build');

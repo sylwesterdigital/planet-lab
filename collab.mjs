@@ -41,8 +41,16 @@ if(c.anchor && Number.isFinite(c.anchor.lat) && Number.isFinite(c.anchor.lon) &&
   sim.anchor={lat:c.anchor.lat,lon:c.anchor.lon};
 sim.generateWorld();
 if(Array.isArray(c.site)){sim.site=c.site;sim.world.setSite(sim.site);sim.updateLocation();}
-sim.createPlan();el('freeZone').checked=data.governance==='voluntary-free-zone';sim.world.setVoluntaryZone(el('freeZone').checked);
-const previous=new Map((data.tasks||[]).filter(t=>t.status==='installed').map(t=>[t.id,t]));
+sim.createPlan();
+// v1 plans were generated with the old unrelated terrain. Preserve their exact
+// original tasks and positions rather than silently replacing user work with
+// a newly generated v2 plan. The local relief is now anchored to the globe.
+if(['planet.city.plan.v1','planet.city.plan.v2'].includes(data.schema)&&Array.isArray(data.tasks)&&Array.isArray(data.landuse)&&data.tasks.every(t=>t&&typeof t.type==='string'&&typeof t.stage==='string'&&Number.isFinite(t.x)&&Number.isFinite(t.z))){
+ sim.plan={...data,config:{...sim.config,...c},tasks:data.tasks.map(t=>({...t}))};
+ sim.running=false;sim.world.setPlan(sim.plan,el('showPlan').checked);
+}
+el('freeZone').checked=data.governance==='voluntary-free-zone';sim.world.setVoluntaryZone(el('freeZone').checked);
+const previous=new Set((data.tasks||[]).filter(t=>t.status==='installed').map(t=>t.id));
 for(const task of sim.plan.tasks){if(previous.has(task.id)){task.status='installed';sim.world.makePart(task);}}
 sim.updateUi();sim.drawMap();window.planetLabStudio?.applyStored(data);}
 function connect(world){if(socket){socket.close();socket=null;}

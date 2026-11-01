@@ -46,7 +46,7 @@
 .snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
 @media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
 
-/* v0.4.11 — task-first workspace, not a metrics-first dashboard */
+/* v0.4.12 — task-first workspace, not a metrics-first dashboard */
 .workflow-nav{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:12;display:flex;gap:5px;padding:5px;background:rgba(9,23,33,.92);border:1px solid #3e606b;border-radius:11px;box-shadow:0 8px 25px #04101877;white-space:nowrap}
 .workflow-nav button{border:0;border-radius:7px;background:transparent;color:#b9cbd3;font-size:12px;font-weight:700;padding:10px 12px;cursor:pointer}
 .workflow-nav button:hover,.workflow-nav button[aria-pressed="true"]{background:#2b4e52;color:#e7fbe8}
@@ -56,10 +56,14 @@
 
 
 
+
+/* v0.4.12: visible evidence and constraints, not unexplained decorative KPIs */
+.feasibility-findings{margin:9px 0 11px;padding-left:18px;display:grid;gap:7px;color:#c9d9d6;font-size:11px;line-height:1.45}
+#feasibilityState{font-weight:700;color:#d6e6ae}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
-/* v0.4.11: floating HTTP inspector: native resize + pointer-draggable title */
+/* v0.4.12: floating HTTP inspector: native resize + pointer-draggable title */
 .api-console[hidden]{display:none!important}
 .api-console{position:fixed;z-index:11000;bottom:20px;right:20px;width:min(750px,calc(100vw - 24px));height:min(490px,calc(100vh - 24px));min-width:300px;min-height:225px;max-width:100vw;max-height:100vh;resize:both;overflow:hidden;display:flex;flex-direction:column;background:#0a1520;border:1px solid #526b7d;border-radius:12px;box-shadow:0 16px 75px #000d;color:#e6f2f6;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .api-console-bar{touch-action:none;user-select:none;cursor:move;display:flex;align-items:center;gap:12px;padding:12px 14px;background:#142b39;border-bottom:1px solid #355064;flex-shrink:0}
@@ -84,7 +88,7 @@
 .snapshot-list{display:grid;gap:6px;margin-top:10px;max-height:220px;overflow:auto}.snapshot-entry{background:#172936;border:1px solid #37505d;border-radius:8px;padding:8px;display:grid;gap:6px}.snapshot-head{display:flex;align-items:center;gap:6px}.snapshot-head strong{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.snapshot-entry small{font-size:9px;color:#a8bbc8}.snapshot-actions{display:flex;gap:5px}.snapshot-actions button{font-size:10px;padding:5px 7px;border:1px solid #46606e;border-radius:6px;background:#243a47;color:#dbe8ed}.snapshot-actions button:disabled{opacity:.4}.snapshot-star{color:#fad884!important}.api-console.minimised{height:43px!important;min-height:43px!important;max-height:43px!important;resize:none!important;width:min(350px,calc(100vw - 24px))!important}.api-console.minimised .api-console-tools,.api-console.minimised .api-console-content,.api-console.minimised .api-console-foot{display:none!important}.api-console.minimised .api-console-bar{height:100%;padding:7px 11px}
 @media(max-width:650px){.top-right .status{display:none}.top-github{display:none}.brand strong{font-size:12px}}
 
-/* v0.4.11 — task-first workspace, not a metrics-first dashboard */
+/* v0.4.12 — task-first workspace, not a metrics-first dashboard */
 .workflow-nav{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:12;display:flex;gap:5px;padding:5px;background:rgba(9,23,33,.92);border:1px solid #3e606b;border-radius:11px;box-shadow:0 8px 25px #04101877;white-space:nowrap}
 .workflow-nav button{border:0;border-radius:7px;background:transparent;color:#b9cbd3;font-size:12px;font-weight:700;padding:10px 12px;cursor:pointer}
 .workflow-nav button:hover,.workflow-nav button[aria-pressed="true"]{background:#2b4e52;color:#e7fbe8}
@@ -94,7 +98,7 @@
 
 
 
-/* v0.4.11 — persistent entry guidance in the left panel: never obscure the globe */
+/* v0.4.12 — persistent entry guidance in the left panel: never obscure the globe */
 .workflow-entry{position:static;transform:none;width:100%;background:#182b35;border:1px solid #46616a;border-radius:11px;padding:14px;margin:0 0 18px;box-shadow:none}
 .workflow-entry .eyebrow{margin:0 0 8px}
 .workflow-entry h1{font-size:20px;line-height:1.15;letter-spacing:-.025em;margin:0 0 10px;color:#eff8f4;overflow-wrap:anywhere}
@@ -112,7 +116,7 @@
 .workflow-choice.primary-choice{background:#2a4e43;border-color:#79b591}
 .workflow-entry .workflow-caveat{font-size:10px;line-height:1.5;color:#9cb8c4;margin:13px 0 0}
 
-/* v0.4.11 - professional workstation: fixed viewport + persistent tools */
+/* v0.4.12 - professional workstation: fixed viewport + persistent tools */
 html,body{height:100%;overflow:hidden}
 .app{height:100vh;height:100dvh;min-height:0;overflow:hidden;grid-template-rows:56px minmax(0,1fr)}
 .workspace,.workspace[data-flow]{height:100%;min-height:0;min-width:0;display:grid;grid-template-columns:300px minmax(0,1fr) 272px;overflow:hidden}
@@ -175,31 +179,31 @@ html,body{height:100%;overflow:hidden}
   </div>
 </div>
 
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.11 · World / City / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.12 · World / City / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">WELCOME / START HERE</p>
  <h1 id="welcomeUser" aria-live="polite">Welcome to PlanetLab</h1>
  <p class="welcome-purpose">Explore a <strong>fictional world</strong>, plan settlements, design buildings in 3D, and save projects to revisit later.</p>
- <div class="globe-explainer"><strong>What is the big globe?</strong><span>It's your interactive world map—not a real Earth map. Drag to rotate it, then click anywhere to choose a region for your project.</span></div>
+ <div class="globe-explainer"><strong>What is the big globe?</strong><span>A fictional planet built from one continuous elevation model. Click a continent to zoom into that exact region. Saved projects appear as pins on the globe.</span></div>
  <p class="welcome-next">What would you like to do?</p>
  <div class="workflow-choices">
-  <button type="button" class="workflow-choice primary-choice" id="startExplore"><strong>1. Explore the globe</strong><span>Pick a region and create terrain.</span></button>
-  <button type="button" class="workflow-choice" id="startCity"><strong>2. Plan a settlement</strong><span>Generate roads, zones and buildings.</span></button>
+  <button type="button" class="workflow-choice primary-choice" id="startExplore"><strong>1. Explore the globe</strong><span>Choose land and inspect the same terrain up close.</span></button>
+  <button type="button" class="workflow-choice" id="startCity"><strong>2. Plan a settlement</strong><span>Screen terrain, access and service dependencies.</span></button>
   <button type="button" class="workflow-choice" id="startHouse"><strong>3. Design a building</strong><span>Edit dimensions, floors and roof.</span></button>
  </div>
  <p class="workflow-caveat">Explore and plan without AI. Keys are only requested when you choose an AI feature. This is a conceptual simulation: no real-world planning or engineering validation.</p>
 </section>
 <p class="eyebrow">WORLD CONFIGURATION</p>
-<h2 class="title" style="font-size:19px">Choose your terrain</h2><p class="desc">Click a location on the globe or change the world settings below. Switch to Region to see the terrain up close.</p>
+<h2 class="title" style="font-size:19px">Choose your terrain</h2><p class="desc">Click land on the globe to inspect a 1.56 km district derived from the same planetary elevation field. The shape of the coast and land is determined by your chosen world seed and location.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">Region / terrain</button><button id="planetMode">Globe / planet</button></div>
-<div class="row2"><div><label class="lab" for="seed">WORLD SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div><label class="lab" for="geography">GEOGRAPHY</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
-<div class="buttons"><button class="btn soft" id="newWorld">↻ Generate terrain</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Click land in region view to propose a building site. Click the globe to explore another region.</div>
+<div class="row2"><div><label class="lab" for="seed">WORLD SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
+<div class="buttons"><button class="btn soft" id="newWorld">↻ Generate terrain</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Choose a land location on the globe. Region coordinates correspond to the same terrain, not a second generated island.</div>
 <section class="section" id="citySection"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
 <div class="row2"><div><label class="lab" for="profile">ECONOMY / CITY PROFILE</label><select id="profile" class="field"><option value="mixed">Balanced settlement</option><option value="agricultural">Agricultural</option><option value="industrial">Industrial</option><option value="resort">Holiday / Vegas</option><option value="spa">Spa / wellness</option><option value="datacenter">Data centre hub</option><option value="metropolis">Dense metropolis</option></select></div><div><label class="lab" for="level">COMPLEXITY</label><select id="level" class="field"><option value="basic" selected>Basic</option><option value="simple">Simple</option><option value="average">Average</option><option value="advanced">Advanced</option><option value="super">Super complex</option></select></div></div>
 <div class="row2"><div><label class="lab" for="budget">BUDGET · $M</label><input id="budget" class="field" type="number" min="0.1" max="100000" step="1" value="25"/></div><div><label class="lab" for="teams">ROBOT TEAMS</label><input id="teams" class="field" type="number" min="2" max="22" step="1" value="10"/></div></div>
 <label class="checkbox" style="margin-top:12px"><input id="freeZone" type="checkbox"/> Voluntary / free-zone settlement label</label>
-<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Procedural conceptual plan. Not a surveyed site, a structural design or a live cost estimate.</div>
+<button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Terrain-constrained feasibility screening only; actual slopes, roads, services, risk and costs require real GIS and field data.</div>
 </section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
 <div class="hint">Agents are abstract task markers; off by default. The 3D scene is conceptual massing, not a construction-ready BIM model.</div></section>
 </aside><div class="stage"><canvas id="scene"></canvas>
@@ -215,8 +219,9 @@ html,body{height:100%;overflow:hidden}
 
 <div class="workflow-tip" id="workflowTip" role="status" aria-live="polite" hidden></div><div id="xrControls" class="xr-stage-entry" hidden></div><div class="overlay"><div class="tag" id="locationTag"><b>REGION</b> · seed ODYSSEY-7</div><div class="tag" id="planTag">No masterplan</div></div><div class="scene-instructions" id="sceneHelp">Your fictional planet · Drag to rotate · Click a location to explore</div><div class="bottom"><div class="progress-row"><strong id="phaseName">Awaiting plan</strong><span id="progressText">0 / 0 tasks</span></div><div class="track"><div class="progress-fill" id="bar"></div></div><div class="phase-line" id="stages"></div></div><div class="error" id="error"></div></div>
 <aside class="sidebar right"><p class="eyebrow">Live planning intelligence</p><h2 class="title" style="font-size:20px">Your settlement at a glance</h2><p class="desc">Once you generate a city plan, track simulated buildings, roads and budget here. The counters begin at zero.</p>
-<div class="kpis"><div class="kpi"><strong id="homesCount">0</strong><span>Funded buildings</span></div><div class="kpi"><strong id="roadCount">0</strong><span>Road segments</span></div><div class="kpi"><strong id="allocated">$0</strong><span>Planned cost (M)</span></div><div class="kpi"><strong id="remaining">$0</strong><span>Remaining (M)</span></div></div>
+<div class="kpis"><div class="kpi"><strong id="homesCount">0</strong><span>Funded buildings</span></div><div class="kpi"><strong id="roadCount">0</strong><span>Road segments</span></div><div class="kpi"><strong id="allocated">$0</strong><span>Illustrative cost (M)</span></div><div class="kpi"><strong id="remaining">$0</strong><span>Scenario balance (M)</span></div></div>
 <div class="section" id="landUseSection"><h3>Land-use map <span class="small">· planned</span></h3><canvas class="map" id="map" width="450" height="280" title="Click map to propose a nearby site"></canvas><div class="legend"><span style="--chip:#688193">Roads</span><span style="--chip:#d6ad8d">Buildings</span><span style="--chip:#76b87d">Green space</span><span style="--chip:#4388b0">Water / reserve</span></div><div id="mapNote" class="hint">The overview updates when a plan is generated.</div></div>
+<div class="section" id="feasibilitySection" aria-live="polite"><h3>Site feasibility <span class="small">· preliminary screen</span></h3><div id="feasibilityState" class="hint">Select a site to assess</div><ul id="feasibilityList" class="feasibility-findings"><li>Terrain, flood exposure, road access and utilities will be screened before buildings are placed.</li></ul><div class="hint">Procedural terrain only. No verified flood model, drainage study, utility capacity, soil report or external road connection.</div></div>
 <div class="section" id="placebookSection"><h3>Places & saved snapshots</h3>
 <div class="hint">Saved plans are pins on the fictional planet. Return to a region, revisit snapshots, or star favourites.</div>
 <label class="lab" for="snapshotName">SNAPSHOT NAME</label><input id="snapshotName" class="field" maxlength="100" placeholder="New harbour settlement"/>
@@ -311,12 +316,12 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.11"></script>
-<script type="module" src="./collab.mjs?v=0.4.11"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.11"></script>
-<script type="module" src="./studio.mjs?v=0.4.11"></script>
-<script type="module" src="./placebook.mjs?v=0.4.11"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.11"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.11"></script>
-<script type="module" src="./workflow.mjs?v=0.4.11"></script>
+<script type="module" src="./app.mjs?v=0.4.12"></script>
+<script type="module" src="./collab.mjs?v=0.4.12"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.12"></script>
+<script type="module" src="./studio.mjs?v=0.4.12"></script>
+<script type="module" src="./placebook.mjs?v=0.4.12"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.12"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.12"></script>
+<script type="module" src="./workflow.mjs?v=0.4.12"></script>
 </body></html>

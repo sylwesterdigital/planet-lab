@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, terrainHeight, chooseSite, atLand, citySpec, generateCity} from './planner.mjs?v=0.4.11';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, planetSurfaceHeight, terrainHeight, chooseSite, assessTerrain, citySpec, generateCity} from './planner.mjs?v=0.4.12';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -18,7 +18,7 @@ class WorldView{
   this.canvas=canvas;this.changeSite=changeSite;this.changeAnchor=changeAnchor;this.mode='region';this.config=null;this.site=[0,0];this.plan=null;
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#10212a');
   this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));this.renderer.xr.enabled=true;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=10;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.48;
+  this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=.25;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.48;
   this.scene.add(new THREE.HemisphereLight('#bddbff','#3b412f',2.4));let sun=new THREE.DirectionalLight('#ffefd4',3.0);sun.position.set(-48,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.bottom=-110;sun.shadow.camera.top=110;sun.shadow.camera.near=1;sun.shadow.camera.far=250;sun.shadow.bias=-.0006;this.scene.add(sun);
   this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scene.add(this.planetGroup,this.regionGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);
   this.pinGroup=new THREE.Group();this.planetGroup.add(this.pinGroup);this.pinIndex=[];this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
@@ -27,7 +27,7 @@ class WorldView{
  }
  resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/r.height;this.camera.updateProjectionMatrix()}
  setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.48:Math.PI;this.controls.enablePan=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
- resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{this.camera.position.set(57,68,89);this.controls.target.set(0,2,0);this.controls.minDistance=10;this.controls.maxDistance=210}this.controls.update()}
+ resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{this.camera.position.set(57,68,89);this.controls.target.set(0,2,0);this.controls.minDistance=.25;this.controls.maxDistance=210}this.controls.update()}
  setDisplayMode(mode){
   this.displayMode=mode;
   if(mode==='plan'){
@@ -41,24 +41,48 @@ class WorldView{
  }
  setAgentVisibility(value){this.showAgents=!!value;this.robotsGroup.visible=this.mode==='region'&&this.showAgents}
  setVegetationVisibility(value){this.showVegetation=!!value;this.vegetationGroup.visible=this.mode==='region'&&this.showVegetation}
- buildPlanet(seed){clearGroup(this.planetGroup);this.planetGroup.add(this.pinGroup);this.renderPlacePins(this.pinIndex);const globeGeo=new THREE.SphereGeometry(28,120,72),arr=globeGeo.attributes.position,clrs=[];const sea=new THREE.Color('#245476'),coast=new THREE.Color('#b3ba84'),grass=new THREE.Color('#4b9878'),mountain=new THREE.Color('#c2b7a1'),ice=new THREE.Color('#dee6db');
- for(let i=0;i<arr.count;i++){let x=arr.getX(i)/28,y=arr.getY(i)/28,z=arr.getZ(i)/28,n=planetElevation(x,y,z,seed);let c;if(n<0)c=sea.clone().lerp(new THREE.Color('#31779a'),clamp(n+.2,0,.2)*1.9);else if(n<.04)c=coast.clone();else if(n<.17)c=grass.clone();else c=mountain.clone();if(Math.abs(y)>.83)c.lerp(ice,clamp((Math.abs(y)-.83)*6,0,1));clrs.push(c.r,c.g,c.b)}
- globeGeo.setAttribute('color',new THREE.Float32BufferAttribute(clrs,3));this.globe=new THREE.Mesh(globeGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));this.planetGroup.add(this.globe);
- let atmosphere=new THREE.Mesh(new THREE.SphereGeometry(28.55,48,32),new THREE.MeshBasicMaterial({color:'#79bfd2',transparent:true,opacity:.07,side:THREE.BackSide}));this.planetGroup.add(atmosphere);
- const random=mulberry32(hash(seed+'stars'));let pts=[];for(let i=0;i<350;i++){const a=random()*Math.PI*2,b=Math.acos(random()*2-1),r=130+random()*60;pts.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a))}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));this.planetGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({color:'#a0b9d8',size:.35,sizeAttenuation:true})))
+ buildPlanet(seed){
+  clearGroup(this.planetGroup);this.planetGroup.add(this.pinGroup);this.renderPlacePins(this.pinIndex);
+  const radius=28,globeGeo=new THREE.SphereGeometry(radius,192,128),arr=globeGeo.attributes.position,clrs=[];
+  const sea=new THREE.Color('#205477'),coast=new THREE.Color('#c1b48e'),plain=new THREE.Color('#578c65'),
+   forest=new THREE.Color('#3d7157'),rock=new THREE.Color('#8e9791'),snow=new THREE.Color('#e2e5dc');
+  for(let i=0;i<arr.count;i++){
+   const x=arr.getX(i)/radius,y=arr.getY(i)/radius,z=arr.getZ(i)/radius;
+   const continental=planetElevation(x,y,z,seed),elev=planetSurfaceHeight([x,y,z],seed);
+   let c;
+   if(continental<=0)c=sea.clone().lerp(new THREE.Color('#367896'),clamp(continental+.25,0,.25)*1.6);
+   else if(elev<2)c=coast.clone();
+   else if(elev<12)c=plain.clone().lerp(forest,clamp((elev-2)/16,0,.72));
+   else c=forest.clone().lerp(rock,clamp((elev-12)/42,0,1));
+   if(elev>45||Math.abs(y)>.87)c.lerp(snow,clamp((Math.max(elev-45,0))/30+(Math.abs(y)-.87)*5,0,1));
+   if(continental>0)arr.setXYZ(i,x*(radius+Math.min(.55,elev*.006)),y*(radius+Math.min(.55,elev*.006)),z*(radius+Math.min(.55,elev*.006)));
+   clrs.push(c.r,c.g,c.b);
+  }
+  globeGeo.setAttribute('color',new THREE.Float32BufferAttribute(clrs,3));globeGeo.computeVertexNormals();
+  this.globe=new THREE.Mesh(globeGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));
+  this.planetGroup.add(this.globe);
+  const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(28.85,48,32),new THREE.MeshBasicMaterial({color:'#79bfd2',transparent:true,opacity:.06,side:THREE.BackSide}));
+  this.planetGroup.add(atmosphere);
+  const random=mulberry32(hash(seed+'stars')),pts=[];
+  for(let i=0;i<350;i++){const a=random()*Math.PI*2,b=Math.acos(random()*2-1),r=130+random()*60;pts.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a))}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));this.planetGroup.add(new THREE.Points(geo,new THREE.PointsMaterial({color:'#a0b9d8',size:.35,sizeAttenuation:true})));
  }
  renderPlacePins(items=[]){
-  this.pinIndex=items;
-  if(!this.pinGroup)return;
-  clearGroup(this.pinGroup);
+  this.pinIndex=items;if(!this.pinGroup)return;clearGroup(this.pinGroup);
   for(const entry of items){
-    if(!entry.anchor)continue;
-    const lat=entry.anchor.lat*Math.PI/180,lon=entry.anchor.lon*Math.PI/180;
-    // PlanetLab longitude maps to x/z sphere axes; all coordinates are fictional.
-    const normal=new THREE.Vector3(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon));
-    const pin=new THREE.Mesh(new THREE.SphereGeometry(entry.starred?.58:.36,10,8),new THREE.MeshBasicMaterial({color:entry.draft?'#f4a86f':entry.starred?'#ffd684':'#a8f4d3'}));
-    pin.position.copy(normal.multiplyScalar(28.5));pin.userData.placeId=entry.id;
-    this.pinGroup.add(pin);
+   if(!Number.isFinite(entry.anchor?.lat)||!Number.isFinite(entry.anchor?.lon))continue;
+   const lat=entry.anchor.lat*Math.PI/180,lon=entry.anchor.lon*Math.PI/180;
+   const n=new THREE.Vector3(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon));
+   const pin=new THREE.Mesh(new THREE.SphereGeometry(entry.starred?.52:.42,12,10),
+    new THREE.MeshBasicMaterial({color:entry.draft?'#f4a86f':entry.starred?'#ffd684':'#a8f4d3',depthTest:true}));
+   pin.position.copy(n.clone().multiplyScalar(29));pin.userData.placeId=entry.id;this.pinGroup.add(pin);
+   // Label faces the viewer; it is still occluded by the planet on its far side.
+   const canvas=document.createElement('canvas');canvas.width=280;canvas.height=64;
+   const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(10,27,36,.92)';ctx.fillRect(0,0,280,64);
+   ctx.fillStyle='#e6f6ef';ctx.font='bold 24px system-ui';ctx.fillText(String(entry.title||'Saved site').slice(0,22),12,41,260);
+   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:true,depthWrite:false}));
+   label.position.copy(n.clone().multiplyScalar(30.5));label.scale.set(7.8,1.8,1);this.pinGroup.add(label);
   }
  }
  generateTerrain(config){this.config=config;clearGroup(this.regionGroup);this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.vegetationGroup.visible=this.showVegetation;clearGroup(this.buildGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
@@ -66,7 +90,7 @@ class WorldView{
   for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=terrainHeight(x,z,config);p.setY(i,y);let col;if(y<=.35)col=sea.clone();else if(y<1.7)col=shore.clone();else if(y<6.5)col=plain.clone().lerp(forest,clamp((y-2)/10,0,.5));else col=forest.clone().lerp(peak,clamp((y-6.5)/16,0,1));c.push(col.r,col.g,col.b)}geo.setAttribute('color',new THREE.Float32BufferAttribute(c,3));geo.computeVertexNormals();
   this.terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));this.terrain.receiveShadow=true;this.regionGroup.add(this.terrain);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshStandardMaterial({color:colors.sea,transparent:true,opacity:.77,roughness:.3,metalness:.2,depthWrite:false}));water.rotation.x=-Math.PI/2;water.position.y=.23;this.regionGroup.add(water);
-  const rnd=mulberry32(hash(config.seed+'vegetation|'+config.geography));
+  const rnd=mulberry32(hash(config.seed+'vegetation|'+config.anchor.lat+'|'+config.anchor.lon));
   for(let n=0;n<235;n++){const x=(rnd()-.5)*146,z=(rnd()-.5)*146,y=terrainHeight(x,z,config);if(y<1.5||y>20||rnd()>.69||Math.hypot(x-this.site[0],z-this.site[1])<27)continue;tree(this.vegetationGroup,x,y,z,.65+rnd()*.85)}
   this.setSite(this.site);this.drawSelection();
  }
@@ -87,11 +111,12 @@ class WorldView{
  height(x,z){return terrainHeight(x,z,this.config)}
  drawSelection(){if(!this.selection)return;}
  click(e){const b=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1);this.raycaster.setFromCamera(this.pointer,this.camera);if(this.mode==='planet'&&this.globe){
-  const pinHit=this.raycaster.intersectObjects(this.pinGroup.children,false)[0];
-  if(pinHit?.object?.userData?.placeId){
+  const pinHit=this.raycaster.intersectObjects(this.pinGroup.children.filter(p=>p.userData.placeId),false)[0];
+  const globeHit=this.raycaster.intersectObject(this.globe)[0];
+  if(pinHit?.object?.userData?.placeId && (!globeHit||pinHit.distance<globeHit.distance)){
     window.dispatchEvent(new CustomEvent('planetlab:open-pin',{detail:{id:pinHit.object.userData.placeId}}));return;
   }
-  const hit=this.raycaster.intersectObject(this.globe)[0];if(hit){const p=hit.point.clone().normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){
+  const hit=globeHit;if(hit){const p=this.planetGroup.worldToLocal(hit.point.clone()).normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){
   const meshHit=this.raycaster.intersectObjects(this.buildGroup.children,true).find(intersection=>{
     let ancestor=intersection.object;
     while(ancestor&&ancestor!==this.buildGroup){if(ancestor.userData?.task?.meta?.kind)return true;ancestor=ancestor.parent}
@@ -105,11 +130,21 @@ class WorldView{
   }
   const hit=this.raycaster.intersectObject(this.terrain)[0];if(hit){const site=chooseSite([hit.point.x,hit.point.z],this.config);this.changeSite(site);return}}}
  makePart(task){const g=new THREE.Group(),{type,stage,x,z,meta}=task,y=this.height(x,z);g.position.set(x,y,z);const bkind=meta.kind||type,w=meta.width||2.8,d=meta.depth||2.2,h=meta.floors>6?meta.floors*1.25:Math.max(2.6,(meta.floors||1)*2.9);const palette=['#ddc2a7','#bcb9a7','#c3cbd1','#c9a8a2'];
- if(type==='road'||type==='arterial'){const wide=meta.width||2.1;box(g,0,.04,0,meta.axis==='z'?wide:this.plan.cellSize, .09,meta.axis==='z'?this.plan.cellSize:wide,'#536775');if(type==='arterial'){const line=box(g,0,.095,0,meta.axis==='z'?.065:1.55,.012,meta.axis==='z'?1.55:.065,'#e8cf9e');} }
- else if(type==='path'){const m=box(g,0,.09,0,2.4,.08,.6,'#c1ae8f');m.rotation.y=meta.rotation||0}
+ if(type==='road'||type==='arterial'){
+  const wide=meta.width||.75,sideX=meta.axis==='z'?wide:this.plan.cellSize,
+   sideZ=meta.axis==='x'?wide:this.plan.cellSize;
+  const strip=(sx,sz)=>{const geo=new THREE.PlaneGeometry(sx,sz,8,8);geo.rotateX(-Math.PI/2);
+   const pos=geo.attributes.position;for(let i=0;i<pos.count;i++)pos.setY(i,this.height(x+pos.getX(i),z+pos.getZ(i))-y+.12);
+   geo.computeVertexNormals();const surface=new THREE.Mesh(geo,mat('#536775'));surface.receiveShadow=true;g.add(surface)};
+  strip(sideX,sideZ);
+  if(meta.axis==='junction')strip(wide,this.plan.cellSize);
+ }
+ else if(type==='path'){const m=box(g,0,.09,0,1.5,.07,.24,'#c1ae8f');m.rotation.y=meta.rotation||0}
  else if(type==='rail'){let rail=box(g,0,.15,0,meta.width||3.5,.14,.9,'#786f67');rail.rotation.y=meta.rotation||0;for(let s of [-.26,.26]){const m=box(g,0,.26,s,meta.width||3.5,.08,.08,'#bbcacd');m.rotation.y=meta.rotation||0}}
  else if(type==='survey'){cylinder(g,0,1,0,.12,.22,2,'#a5f5ed');const cone=new THREE.Mesh(new THREE.ConeGeometry(.55,.75,6),mat('#c4e7ee'));cone.position.y=2.25;g.add(cone)}
  else if(type==='grid'){box(g,0,.22,0,2.2,.4,2.2,'#788a94');for(let s of [-.65,.65]){let p=cylinder(g,s,1.9,0,.09,.1,3.4,'#b5aaa2');box(g,s,3.4,0,1.15,.09,.09,'#edcf84')}}
+ else if(type==='wastewater'){box(g,0,.25,0,2.7,.5,1.8,'#6d818a');for(const px of [-.5,.5])cylinder(g,px,.82,0,.44,.44,.72,'#82a5ad',12)}
+ else if(type==='drain'){box(g,0,.07,0,2,.12,1.2,'#607b7d');for(let q=-2;q<=2;q++)box(g,q*.27,.16,0,.05,.05,1.1,'#a8c1c0')}
  else if(type==='water'){cylinder(g,0,1.05,0,.85,.86,2.1,'#78a7b4',12);cylinder(g,0,2.2,0,.95,.95,.2,'#9fb8c2',12)}
  else if(stage==='nature'){const s=meta.size||3;box(g,0,.08,0,s,.1,s,type==='forest'?'#528759':'#6ba965');if(type==='pond'){const pond=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,.08,18),mat('#69b7c9'));pond.position.y=.18;g.add(pond)}else{const r=mulberry32(hash(task.id));for(let i=0;i<(meta.trees||3);i++)tree(g,(r()-.5)*s*.8,.12,(r()-.5)*s*.8,.5+r()*.4)}}
  else if(stage==='foundation'){box(g,0,.18,0,w+.25,.36,d+.25,'#9ea6a4');box(g,0,.37,0,w,.07,d,'#c8c0af')}
@@ -133,6 +168,7 @@ class WorldView{
   if(['home','cottage','workers','farm','temporary'].includes(bkind))triangleRoof(g,0,roofY,0,w+.15,d+.23,bkind==='farm'?'#8b6546':'#677b7e');
   else{box(g,0,roofY,0,w+.3,.25,d+.32,bkind==='data'?'#6b8293':'#66777f');if(bkind==='data'){for(let i=0;i<3;i++)box(g,-w*.3+i*w*.29,roofY+.25,0,.55,.36,.7,'#9ab1b9')}}
  }
+ if(this.plan?.schema==='planet.city.plan.v2'&&['foundation','structure','facade','roof'].includes(stage))g.scale.setScalar(.1);
  this.buildGroup.add(g);g.userData.task=task;return g;
  }
  render(){this.controls.update();if(this.mode==='planet')this.planetGroup.rotation.y+=.00025;this.renderer.render(this.scene,this.camera)}
@@ -151,7 +187,7 @@ class Robot{
  cylinder(this.group,0,1.04,0,.045,.06,.58,'#b7c1c5',10);
  const sensor=box(this.group,0,1.36,0,.3,.16,.26,'#273f4f',{metalness:.2});
  const tool=box(this.group,.3,.73,.29,.13,.54,.13,'#a3b2b9',{metalness:.3});
- this.left=sensor;this.right=tool;
+ this.left=sensor;this.right=tool;this.group.scale.setScalar(.16);
  this.reset();}
  reset(){this.state='idle';this.busy=false;this.task=null;this.status='Standby';this.position=[...this.home];this.place()}
  place(){const [x,z]=this.position;this.group.position.set(x,this.view.height(x,z)+.05,z)}
@@ -174,14 +210,14 @@ class CityApp{
  }
  log(msg){this.events.unshift({time:this.time,msg});this.events=this.events.slice(0,45)}
  readConfig(){return citySpec({seed:$('seed').value||'ODYSSEY-7',geography:$('geography').value,anchor:this.anchor,profile:$('profile').value,level:$('level').value,budget:$('budget').value,teams:$('teams').value,brief:$('brief').value,site:this.site})}
- generateWorld(){this.running=false;this.config=this.readConfig();this.world.buildPlanet(this.config.seed);this.site=chooseSite([0,0],this.config);this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);this.world.setMode('region');this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}
+ generateWorld(){this.running=false;this.config=this.readConfig();this.world.buildPlanet(this.config.seed);this.site=chooseSite([0,0],this.config)||[0,0];this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);this.world.setMode('region');this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}
  removeRobots(){for(const a of this.robots){this.world.robotsGroup.remove(a.group);a.group.traverse(o=>o.geometry?.dispose())}this.robots=[]}
  changeAnchor(anchor){this.anchor=anchor;this.generateWorld();this.world.setMode('region');this.updateMode();this.log(`Planet location selected: ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));this.updateUi()}
- changeSite(site){this.site=site;this.world.setSite(site);this.updateLocation();this.drawMap();this.log('New site proposed — generate masterplan to update layout.');this.updateUi()}
- updateLocation(){const [x,z]=this.site;$('siteText').textContent=`Site: x ${x.toFixed(1)}, z ${z.toFixed(1)} · Planet ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°. Click the terrain to relocate.`;$('locationTag').innerHTML=`<b>${this.world.mode.toUpperCase()}</b> · ${this.config.geography} · ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°`}
+ changeSite(site){if(!site){this.log('No safe site identified inside the selected region. Choose another location on the globe.');this.updateUi();return}this.site=site;this.world.setSite(site);this.updateLocation();this.drawMap();this.log('New site proposed — generate masterplan to update layout.');this.updateUi()}
+ updateLocation(){const [x,z]=this.site;$('siteText').textContent=`Site: x ${x.toFixed(1)}, z ${z.toFixed(1)} · Planet ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°. Click the terrain to relocate.`;$('locationTag').innerHTML=`<b>${this.world.mode.toUpperCase()}</b> · district 1.56 km · ${this.anchor.lat.toFixed(1)}°, ${this.anchor.lon.toFixed(1)}°`}
  createPlan(){this.running=false;this.config=this.readConfig();this.plan=generateCity(this.config);this.world.setPlan(this.plan,$('showPlan').checked);this.world.setVoluntaryZone($('freeZone').checked);this.removeRobots();this.robots=[];
  const baseX=clamp(this.site[0]-25,-70,70),baseZ=clamp(this.site[1]-25,-70,70);for(let i=0;i<this.config.teams;i++){const role=TEAM_ROLES[i][0],start=[baseX+(i%6)*1.8,baseZ+Math.floor(i/6)*2.0];this.robots.push(new Robot(this.world,i,role,start))}
- this.time=0;this.events=[];this._complete=null;this.log(`${this.config.profile} / ${this.config.level} masterplan created: ${this.plan.stats.tasks} tasks.`);this.log(`Funding $${this.plan.stats.estimatedCost.toFixed(2)}M / $${this.config.budget.toFixed(2)}M. ${this.plan.stats.deferred} tasks deferred.`);this.running=true;this.world.setMode('region');this.updateMode();this.drawMap();this.updateUi()}
+ this.time=0;this.events=[];this._complete=null;this.log(`${this.config.profile} / ${this.config.level}: ${this.plan.feasibility.status} · ${this.plan.stats.tasks} tasks.`);this.log(`Funding $${this.plan.stats.estimatedCost.toFixed(2)}M / $${this.config.budget.toFixed(2)}M. ${this.plan.stats.deferred} tasks deferred.`);this.running=this.plan.feasibility.status==='screened'&&this.plan.tasks.length>0;this.world.setMode('region');this.updateMode();this.drawMap();this.updateUi()}
  installEvents(){
   $('planetMode').onclick=()=>{this.world.setMode('planet');this.updateMode()};$('regionMode').onclick=()=>{this.world.setMode('region');this.updateMode()};
   $('newWorld').onclick=()=>this.generateWorld();$('newSite').onclick=()=>this.changeSite(chooseSite([this.site[0]+12,this.site[1]+11],this.readConfig()));
@@ -200,10 +236,10 @@ class CityApp{
   if(this.plan.tasks.every(t=>t.status==='installed')&&this._complete!==this.plan){this._complete=this.plan;this.running=false;this.log('Masterplan construction finished. All funded tasks installed.')}
  }
  updateUi(){const p=this.plan,stats=p?.stats,done=p?.tasks.filter(t=>t.status==='installed').length||0,total=p?.tasks.length||0,perc=total?Math.round(done/total*100):0;
-  $('status').textContent=this.world.mode==='planet'?'PLANET OVERVIEW':!p?'WORLD READY':total&&done===total?'SETTLEMENT COMPLETE':this.running?'ROBOT TEAMS ACTIVE':'PAUSED';
+  $('status').textContent=this.world.mode==='planet'?'PLANET OVERVIEW':!p?'WORLD READY':p.feasibility?.status==='blocked'?'SITE UNSUITABLE':p.feasibility?.status==='incomplete'?'PLAN INCOMPLETE':total&&done===total?'SETTLEMENT COMPLETE':this.running?'ROBOT TEAMS ACTIVE':'PAUSED';
   $('homesCount').textContent=stats?.buildings||'0';$('roadCount').textContent=stats?.roads||'0';$('allocated').textContent='$'+(stats?.estimatedCost||0).toFixed(1);$('remaining').textContent='$'+Math.max(0,(stats?.budget||0)-(stats?.estimatedCost||0)).toFixed(1);
   $('planTag').innerHTML=p?`<b>${p.config.level.toUpperCase()}</b> · ${p.config.profile} · ${p.gridSize}×${p.gridSize} plots${$('freeZone').checked?' · voluntary-zone':''}`:'No masterplan';
-  $('progressText').textContent=`${done} / ${total} installed · ${perc}%`;$('bar').style.width=perc+'%';$('phaseName').textContent=done===total&&total?'CONSTRUCTION COMPLETE':(p?STAGES.find(s=>p.tasks.some(t=>t.stage===s[0]&&t.status!=='installed'))?.[1]:'Waiting for plan')||'Finishing';
+  $('progressText').textContent=`${done} / ${total} installed · ${perc}%`;$('bar').style.width=perc+'%';$('phaseName').textContent=p?.feasibility?.status==='blocked'?'NO BUILDABLE SITE':p?.feasibility?.status==='incomplete'?'NETWORK OR UTILITIES UNFUNDED':done===total&&total?'CONSTRUCTION COMPLETE':(p?STAGES.find(s=>p.tasks.some(t=>t.stage===s[0]&&t.status!=='installed'))?.[1]:'Waiting for plan')||'Finishing';
   $('stages').innerHTML=STAGES.map(([stage])=>{const list=p?.tasks.filter(t=>t.stage===stage)||[];return `<span title="${stage}" class="${list.length&&list.every(t=>t.status==='installed')?'done':list.some(t=>t.status==='assigned')?'current':''}"></span>`}).join('');
   $('toggle').textContent=this.running?'Ⅱ Pause teams':'▶ Resume teams';
   $('teamList').innerHTML=this.robots.map(r=>`<div class="team"><div class="dot" style="background:${r.color}">${r.role[0]}</div><div><strong>${r.name}</strong><small>${r.capabilities.join(' / ')}</small></div><span class="team-state">${r.status}</span></div>`).join('');
@@ -211,6 +247,7 @@ class CityApp{
   $('catalog').innerHTML=STAGES.filter(s=>counts[s[0]]).map(([key,name])=>`<div class="catalog"><span>${name}</span><span>${counts[key].done}/${counts[key].total}</span></div>`).join('');
   $('feed').innerHTML=this.events.slice(0,16).map(e=>`<p><time>${String(Math.floor(e.time/60)).padStart(2,'0')}:${String(Math.floor(e.time%60)).padStart(2,'0')}</time>${e.msg}</p>`).join('');
   $('mapNote').textContent=p?`${stats.protectedLots} plots reserved or unsuitable · ${stats.deferred} jobs deferred by budget · seed ${p.config.seed}`:'Awaiting planned zoning and route network.';
+  const insight=$('feasibilityList');if(insight){insight.replaceChildren();if(p?.feasibility){$('feasibilityState').textContent=p.feasibility.status.toUpperCase()+' · '+p.feasibility.roadAccessParcels+' road-access parcels';for(const message of p.feasibility.findings){const li=document.createElement('li');li.textContent=message;insight.appendChild(li)}}else{$('feasibilityState').textContent='Select a site to assess';const li=document.createElement('li');li.textContent='Terrain, flood exposure, connected roads, and service dependencies will be screened before buildings are placed.';insight.appendChild(li)}}
  }
  drawMap(){const canvas=$('map'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);let config=this.readConfig();let sx=w/100,sz=h/68;for(let i=0;i<100;i++)for(let j=0;j<68;j++){let x=(i+.5)/100*156-78,z=(j+.5)/68*156-78,y=terrainHeight(x,z,config);ctx.fillStyle=y<.28?'#28617c':y<1.6?'#b0ad87':y<7?'#547c60':'#8b9d8a';ctx.fillRect(i*sx,j*sz,sx+1,sz+1)}
  if(this.plan){let p=this.plan;for(const g of p.landuse){const px=(g.x+78)/156*w,py=(g.z+78)/156*h,size=p.cellSize/156*w;let col={road:'#6a8294',arterial:'#6a8294',park:'#7fc783',forest:'#3c7850',protected:'#2d6880',unfunded:'#8d6872',unassigned:'#628d70',home:'#d9b394',tower:'#b39cce',data:'#7298d9',factory:'#bf8f67',farm:'#ad9c57',hotel:'#e2bda3',spa:'#88caca',mall:'#cbb2bd',stadium:'#b6c4cc',airport:'#a6b7ce',station:'#88b8bb'}[g.usage]||'#d1b7a5';ctx.fillStyle=col;ctx.fillRect(px-size*.39,py-size*.39,size*.78,size*.78)}}
