@@ -1,3 +1,15 @@
+## v0.4.23 — Corrected AI patch release
+
+- Repairs local watcher test assertions that were pinned to an old release.
+- Improves animated AI patch status and preserves generated image detail on zoomed patches.
+- Avoids changes to the existing automated deployment procedure.
+
+## v0.4.21 — High-visibility site patch selection
+
+- Patch selection uses a **7-pixel bright red boundary** with a **12-pixel dark contrast outline**, not a 1-pixel WebGL line. Four prominent red/white corner markers follow terrain height; the first click immediately displays its red marker.
+- The patch picker remains red while active, gives explicit step 1/2 and 2/2 instructions, and uses a crosshair cursor. Cancelling restores the previous patch selection if present.
+- Scenario images, provider integrations, saved variants, DEM and existing building features remain unchanged. No deployment workflow or database migration changes.
+
 ## v0.4.20 — AI georeferenced site-composition scenarios
 
 - In City plan > AI site composition, select two corners on the loaded 3D terrain. PlanetLab captures the exact source imagery crop and leaves the original imagery and DEM intact.

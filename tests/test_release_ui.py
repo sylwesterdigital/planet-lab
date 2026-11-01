@@ -9,8 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 class ReleaseFrontendTest(unittest.TestCase):
     def test_versioned_module_entrypoints(self):
         html = (ROOT / 'index.html').read_text()
-        for module in ('app', 'collab', 'studio'):
-            self.assertIn(f'src="./{module}.mjs?v=0.4.19"', html)
+        version = __import__('re').search(r"VERSION = '([^']+)'", (ROOT / 'backend/app.py').read_text()).group(1)
+        for module,version in (('app',version),('collab','0.4.19'),('studio','0.4.19')):
+            self.assertIn(f'src="./{module}.mjs?v={version}"', html)
         self.assertIn("from './planner.mjs?v=0.4.19'", (ROOT / 'app.mjs').read_text())
 
     def test_uncacheable_html_and_scripts(self):

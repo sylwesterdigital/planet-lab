@@ -1,6 +1,6 @@
 /* Browser-local, georeferenced AI concept imagery. Never overwrites Earth data. */
 import {patchBounds,rasterRect,siteKey,validLayer} from './scenario-core.mjs';
-import {getAiHeaders} from './ai-connections.mjs?v=0.4.20';
+import {getAiHeaders} from './ai-connections.mjs?v=0.4.23';
 const $=id=>document.getElementById(id);
 const state={site:null,selecting:false,first:null,bounds:null,layers:[],current:null,keys:{meta:'',xai:'',openai:''},busy:false};
 let dbPromise;
@@ -24,46 +24,47 @@ async function remove(id){const database=await db();return new Promise((resolve,
  req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)
 })}
 function report(message,isError=false){$('scenarioStatus').textContent=message;$('scenarioStatus').style.color=isError?'#ffb4ae':''}
+function selectedResolution(){return Number($('scenarioResolution')?.value||1024)||1024}
 function patchPreview(){
  const base=window.planetLabApp?.world?.baseImageryCanvas;
  if(!base||!state.bounds)throw new Error('Wait for local aerial imagery, then select two terrain corners.');
  const rect=rasterRect(state.bounds,base.width,base.height);
- const canvas=$('scenarioCrop');canvas.width=512;canvas.height=512;
- canvas.getContext('2d').drawImage(base,rect.x,rect.y,rect.width,rect.height,0,0,512,512);
- return canvas.toDataURL('image/png');
+ const preview=$('scenarioCrop');preview.width=512;preview.height=512;
+ preview.getContext('2d').drawImage(base,rect.x,rect.y,rect.width,rect.height,0,0,512,512);
+ const input=document.createElement('canvas');input.width=1024;input.height=1024;
+ input.getContext('2d').drawImage(base,rect.x,rect.y,rect.width,rect.height,0,0,1024,1024);
+ // JPEG bounds upload sizes even for complex satellite patches.
+ return input.toDataURL('image/jpeg',.88);
 }
 function selected(){return state.layers.find(l=>l.id===state.current)||null}
 function updateScene(){
  const sim=window.planetLabApp,world=sim?.world;
  if(!world?.baseImageryCanvas)return;
  const source=world.baseImageryCanvas,mode=$('scenarioMode').value;
- const merged=document.createElement('canvas');merged.width=source.width;merged.height=source.height;
- const ctx=merged.getContext('2d');ctx.drawImage(source,0,0);
+ const token=updateScene.token=Symbol('scenario-compose');
+ const applicable=mode==='original'?[]:state.layers.filter(layer=>layer.visible&&layer.site===state.site&&validLayer(layer));
+ const split=mode==='split'?-78+156*Number($('scenarioSplit').value)/100:-78;
  async function compose(){
-  if(mode==='original')return;
-  const layers=state.layers.filter(l=>l.visible);
-  for(const layer of layers){
-   if(layer.site!==state.site||!validLayer(layer))continue;
-   const patch=rasterRect(layer.bounds,source.width,source.height);
-   let bitmap;
-   try{bitmap=await createImageBitmap(layer.blob)}catch{continue}
-   if(token!==updateScene.token){bitmap.close();return}
-   ctx.globalAlpha=layer.opacity??1;
-   ctx.drawImage(bitmap,patch.x,patch.y,patch.width,patch.height);ctx.globalAlpha=1;bitmap.close();
-  }
-  if(mode==='split'){
-   const position=source.width*Number($('scenarioSplit').value)/100;
-   ctx.save();ctx.beginPath();ctx.rect(0,0,position,source.height);ctx.clip();ctx.drawImage(source,0,0);ctx.restore();
-   ctx.fillStyle='#b8f4a4';ctx.fillRect(Math.round(position)-2,0,4,source.height);
+  const images=[];
+  try{
+   for(const layer of applicable){
+    let bitmap;
+    try{bitmap=await createImageBitmap(layer.blob)}catch{continue}
+    if(token!==updateScene.token||siteKey(sim?.anchor)!==state.site||world.baseImageryCanvas!==source){bitmap.close();return}
+    images.push({layer,bitmap});
+   }
+   if(token!==updateScene.token||siteKey(sim?.anchor)!==state.site||world.baseImageryCanvas!==source)return;
+   world.clearScenarioLayers();
+   for(const {layer,bitmap} of images){
+    if(!world.addScenarioLayer(layer.bounds,bitmap,layer.opacity??1,split))bitmap.close();
+   }
+   images.length=0; // ownership transferred to the Three.js materials
+   world.existingGroup.visible=world.mode==='region'&&(mode==='original'||!applicable.length||!$('scenarioHideBuildings').checked);
+  }finally{
+   for(const image of images)image.bitmap.close();
   }
  }
- // Stale image operations must never replace a newer selection or site.
- const token=updateScene.token=Symbol('scenario-compose');
- compose().then(()=>{
-  if(token!==updateScene.token||siteKey(sim?.anchor)!==state.site||world.baseImageryCanvas!==source)return;
-  world.applyImageCanvas(merged);
-  world.existingGroup.visible=world.mode==='region'&&(mode==='original'||!state.layers.some(l=>l.visible)||!$('scenarioHideBuildings').checked);
- }).catch(error=>report(error.message,true));
+ compose().catch(error=>report('Could not display an edited patch: '+error.message,true));
 }
 function refreshLayerList(){
  const root=$('scenarioList');root.replaceChildren();
@@ -79,9 +80,13 @@ function refreshLayerList(){
 }
 function enableSelection(enable){
  state.selecting=enable;state.first=null;
- const world=window.planetLabApp?.world;if(world)world.scenarioSelecting=enable;
- $('scenarioPick').textContent=enable?'Cancel selection':'Select patch (2 clicks)';
- if(enable)report('Click two opposite corners on the 3D terrain.');
+ const world=window.planetLabApp?.world;
+ if(world){world.scenarioSelecting=enable;world.drawScenarioBounds(enable?null:state.bounds)}
+ $('scenarioPick').classList.toggle('scenario-picking',enable);
+ $('scenarioPick').setAttribute('aria-pressed',String(enable));
+ $('scenarioPick').textContent=enable?'Cancel selection · click corner 1':'Select patch (2 clicks)';
+ if(world?.canvas)world.canvas.style.cursor=enable?'crosshair':'';
+ if(enable)report('Click the first corner on the 3D terrain. A RED marker will appear.');
 }
 async function siteChanged(){
  const sim=window.planetLabApp,site=sim?.config?.geoSource==='earth-dem'?siteKey(sim.anchor):null;
@@ -94,7 +99,7 @@ async function siteChanged(){
 window.addEventListener('planetlab:scenario-point',event=>{
  if(!state.selecting)return;
  const point=event.detail;
- if(!state.first){state.first=point;report('First corner selected. Click the opposite corner.');return}
+ if(!state.first){state.first=point;window.planetLabApp?.world?.drawScenarioFirstCorner(point);$('scenarioPick').textContent='Cancel selection · click corner 2';report('Red marker placed. Click the opposite corner to complete the RED rectangle.');return}
  try{state.bounds=patchBounds(state.first,point);enableSelection(false);window.planetLabApp.world.drawScenarioBounds(state.bounds);
   patchPreview();report('Patch ready. Enter an edit instruction and choose AI provider.');}
  catch(error){enableSelection(false);report(error.message,true)}
@@ -135,23 +140,24 @@ $('scenarioGenerate').onclick=async()=>{
  let source;
  try{source=patchPreview()}catch(error){report(error.message,true);return}
  if(state.layers.length>=24){report('Maximum 24 local scenarios per site. Delete one to add another.',true);return}
- state.busy=true;button.disabled=true;report('Generating visual variant using '+provider+'… (one billed call)');
+ const requestSite=state.site,requestBounds={...state.bounds};
+ state.busy=true;button.disabled=true;window.planetLabApp?.world?.setScenarioJob(true,requestBounds);report('Generating visual variant using '+provider+'… (one billed call)');
  try{
   const response=await fetch('/api/ai/scenario-edit',{method:'POST',cache:'no-store',credentials:'same-origin',
    headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,
     ['X-PlanetLab-'+(provider==='xai'?'XAI':provider==='meta'?'Meta':'OpenAI')+'-Key']:key},
-   body:JSON.stringify({provider,prompt,image:source})});
+   body:JSON.stringify({provider,prompt,image:source,size:selectedResolution()})});
   const result=await response.json().catch(()=>({error:'Invalid provider response'}));
   if(!response.ok)throw new Error(result.error||`Image edit failed (HTTP ${response.status})`);
-  if(siteKey(sim.anchor)!==state.site)throw new Error('Location changed while generating. Result was not applied.');
+  if(siteKey(sim.anchor)!==requestSite||state.site!==requestSite)throw new Error('Location changed while generating. Result was not applied.');
   const output=await fetch(result.image).then(r=>r.blob());
   if(!output.type.startsWith('image/')||output.size>9_000_000)throw new Error('Unexpected edited-image format');
-  const layer={id:crypto.randomUUID(),site:state.site,name:prompt.slice(0,45),bounds:{...state.bounds},provider,
-   model:result.model,prompt,created:Date.now(),visible:true,opacity:1,blob:output};
+  const layer={id:crypto.randomUUID(),site:state.site,name:prompt.slice(0,45),bounds:requestBounds,provider,
+   model:result.model,prompt,created:Date.now(),visible:true,opacity:1,renderSize:selectedResolution(),blob:output};
   await put(layer);state.layers.push(layer);state.current=layer.id;state.keys[provider]=key;$('scenarioKey').value='';
   $('scenarioMode').value='edited';$('scenarioOpacity').value='100';refreshLayerList();updateScene();
   report('Scenario saved in this browser. Base imagery and physical buildings are untouched.');
- }catch(error){report(error.message,true)}finally{state.busy=false;button.disabled=false}
+ }catch(error){report(error.message,true)}finally{state.busy=false;button.disabled=false;window.planetLabApp?.world?.setScenarioJob(false,requestBounds)}
 };
 window.addEventListener('planetlab:site-selected',siteChanged);
 window.addEventListener('planetlab:site-changed',siteChanged);

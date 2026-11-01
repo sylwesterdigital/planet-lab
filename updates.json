@@ -2,6 +2,11 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.21",
+      "date": "2026-11-01",
+      "summary": "High-visibility red site patch selection with first-corner markers."
+    },
+    {
       "version": "0.4.20",
       "date": "2026-11-01",
       "changes": [

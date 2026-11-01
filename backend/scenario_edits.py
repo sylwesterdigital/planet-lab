@@ -44,7 +44,7 @@ def decode_data_image(uri, limit=MAX_SOURCE_BYTES):
     return data, mime
 
 
-def provider_payload(provider, prompt, source):
+def provider_payload(provider, prompt, source, size=1024):
     # Preserve the planimetric footprint: output is a visual concept, not GIS edits.
     instruction = ('Edit this exact top-down satellite/orthophoto patch. Preserve the original '
                    'view orientation, scale, boundaries, road alignments outside the requested edit, '
@@ -53,11 +53,13 @@ def provider_payload(provider, prompt, source):
     model = PROVIDERS[provider][1]
     if provider == 'xai':
         return {'model': model, 'prompt': instruction, 'image': {'url': source, 'type': 'image_url'},
-                'response_format': 'b64_json'}
+                'aspect_ratio': '1:1', 'resolution': '2k' if size > 1024 else '1k',
+                'quality': 'medium', 'response_format': 'b64_json'}
     if provider == 'meta':
+        # No provider-independent high-res option documented for this model.
         return {'model': model, 'prompt': instruction, 'images': [{'image_url': source}], 'n': 1}
     return {'model': model, 'prompt': instruction, 'images': [{'image_url': source}],
-            'n': 1, 'size': '1024x1024'}
+            'n': 1, 'size': f'{size}x{size}', 'quality': 'high'}
 
 
 def extract_provider_image(body):
@@ -125,11 +127,14 @@ def setup_scenario_edits(app, db_session, actor, require_csrf):
         key = request.headers.get(PROVIDERS[provider][2], '').strip()
         if not 12 <= len(key) <= 4096 or any(c.isspace() for c in key):
             return jsonify(error='Enter a valid '+provider+' API key for this tab.'), 400
+        size = body.get('size', 1024)
+        if size not in (1024, 1536, 2048):
+            return jsonify(error='Choose 1024, 1536 or 2048 for the AI patch size.'), 400
         try:
             # The image is a crop of the user-selected patch; no arbitrary URL input.
             source = body.get('image')
             decode_data_image(source)
-            payload = provider_payload(provider, prompt.strip(), source)
+            payload = provider_payload(provider, prompt.strip(), source, size)
             image = call_provider(provider, key, payload)
             return jsonify(image=image, provider=provider, model=PROVIDERS[provider][1],
                            note='Visual mockup only; no real buildings or GIS data changed.')

@@ -32,6 +32,11 @@ class ScenarioEditTest(unittest.TestCase):
             self.assertIn('top-down',payload['prompt'])
             if provider=='xai':self.assertEqual(payload['image']['url'],SOURCE)
             else:self.assertEqual(payload['images'][0]['image_url'],SOURCE)
+    def test_resolution_payloads_use_provider_specific_options(self):
+        self.assertEqual(edits.provider_payload('xai', 'Edit imagery', SOURCE, 2048)['resolution'], '2k')
+        self.assertEqual(edits.provider_payload('xai', 'Edit imagery', SOURCE, 1024)['resolution'], '1k')
+        self.assertEqual(edits.provider_payload('openai', 'Edit imagery', SOURCE, 2048)['size'], '2048x2048')
+        self.assertNotIn('size', edits.provider_payload('meta', 'Edit imagery', SOURCE, 2048))
     def test_validate_source_and_output(self):
         self.assertEqual(edits.decode_data_image(SOURCE)[1],'png')
         response={'data':[{'b64_json':base64.b64encode(VALID_PNG).decode()}]}
