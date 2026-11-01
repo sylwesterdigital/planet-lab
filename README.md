@@ -1,3 +1,12 @@
+## v0.4.27 — Workspaces, provider keys, perspective gallery
+
+- Three primary navigation groups (Explore, Create, Projects) replace the large sidebars. Controls remain connected to the existing application and are presented in one draggable, collapsible map tools panel.
+- API Keys in the top bar centrally manages Meta, xAI and OpenAI image keys. Storage is in memory unless the user explicitly enables Remember on this device, which uses browser LocalStorage; it is **not encrypted** and should not be used on shared devices. Clear removes that provider's stored key.
+- Perspective rectangle selection displays a prominent drawing-mode banner, supports undo/redo, and shows an image review before provider submission.
+- Generated perspective images automatically open in a large viewer. Clicking a gallery thumbnail opens the same viewer, with browse and zoom controls. Images remain separate per-location browser gallery entries.
+
+Visual browser verification is still required in the production environment; automated tests cannot verify provider-paid responses.
+
 ## v0.4.26 — Perspective capture and modal fix
 
 - Hide the image preview dialog correctly on fresh load and refresh.

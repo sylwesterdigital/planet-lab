@@ -1,5 +1,6 @@
 /* Browser-local, georeferenced AI concept imagery. Never overwrites Earth data. */
 import {patchBounds,rasterRect,siteKey,validLayer} from './scenario-core.mjs';
+import {getProviderKey,setProviderKey} from './provider-keys.mjs';
 import {getAiHeaders} from './ai-connections.mjs?v=0.4.24';
 const $=id=>document.getElementById(id);
 const state={site:null,selecting:false,first:null,bounds:null,layers:[],current:null,keys:{meta:'',xai:'',openai:''},busy:false};
@@ -135,8 +136,8 @@ $('scenarioGenerate').onclick=async()=>{
  const provider=$('scenarioProvider').value,prompt=$('scenarioPrompt').value.trim();
  if(prompt.length<4||prompt.length>1500){report('Enter a prompt (4–1500 characters).',true);return}
  const typed=$('scenarioKey').value.trim(),metaHeaders=getAiHeaders('/api/ai/scenario-edit');
- const key=typed||state.keys[provider]||(provider==='meta'?metaHeaders['X-PlanetLab-Meta-Key']:'');
- if(!key){report('Enter your '+provider+' key; keys are only held in this tab.',true);return}
+ const key=typed||getProviderKey(provider)||state.keys[provider]||(provider==='meta'?metaHeaders['X-PlanetLab-Meta-Key']:'');
+ if(!key){report('Configure '+provider+' in API Keys in the top bar.',true);return}
  let source;
  try{source=patchPreview()}catch(error){report(error.message,true);return}
  if(state.layers.length>=24){report('Maximum 24 local scenarios per site. Delete one to add another.',true);return}
@@ -154,7 +155,7 @@ $('scenarioGenerate').onclick=async()=>{
   if(!output.type.startsWith('image/')||output.size>9_000_000)throw new Error('Unexpected edited-image format');
   const layer={id:crypto.randomUUID(),site:state.site,name:prompt.slice(0,45),bounds:requestBounds,provider,
    model:result.model,prompt,created:Date.now(),visible:true,opacity:1,renderSize:selectedResolution(),blob:output};
-  await put(layer);state.layers.push(layer);state.current=layer.id;state.keys[provider]=key;$('scenarioKey').value='';
+  await put(layer);state.layers.push(layer);state.current=layer.id;state.keys[provider]=key;if(typed)setProviderKey(provider,key);$('scenarioKey').value='';
   $('scenarioMode').value='edited';$('scenarioOpacity').value='100';refreshLayerList();updateScene();
   report('Scenario saved in this browser. Base imagery and physical buildings are untouched.');
  }catch(error){report(error.message,true)}finally{state.busy=false;button.disabled=false;window.planetLabApp?.world?.setScenarioJob(false,requestBounds)}

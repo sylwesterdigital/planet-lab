@@ -1,14 +1,15 @@
+import {getProviderKey,setProviderKey} from './provider-keys.mjs';
 import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.15';
 /* Session-only BYOK: never persist keys into cookies, Storage, URL or the server DB. */
 const el=id=>document.getElementById(id);
 const ephemeral = {meta:'',tripo:'',model:'muse-spark-1.3'};
 let previousFocus=null;
-export function connected(provider){return Boolean(ephemeral[provider]);}
+export function connected(provider){return Boolean(provider==='meta'?getProviderKey('meta'):ephemeral[provider]);}
 export function getAiHeaders(path){
   const headers={};
   if(path.startsWith('/api/ai/')){
     if(path.includes('/tripo')){if(ephemeral.tripo)headers['X-PlanetLab-Tripo-Key']=ephemeral.tripo;}
-    else if(ephemeral.meta)headers['X-PlanetLab-Meta-Key']=ephemeral.meta;
+    else if(getProviderKey('meta'))headers['X-PlanetLab-Meta-Key']=getProviderKey('meta');
   }
   return headers;
 }
@@ -16,13 +17,13 @@ export function selectedModel(){return ephemeral.model;}
 function setStatus(message,state=''){
   const e=el('aiSetupStatus');e.textContent=message;e.className='ai-inline-status'+(state?' '+state:'');
   const inline=el('aiConnectionInline');
-  inline.textContent=ephemeral.meta?`Meta ready in this tab · ${ephemeral.model}${ephemeral.tripo?' · Tripo connected':''}`:'No Meta key connected for this tab.';
+  inline.textContent=getProviderKey('meta')?`Meta ready in this tab · ${ephemeral.model}${ephemeral.tripo?' · Tripo connected':''}`:'No Meta key connected for this tab.';
 }
 export function openAiSetup(){
   previousFocus=document.activeElement;
   el('aiSetupBackdrop').hidden=false;
   el('aiMetaKey').value='';el('aiTripoKey').value='';
-  setStatus(ephemeral.meta?'Meta key available in memory for this tab.':'Paste your Meta key and click Use key in this tab.');
+  setStatus(getProviderKey('meta')?'Meta key available.':'Paste your Meta key and click Use key in this tab.');
   el('aiMetaModel').value=ephemeral.model;
   el('aiMetaKey').focus();
 }
@@ -34,8 +35,8 @@ export function closeAiSetup(){
 function storeMeta(){
   const key=el('aiMetaKey').value.trim();
   if(key && (key.length<12 || key.length>4096 || /[\r\n]/.test(key)))throw new Error('Meta key must have 12–4096 characters.');
-  if(!key && !ephemeral.meta)throw new Error('Paste your Meta API key first.');
-  if(key)ephemeral.meta=key;
+  if(!key && !getProviderKey('meta'))throw new Error('Add a Meta key in API Keys first.');
+  if(key){ephemeral.meta=key;setProviderKey('meta',key)}
   ephemeral.model=el('aiMetaModel').value;
   el('aiMetaKey').value='';
   setStatus(`Meta key saved for this tab only · ${ephemeral.model}`,'success');
@@ -47,7 +48,7 @@ async function testMeta(){
   setStatus('Testing Muse Spark through Planet Lab…');
   const r=await tracedFetch('/api/ai/connection-test',{
     method:'POST',credentials:'same-origin',cache:'no-store',
-    headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,'X-PlanetLab-Meta-Key':ephemeral.meta},
+    headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,'X-PlanetLab-Meta-Key':getProviderKey('meta')},
     body:JSON.stringify({provider:'meta',model:ephemeral.model})
   });
   const data=await r.json().catch(()=>({error:`HTTP ${r.status}`}));
@@ -68,7 +69,7 @@ el('aiTripoSave').addEventListener('click',()=>{
   ephemeral.tripo=key;el('aiTripoKey').value='';setStatus('Tripo key ready for this tab. A generation request will verify it.','success');
 });
 el('aiStartDesign').addEventListener('click',()=>{
-  if(!ephemeral.meta){setStatus('Enter your Meta key and click Use key in this tab first.','error');return}
+  if(!getProviderKey('meta')){setStatus('Configure Meta in API Keys first.','error');return}
   closeAiSetup();el('aiStudio').scrollIntoView({behavior:'smooth',block:'start'});el('aiBrief').focus();
 });
 window.addEventListener('planetlab:auth-changed',event=>{

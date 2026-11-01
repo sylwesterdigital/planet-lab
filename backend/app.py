@@ -20,7 +20,7 @@ from .models import Base, User, World, Message, Media
 from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.26'
+VERSION = '0.4.27'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
 # Only client-facing entrypoints may be fetched from the release directory.
@@ -29,8 +29,8 @@ ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp
 PUBLIC_ASSETS = frozenset({
     'index.html', 'house/index.html', 'updates.json',
     'app.mjs', 'planner.mjs', 'collab.mjs', 'studio.mjs',
-    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs', 'earth-map.mjs', 'earth-terrain.mjs', 'earth-imagery.mjs', 'earth-buildings.mjs', 'earth-views.mjs', 'earth-history.mjs', 'earth-scenarios.mjs', 'scenario-core.mjs',
-    'ai-connections.mjs', 'api-console.mjs', 'update-feed.mjs', 'perspective-gallery.mjs',
+    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs', 'earth-map.mjs', 'earth-terrain.mjs', 'earth-imagery.mjs', 'earth-buildings.mjs', 'earth-views.mjs', 'earth-history.mjs', 'earth-scenarios.mjs', 'scenario-core.mjs', 'perspective-gallery.mjs', 'ui-shell.mjs', 'provider-keys.mjs',
+    'ai-connections.mjs', 'api-console.mjs', 'update-feed.mjs',
 })
 
 

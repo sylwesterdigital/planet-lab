@@ -204,7 +204,60 @@ html,body{height:100%;overflow:hidden}
 .perspective-item{display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:center;border:1px solid #355463;border-radius:7px;padding:6px;background:#0e202b}
 .perspective-item.chosen{border-color:#b8f1a0}.perspective-item img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #385261}.perspective-item .btn{white-space:normal;text-align:left}
 </style>
-</head><body>
+<style id="workspace-redesign">
+/* Preserve legacy controls for scripts, but replace both huge docks with one floating tools panel. */
+#mainWorkspace{display:block!important;position:relative!important;height:100%!important}
+#mainWorkspace>.sidebar{display:none!important}
+#mainWorkspace>.stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+#mainWorkspace .workflow-nav,#workflowTip,#sceneHelp{display:none!important}
+.planet-top-nav{display:flex;align-items:center;gap:4px;margin:auto;min-width:0;overflow:auto;white-space:nowrap;scrollbar-width:none}
+.planet-top-nav button{border:1px solid transparent;background:transparent;color:#d0e2e9;font-weight:750;font-size:13px;border-radius:7px;padding:8px 12px;cursor:pointer}
+.planet-top-nav button[aria-pressed="true"]{color:#122b20;background:#b8ed8e}
+.planet-top-nav .nav-secondary{border-color:#344958;background:#1b2d38}
+.planet-top-nav .nav-accent{border-color:#66b5ba;background:#1b4548;color:#eafff3}
+.top{gap:12px}.top-right{gap:7px}.top-github{display:none}.brand small{font-size:10px!important;letter-spacing:0}
+.tool-dock[hidden],.provider-keys-dialog[hidden],.gallery-viewer[hidden],#drawingModeBanner[hidden]{display:none!important}
+.tool-dock{position:absolute;left:16px;top:70px;width:min(395px,calc(100vw - 26px));height:min(74vh,700px);z-index:15;background:rgba(12,26,36,.97);border:1px solid #527480;border-radius:12px;box-shadow:0 22px 65px #000b;display:flex;flex-direction:column;overflow:hidden;resize:both;min-width:295px;min-height:55px;max-height:calc(100% - 80px)}
+.tool-dock.collapsed{height:47px!important;resize:none!important;overflow:hidden}
+.tool-dock.collapsed .tool-dock-content{display:none}
+.tool-dock-handle{height:47px;min-height:47px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#1b3645;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #406275}
+.tool-dock-handle strong{font-size:16px;color:#e8f7ed;white-space:nowrap;flex:1}.dock-drag{font-size:10px;color:#a9bfc9}
+.tool-dock-handle button{font-size:19px;line-height:1;width:29px;height:29px;border:1px solid #516b78;background:#203d4b;border-radius:7px}
+.tool-dock-content{overflow:auto;min-height:0;padding:14px;scrollbar-color:#426473 transparent;flex:1}
+.tool-dock-group[hidden]{display:none!important}.tool-dock-group>.section,.tool-dock-group>.flat-section{padding:13px 0;margin:9px 0;border-top:1px solid #334b59;background:none}
+.tool-dock-group .section h3,.tool-dock-group h3{font-size:14px;letter-spacing:0;line-height:1.3;margin:7px 0 11px;color:#e8f4f5}
+.tool-dock .hint:not([role="status"]):not(#siteText):not(#mapNote):not(#viewHistoryCounter):not(#imageryState){display:none!important}
+.tool-dock .desc,.tool-dock .eyebrow,.tool-dock .notice{display:none!important}
+.tool-dock .lab,.tool-dock label{font-size:12px!important;color:#c4dbe1;letter-spacing:0}
+.tool-dock .btn,.tool-dock button{font-size:12px!important;min-height:31px}
+.tool-dock .field{font-size:13px!important;min-height:36px}
+.tool-dock .row2{gap:9px}
+.tool-dock .flat-section{border-top:1px solid #314957}
+.tool-dock #scenarioKey,.tool-dock #perspectiveKey{display:none!important}
+.tool-dock #scenarioKey:placeholder-shown,.tool-dock #perspectiveKey:placeholder-shown{display:none!important}
+.tool-dock .row2>div:has(#scenarioKey),.tool-dock .row2>div:has(#perspectiveKey){display:none!important}
+.tool-dock .row2:has(#scenarioKey),.tool-dock .row2:has(#perspectiveKey){grid-template-columns:1fr}
+.tool-dock #viewHistorySection details{display:block}
+.tool-dock .workflow-entry{display:none!important}
+.tool-dock #aiConnectionsSection{display:none!important}
+.provider-keys-dialog{position:fixed;right:15px;top:67px;width:min(430px,calc(100vw - 30px));max-height:calc(100vh - 80px);overflow:auto;z-index:16000;background:#0f2230;border:1px solid #65838b;border-radius:13px;box-shadow:0 25px 75px #000d}
+.provider-keys-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#23414c}
+.provider-keys-header strong{font-size:17px}.provider-keys-header button{font-size:25px;border:0;background:transparent}
+.key-panel-body{padding:15px}.key-remember{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:750}.key-warning{font-size:11px;color:#b4c7cb;line-height:1.5}
+.key-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;margin-top:14px}.key-row label,.key-row small{grid-column:1/-1;font-size:12px}.key-row input{min-width:0;background:#091822;color:#f4fff7;border:1px solid #54717a;border-radius:7px;padding:10px;font-size:13px}.key-row button{border-radius:7px;border:1px solid #567581;background:#24424c;font-size:12px;padding:5px 9px}.key-row small{color:#a8e5bf}#providerKeysStatus{padding-top:10px;min-height:24px;color:#d8e6ef}
+#drawingModeBanner{position:absolute;z-index:35;top:16px;left:50%;transform:translateX(-50%);background:#cf1936;color:white;border:3px solid #fff;border-radius:12px;box-shadow:0 12px 45px #000d;padding:13px 17px;display:flex;align-items:center;gap:13px;white-space:nowrap;font-size:14px}
+#drawingModeBanner strong{font-size:18px}#drawingModeBanner button{font-size:13px;background:white;border:0;color:#9f0d23;border-radius:7px;padding:8px 11px;font-weight:800;cursor:pointer}
+#perspectivePick.drawing-active{background:#e6253f!important;color:white!important;border:3px solid #fff!important}
+#perspectiveOpen[hidden]{display:none!important}.perspective-item{grid-template-columns:minmax(0,1fr)!important}.perspective-item .perspective-thumb{display:flex;align-items:center;gap:9px;text-align:left;width:100%;border:0;background:transparent;cursor:pointer;color:#e8f4f5;white-space:normal}.perspective-item .perspective-thumb:hover{background:#264450}.perspective-item img{width:94px;height:94px}
+.gallery-viewer{position:fixed;z-index:28000;inset:0;background:rgba(2,8,14,.97);display:flex;flex-direction:column;align-items:stretch}
+.gallery-viewer-toolbar{display:flex;justify-content:space-between;align-items:center;min-height:64px;gap:10px;padding:12px 21px;background:#152a35}
+.gallery-viewer-toolbar strong{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gallery-viewer-actions{display:flex;gap:7px}.gallery-viewer-actions button{border:1px solid #5b7888;background:#264250;color:#f4fff8;border-radius:7px;padding:8px 15px;font-size:20px}
+.gallery-viewer-frame{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:10px;cursor:zoom-in}
+.gallery-viewer-frame img{max-width:96vw;max-height:calc(100vh - 91px);object-fit:contain;transform-origin:center center;box-shadow:0 10px 50px #0009;border-radius:4px}
+@media(max-width:950px){.top{padding:0 8px}.brand small{display:none}.top-right .status{display:none}.account-strip{gap:4px}}
+@media(max-width:700px){.planet-top-nav button{font-size:12px;padding:7px}.top-right{display:none}.tool-dock{left:7px;top:54px;width:min(365px,calc(100vw - 14px));max-height:calc(100% - 65px)}#drawingModeBanner{max-width:96%;white-space:normal;font-size:11px;gap:6px}#drawingModeBanner strong{font-size:12px}}
+</style></head><body>
 <div class="auth-backdrop" id="authBackdrop" role="dialog" aria-modal="true" aria-label="Planet Lab account">
   <div class="auth-card">
     <div class="auth-mark"><span class="logo" aria-hidden="true"></span> PLANET / LAB</div>
@@ -238,7 +291,15 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.26 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.27 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
+<button id="tabExplore" type="button" aria-pressed="true">Explore</button>
+<button id="tabCreate" type="button" aria-pressed="false">Create</button>
+<button id="tabProjects" type="button" aria-pressed="false">Projects</button>
+<button id="topGlobe" type="button" class="nav-secondary">Globe</button>
+<button id="topSite" type="button" class="nav-secondary">Terrain</button>
+<button id="topKeys" type="button" class="nav-accent">API Keys</button>
+<button id="toolDockToggle" type="button" class="nav-secondary">Tools</button>
+</nav><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -304,7 +365,7 @@ html,body{height:100%;overflow:hidden}
  <button type="button" class="btn primary full" id="perspectiveGenerate">Generate perspective concept</button>
  <div class="hint" role="status" aria-live="polite" id="perspectiveStatus">Draw a rectangle on the current 3D view to begin.</div>
  <div id="perspectiveGallery" aria-label="Perspective concepts for this location" style="display:grid;gap:6px;margin-top:10px">No perspective concepts for this location.</div>
- <div class="buttons"><button type="button" class="btn mini" id="perspectiveOpen">Open selected</button><button type="button" class="btn mini" id="perspectiveViewpoint">Restore viewpoint</button><button type="button" class="btn mini" id="perspectiveDelete">Delete</button></div>
+ <div class="buttons"><button type="button" class="btn mini" id="perspectiveOpen" hidden>Open selected</button><button type="button" class="btn mini" id="perspectiveViewpoint">Restore viewpoint</button><button type="button" class="btn mini" id="perspectiveDelete">Delete</button></div>
 </section>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Reload elevation</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Select a location on Earth to load measured terrain.</div>
 <section class="section" id="citySection"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
@@ -312,9 +373,14 @@ html,body{height:100%;overflow:hidden}
 <div class="row2"><div><label class="lab" for="budget">BUDGET · $M</label><input id="budget" class="field" type="number" min="0.1" max="100000" step="1" value="25"/></div><div><label class="lab" for="teams">ROBOT TEAMS</label><input id="teams" class="field" type="number" min="2" max="22" step="1" value="10"/></div></div>
 <label class="checkbox" style="margin-top:12px"><input id="freeZone" type="checkbox"/> Voluntary / free-zone settlement label</label>
 <button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Measured elevation only. Roads, utilities, parcels and risks remain unverified.</div>
-</section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
+</section><section class="section" id="constructionSection"><h3>Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
 <div class="hint">Agents are abstract task markers; off by default. The 3D scene is conceptual massing, not a construction-ready BIM model.</div></section>
 </aside><div class="stage"><div id="earthMap" aria-label="Interactive spherical Earth with satellite imagery" hidden></div><div id="earthStatus" role="status" aria-live="polite">Loading 3D Earth…</div><form id="earthSearch" aria-label="Find a real place"><input id="earthQuery" name="place" placeholder="Find city, mountain, address…" required autocomplete="off" maxlength="120" aria-label="Search a real place"/><button type="submit">Find</button></form><div id="perspectiveOverlay" aria-hidden="true" hidden><div id="perspectiveSelection"></div></div><div id="perspectivePreviewModal" hidden><div class="perspective-preview-card"><div class="perspective-preview-head"><strong>Image being sent to AI</strong><button type="button" class="btn mini" id="perspectivePreviewClose">Close</button></div><img id="perspectivePreviewImage" alt="Selected perspective image to send to AI" hidden/><div class="hint" id="perspectivePreviewNote">This exact cropped perspective image will be sent to the selected AI provider.</div></div></div><canvas id="scene"></canvas>
+<section id="toolDock" class="tool-dock" aria-label="Workspace tools">
+ <div id="toolDockHandle" class="tool-dock-handle"><strong id="toolDockTitle">Explore Earth</strong><span class="dock-drag">Drag panel</span><button id="toolDockCollapse" type="button" title="Collapse tools" aria-label="Collapse tools">−</button><button id="toolDockClose" type="button" title="Hide tools" aria-label="Hide tools">×</button></div>
+ <div id="toolDockContent" class="tool-dock-content"></div>
+</section>
+<div id="drawingModeBanner" role="status" aria-live="polite" hidden><strong>DRAWING MODE</strong><span>Drag on the map to select a perspective patch</span><button type="button" id="drawingCancel">Cancel</button></div>
 <div class="view-toolbar" aria-label="Scene presentation"><span>VIEW</span><button type="button" id="viewMassing" class="active" aria-pressed="true" title="Orbit and inspect architectural massing">3D massing</button><button type="button" id="viewPlan" aria-pressed="false" title="Top-down site plan">Site plan</button><button type="button" id="viewAgents" aria-pressed="false" title="Display simulated construction equipment">Show agents</button><label class="view-vegetation"><input type="checkbox" id="showVegetation"> Vegetation</label></div>
 <nav class="workflow-nav" aria-label="PlanetLab workspace">
  <button type="button" id="flowWorld" aria-pressed="false">Globe</button>
@@ -423,6 +489,21 @@ html,body{height:100%;overflow:hidden}
     </form>
   </div>
 </div>
+<section id="providerKeysDialog" class="provider-keys-dialog" aria-label="AI API keys" hidden>
+ <header class="provider-keys-header"><strong>AI API Keys</strong><button id="providerKeysClose" type="button" aria-label="Close keys">×</button></header>
+ <div class="key-panel-body">
+ <label class="key-remember"><input id="rememberKeys" type="checkbox"> Remember on this device</label>
+ <p class="key-warning">Optional. Stored keys are readable by scripts on this website; use only on a trusted device.</p>
+ <div class="key-row"><label for="providerKey-meta">Meta</label><input id="providerKey-meta" type="password" autocomplete="new-password" placeholder="Meta API key"><button id="providerSave-meta" type="button">Save</button><button id="providerForget-meta" type="button">Clear</button><small id="providerState-meta"></small></div>
+ <div class="key-row"><label for="providerKey-xai">xAI · Grok Imagine</label><input id="providerKey-xai" type="password" autocomplete="new-password" placeholder="xAI API key"><button id="providerSave-xai" type="button">Save</button><button id="providerForget-xai" type="button">Clear</button><small id="providerState-xai"></small></div>
+ <div class="key-row"><label for="providerKey-openai">OpenAI · Image</label><input id="providerKey-openai" type="password" autocomplete="new-password" placeholder="OpenAI API key"><button id="providerSave-openai" type="button">Save</button><button id="providerForget-openai" type="button">Clear</button><small id="providerState-openai"></small></div>
+ <div id="providerKeysStatus" role="status" aria-live="polite"></div>
+ </div>
+</section>
+<section id="perspectiveGalleryViewer" class="gallery-viewer" role="dialog" aria-modal="true" aria-label="Generated perspective image" hidden>
+ <div class="gallery-viewer-toolbar"><strong id="galleryViewerTitle">Perspective image</strong><div class="gallery-viewer-actions"><button type="button" id="galleryViewerPrevious" aria-label="Previous image">←</button><button type="button" id="galleryViewerNext" aria-label="Next image">→</button><button type="button" id="galleryViewerZoomOut" aria-label="Zoom out">−</button><button type="button" id="galleryViewerZoomIn" aria-label="Zoom in">+</button><button type="button" id="galleryViewerClose" aria-label="Close image">×</button></div></div>
+ <div id="galleryViewerFrame" class="gallery-viewer-frame"><img id="galleryViewerImage" alt="Generated perspective image"></div>
+</section>
 <section id="apiConsole" class="api-console" hidden role="region" aria-label="AI HTTP debug console">
   <div class="api-console-bar" id="apiConsoleHandle"><strong>● API CONSOLE</strong><span id="apiLogCount">0 requests</span><button class="api-ctl" id="apiConsoleMin" type="button" aria-label="Minimise console" title="Minimise console">−</button><button class="api-ctl" id="apiConsoleClose" type="button" aria-label="Close console">×</button></div>
   <div class="api-console-tools"><select class="api-ctl" id="apiLogFilter" aria-label="Filter requests"><option value="all">All requests</option><option value="errors">Errors only</option></select><button class="api-ctl" id="apiLogLess" type="button">A−</button><button class="api-ctl" id="apiLogMore" type="button">A+</button><button class="api-ctl" id="apiLogCopy" type="button">Copy selected</button><button class="api-ctl" id="apiLogExport" type="button">Export JSON</button><button class="api-ctl" id="apiLogClear" type="button">Clear</button></div>
@@ -434,15 +515,16 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.26"></script>
+<script type="module" src="./app.mjs?v=0.4.27"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.26"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.26"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.27"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.27"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
+<script type="module" src="./ui-shell.mjs?v=0.4.27"></script>
 </body></html>

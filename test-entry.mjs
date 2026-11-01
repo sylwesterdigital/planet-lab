@@ -61,7 +61,7 @@ assert.equal(x.get('workflowEntry').hidden,false,'Welcome remains available afte
 const a=environment();
 const aiSource=readFileSync(new URL('./ai-connections.mjs',import.meta.url),'utf8')
  .replace(/^import .*\n/gm,'').replace(/^export /gm,'');
-vm.runInNewContext(aiSource,{...a,tracedFetch(){},openApiConsole(){},console},{filename:'ai-connections.mjs'});
+vm.runInNewContext(aiSource,{...a,tracedFetch(){},openApiConsole(){},getProviderKey(){return ''},setProviderKey(){},console},{filename:'ai-connections.mjs'});
 assert.equal(a.get('aiSetupBackdrop').hidden,true,'No AI modal on initial load');
 a.window.emit('planetlab:auth-changed',{user:{handle:'returning_user'}});
 assert.equal(a.get('aiSetupBackdrop').hidden,true,'No AI modal when session resumes');
