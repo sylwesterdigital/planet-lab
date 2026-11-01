@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {sanitizeView,sanitizeHistory,validAnchor,validSite,viewAt,siteAt,samePatch} from './earth-views.mjs';
+import {estimatedStoreyHeight,recordedHeight,parseBuildings} from './earth-buildings.mjs';
+const anchor={lat:38.8537,lon:6.0497};
+assert.equal(validAnchor(anchor),true);assert.equal(validAnchor({lat:91,lon:0}),false);
+assert.equal(validSite([0,0]),true);assert.equal(validSite([79,0]),false);
+for(const site of [[0,0],[17,-25],[-75,74]]){
+ const point=viewAt(anchor,site);
+ assert.ok(samePatch(anchor,point));
+ const round=siteAt(anchor,point);
+ assert.ok(Math.hypot(round[0]-site[0],round[1]-site[1])<.001,'Bookmark local position must roundtrip via Earth coordinates');
+}
+const view=sanitizeView({mode:'region',anchor,site:[12,-20],camera:[47,53,21],target:[12,2,-20],map:{center:[6.05,38.85],zoom:12.5,pitch:35,bearing:16}});
+assert.equal(view.mode,'region');assert.deepEqual(view.camera,[47,53,21]);
+assert.equal(sanitizeView({mode:'region',anchor,site:[Infinity,2]}),null);
+assert.equal(sanitizeView({mode:'region',anchor:{lat:999,lon:1},site:[0,0]}),null);
+assert.equal(sanitizeView({mode:'region',anchor,site:[0,0],camera:[Infinity,0,0]}).camera,null);
+const state=sanitizeHistory({last:view,bookmarks:[{id:'view-123456',name:'My site',created:100,view},{id:'../bad',view}],recent:[view]});
+assert.equal(state.bookmarks.length,1);assert.equal(state.recent.length,1);
+assert.equal(estimatedStoreyHeight({'building:levels':'2'}),6);
+assert.equal(estimatedStoreyHeight({'building:levels':'3.5'}),10.5);
+assert.equal(estimatedStoreyHeight({'building:levels':'garbage'}),null);
+assert.equal(recordedHeight({'building:levels':'2'}),null);
+const poly=[[anchor.lat-.0001,anchor.lon-.0001],[anchor.lat-.0001,anchor.lon+.0001],[anchor.lat+.0001,anchor.lon+.0001],[anchor.lat+.0001,anchor.lon-.0001],[anchor.lat-.0001,anchor.lon-.0001]];
+const parse=tags=>parseBuildings({elements:[{type:'way',id:33,tags:{building:'yes',...tags},geometry:poly.map(([lat,lon])=>({lat,lon}))}]},anchor).buildings[0];
+assert.equal(parse({'building:levels':'2'}).heightMetres,null);
+assert.equal(parse({'building:levels':'2'}).estimatedHeightMetres,6);
+assert.equal(parse({height:'13m','building:levels':'2'}).estimatedHeightMetres,null);
+assert.equal(parse({height:'13m','building:levels':'2'}).heightMetres,13);
+assert.equal(parse({}).estimatedHeightMetres,null);
+console.log('PASS — persistent Earth view input checks, same-location coordinates, measured vs estimated building heights');

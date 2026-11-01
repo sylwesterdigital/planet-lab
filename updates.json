@@ -2,6 +2,16 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.18",
+      "date": "2026-11-01",
+      "changes": [
+        "Remember and restore last real Earth location, exact local site and 3D camera angle after refresh",
+        "Named per-account browser bookmarks and recent sites, with multiple viewpoints per DEM district",
+        "Display recorded-height mapped buildings in 3D and clearly distinguished storey-based approximations where tagged",
+        "Optional hiding of unknown-height building outlines and improved terrain-following 3D building walls"
+      ]
+    },
+    {
       "version": "0.4.17",
       "date": "2026-11-01",
       "changes": [

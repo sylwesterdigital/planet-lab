@@ -4,7 +4,7 @@ import {loadSiteImagery} from './earth-imagery.mjs';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, planetSurfaceHeight, terrainHeight, chooseSite, assessTerrain, citySpec, generateCity} from './planner.mjs?v=0.4.17';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, planetSurfaceHeight, terrainHeight, chooseSite, assessTerrain, citySpec, generateCity} from './planner.mjs?v=0.4.18';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -21,20 +21,20 @@ class WorldView{
   this.canvas=canvas;this.changeSite=changeSite;this.changeAnchor=changeAnchor;this.mode='region';this.config=null;this.site=[0,0];this.plan=null;
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#10212a');
   this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));this.renderer.xr.enabled=true;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=.25;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.48;
+  this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=.25;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.42;
   this.scene.add(new THREE.HemisphereLight('#bddbff','#3b412f',2.4));let sun=new THREE.DirectionalLight('#ffefd4',3.0);sun.position.set(-48,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.bottom=-110;sun.shadow.camera.top=110;sun.shadow.camera.near=1;sun.shadow.camera.far=250;sun.shadow.bias=-.0006;this.scene.add(sun);
-  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.existingGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scene.add(this.planetGroup,this.regionGroup,this.existingGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);this.studioGroup=new THREE.Group();this.scene.add(this.studioGroup);
+  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.existingGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.bookmarkGroup=new THREE.Group();this.scene.add(this.bookmarkGroup);this.scene.add(this.planetGroup,this.regionGroup,this.existingGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);this.studioGroup=new THREE.Group();this.scene.add(this.studioGroup);
   this.pinGroup=new THREE.Group();this.planetGroup.add(this.pinGroup);this.pinIndex=[];this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
   let down=null;canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;this.click(e)});
   window.addEventListener('resize',()=>this.resize());this.resize();this.setMode('region');
  }
  resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/r.height;this.camera.updateProjectionMatrix()}
- setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.existingGroup.visible=region;this.studioGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.48:Math.PI;this.controls.enablePan=region;this.controls.enabled=region;this.canvas.style.visibility=region?'visible':'hidden';if(this.earthMap){region?this.earthMap.hide():this.earthMap.show()}const form=document.getElementById('earthSearch');if(form)form.hidden=region;const mapStatus=document.getElementById('earthStatus');if(mapStatus)mapStatus.hidden=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
+ setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.existingGroup.visible=region;this.studioGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.bookmarkGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.42:Math.PI;this.controls.enablePan=region;this.controls.enabled=region;this.canvas.style.visibility=region?'visible':'hidden';if(this.earthMap){region?this.earthMap.hide():this.earthMap.show()}const form=document.getElementById('earthSearch');if(form)form.hidden=region;const mapStatus=document.getElementById('earthStatus');if(mapStatus)mapStatus.hidden=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
  resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{const h=this.config?.geoSource==='earth-dem'?this.height(...this.site):2;this.camera.position.set(this.site[0]+57,h+68,this.site[1]+89);this.controls.target.set(this.site[0],h,this.site[1]);this.controls.minDistance=.25;this.controls.maxDistance=210}this.controls.update()}
  setDisplayMode(mode){
   this.displayMode=mode;
   if(mode==='plan'){
-   this.controls.maxPolarAngle=Math.PI*.48;
+   this.controls.maxPolarAngle=Math.PI*.42;
    this.camera.position.set(this.site[0]+.001,125,this.site[1]+.001);
    this.controls.target.set(this.site[0],0,this.site[1]);
    this.controls.update();
@@ -89,7 +89,7 @@ class WorldView{
   }
  }
  generateTerrain(config){this.config=config;clearGroup(this.regionGroup);this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.vegetationGroup.visible=this.showVegetation;clearGroup(this.buildGroup);clearGroup(this.existingGroup);clearGroup(this.studioGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
-  this._siteImageToken=null;const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
+  this._siteImageToken=null;clearGroup(this.bookmarkGroup);const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
   for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=terrainHeight(x,z,config);p.setY(i,y);let col;if(config.geoSource==='earth-dem'){const altitude=sampleElevation(config.dem,x,z);col=altitude<=.25?sea.clone():altitude<5?shore.clone():altitude<1000?plain.clone().lerp(forest,clamp((altitude-5)/450,0,.8)):forest.clone().lerp(peak,clamp((altitude-1000)/1800,0,1))}else if(y<=.35)col=sea.clone();else if(y<1.7)col=shore.clone();else if(y<6.5)col=plain.clone().lerp(forest,clamp((y-2)/10,0,.5));else col=forest.clone().lerp(peak,clamp((y-6.5)/16,0,1));c.push(col.r,col.g,col.b)}geo.setAttribute('color',new THREE.Float32BufferAttribute(c,3));geo.computeVertexNormals();
   this.terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));this.terrain.receiveShadow=true;this.regionGroup.add(this.terrain);
   // A satellite texture uses the same geographic bounds as the DEM.
@@ -121,28 +121,47 @@ class WorldView{
  showExistingBuildings(data){
   clearGroup(this.existingGroup);
   if(!data||this.config?.geoSource!=='earth-dem')return;
-  const measuredMaterial=new THREE.MeshStandardMaterial({color:'#d4dad9',roughness:.85,transparent:true,opacity:.86});
-  const outlineMaterial=new THREE.LineBasicMaterial({color:'#f8d389',transparent:true,opacity:.95});
-  const lineHeight=.11;
+  const known=new THREE.MeshStandardMaterial({color:'#dbe1df',roughness:.87,transparent:true,opacity:.92,side:THREE.DoubleSide});
+  const estimated=new THREE.MeshStandardMaterial({color:'#b5c3d3',roughness:.9,transparent:true,opacity:.83,side:THREE.DoubleSide});
+  const outlineMaterial=new THREE.LineBasicMaterial({color:'#fff0b3',transparent:true,opacity:.67,depthTest:true});
   for(const building of data.buildings){
    const ring=building.outline;
-   if(building.heightMetres!==null){
-    const shape=new THREE.Shape();shape.moveTo(ring[0][0],-ring[0][1]);for(const [x,z] of ring.slice(1))shape.lineTo(x,-z);shape.closePath();
-    const geometry=new THREE.ExtrudeGeometry(shape,{depth:building.heightMetres/10,bevelEnabled:false,steps:1});
-    geometry.rotateX(-Math.PI/2);
-    const mesh=new THREE.Mesh(geometry,measuredMaterial);
-    const cx=(building.bounds.minX+building.bounds.maxX)/2,cz=(building.bounds.minZ+building.bounds.maxZ)/2;
-    mesh.position.y=this.height(cx,cz)+.06;mesh.receiveShadow=true;mesh.castShadow=true;
-    mesh.userData={osmId:building.id,heightMetres:building.heightMetres,kind:'observed-building'};
+   const h=building.heightMetres??building.estimatedHeightMetres;
+   if(h!==null&&h!==undefined){
+    // Footprints are surveyed OSM outlines. Height is explicit in metres OR
+    // estimated from tagged storeys, and clearly distinguished in the UI.
+    // Each base corner follows the DEM: buildings remain upright on sloping ground.
+    const vertices=[],indices=[];
+    const roofY=Math.max(...ring.map(([x,z])=>this.height(x,z)))+h/10;
+    for(const [x,z] of ring){const ground=this.height(x,z);vertices.push(x,ground+.04,z,x,roofY,z)}
+    for(let i=0;i<ring.length;i++){const j=(i+1)%ring.length,a=2*i,b=2*j;indices.push(a,b,a+1,b,b+1,a+1)}
+    const shapePoints=ring.map(([x,z])=>new THREE.Vector2(x,z));
+    const triangles=THREE.ShapeUtils.triangulateShape(shapePoints,[]);
+    for(const [a,b,c] of triangles)indices.push(2*a+1,2*b+1,2*c+1);
+    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+    const mesh=new THREE.Mesh(geometry,building.heightMetres!==null?known:estimated);
+    mesh.receiveShadow=true;mesh.castShadow=true;
+    mesh.userData={osmId:building.id,heightMetres:h,heightSource:building.heightMetres!==null?'recorded':'estimated-from-storeys',kind:'mapped-building'};
     this.existingGroup.add(mesh);
    }else{
-    // Only a real outline: do not assign fictitious storeys or height.
-    const points=ring.map(([x,z])=>new THREE.Vector3(x,this.height(x,z)+lineHeight,z));
+    const points=ring.map(([x,z])=>new THREE.Vector3(x,this.height(x,z)+.18,z));
     const line=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points),outlineMaterial);
-    line.userData={osmId:building.id,kind:'observed-footprint'};this.existingGroup.add(line);
+    line.userData={osmId:building.id,kind:'mapped-footprint'};this.existingGroup.add(line);
    }
   }
-  // Shared materials are disposed by clearGroup; separate per reload is acceptable.
+  this.setFootprintVisibility(document.getElementById('showBuildingOutlines')?.checked!==false);
+ }
+ setFootprintVisibility(visible){this.existingGroup.children.forEach(o=>{if(o.userData.kind==='mapped-footprint')o.visible=!!visible})}
+ showViewBookmarks(entries=[]){
+  clearGroup(this.bookmarkGroup);
+  if(this.config?.geoSource!=='earth-dem')return;
+  for(const entry of entries){
+   const site=entry.site;
+   if(!Array.isArray(site)||site.length!==2||site.some(v=>!Number.isFinite(v)||Math.abs(v)>77))continue;
+   const [x,z]=site,y=this.height(x,z)+.6;
+   const mesh=new THREE.Mesh(new THREE.SphereGeometry(.9,12,10),new THREE.MeshBasicMaterial({color:'#ffdb89',depthTest:true}));
+   mesh.position.set(x,y,z);mesh.userData.bookmarkId=entry.id;this.bookmarkGroup.add(mesh);
+  }
  }
  setSite(site){this.site=site;if(!this.config)return;clearGroup(this.markersGroup);let [x,z]=site,y=terrainHeight(x,z,this.config)+.55;const ring=new THREE.Mesh(new THREE.TorusGeometry(4.1,.13,8,60),new THREE.MeshBasicMaterial({color:'#c5ff93',depthWrite:false}));ring.rotation.x=Math.PI/2;ring.position.set(x,y,z);this.markersGroup.add(ring);const pin=cylinder(this.markersGroup,x,y+1.2,z,.16,.2,2.3,'#c3ef9f');pin.rotation.z=.08}
  setPlan(plan,showHints){this.plan=plan;clearGroup(this.buildGroup);this.setHints(showHints)}
@@ -167,6 +186,8 @@ class WorldView{
     window.dispatchEvent(new CustomEvent('planetlab:open-pin',{detail:{id:pinHit.object.userData.placeId}}));return;
   }
   const hit=globeHit;if(hit){const p=this.planetGroup.worldToLocal(hit.point.clone()).normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){
+  const bookmark=this.raycaster.intersectObjects(this.bookmarkGroup.children)[0];
+  if(bookmark?.object?.userData.bookmarkId){window.dispatchEvent(new CustomEvent('planetlab:open-view-bookmark',{detail:{id:bookmark.object.userData.bookmarkId}}));return}
   const meshHit=this.raycaster.intersectObjects(this.buildGroup.children,true).find(intersection=>{
     let ancestor=intersection.object;
     while(ancestor&&ancestor!==this.buildGroup){if(ancestor.userData?.task?.meta?.kind)return true;ancestor=ancestor.parent}
@@ -263,8 +284,8 @@ class CityApp{
  generateWorld(){this.running=false;this.config=this.readConfig();if(this.geoSource!=='earth-dem')this.world.buildPlanet(this.config.seed);this.site=this.geoSource==='earth-dem'?[0,0]:(chooseSite([0,0],this.config)||[0,0]);this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);if(this.buildingsState==='ready')this.world.showExistingBuildings(this.siteBuildings);this.world.setMode('region');window.dispatchEvent(new Event('planetlab:site-changed'));this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}
  removeRobots(){for(const a of this.robots){this.world.robotsGroup.remove(a.group);a.group.traverse(o=>o.geometry?.dispose())}this.robots=[]}
  async changeAnchor(anchor){return this.selectEarthSite(anchor)}
- async initEarthMap(){try{const container=$('earthMap');container.hidden=false;const {EarthMap}=await import('./earth-map.mjs?v=0.4.17');this.world.earthMap=new EarthMap(container,anchor=>this.selectEarthSite(anchor));this.world.earthMap.show();this.world.earthMap.connectSearch($('earthSearch'),$('earthQuery'),$('earthStatus'));this.world.earthMap.map.resize();const status=$('earthStatus');status.textContent='Click a real location on Earth to inspect terrain.';window.dispatchEvent(new Event('planetlab:earth-ready'));}catch(error){$('earthStatus').textContent='Earth map unavailable: '+error.message;console.error(error)}}
- async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level`;this.updateUi();this.loadBuildings(ticket);}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error)}}
+ async initEarthMap(){try{const container=$('earthMap');container.hidden=false;const {EarthMap}=await import('./earth-map.mjs?v=0.4.18');this.world.earthMap=new EarthMap(container,anchor=>this.selectEarthSite(anchor));this.world.earthMap.show();this.world.earthMap.connectSearch($('earthSearch'),$('earthQuery'),$('earthStatus'));this.world.earthMap.map.resize();const status=$('earthStatus');status.textContent='Click a real location on Earth to inspect terrain.';window.dispatchEvent(new Event('planetlab:earth-ready'));}catch(error){$('earthStatus').textContent='Earth map unavailable: '+error.message;console.error(error)}}
+ async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level`;this.updateUi();this.loadBuildings(ticket);return true;}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error);return false}}
  async loadBuildings(ticket=this._earthRequest){
   if(!this.earthDem)return;
   this.buildingsState='loading';this.updateBuildingCoverage();
@@ -285,8 +306,8 @@ class CityApp{
   const status=this.buildingsState;
   if(status==='loading')note.textContent='Loading real building footprints…';
   else if(status==='ready'){
-   const buildings=this.siteBuildings.buildings,measured=buildings.filter(b=>b.heightMetres!==null).length;
-   note.textContent=`${buildings.length} mapped buildings · ${measured} with recorded height · ${buildings.length-measured} footprint only${this.siteBuildings.clipped?' · '+this.siteBuildings.clipped+' clipped at edge':''}. OSM coverage not guaranteed.`;
+   const buildings=this.siteBuildings.buildings,measured=buildings.filter(b=>b.heightMetres!==null).length,estimated=buildings.filter(b=>b.heightMetres===null&&b.estimatedHeightMetres!==null).length;
+   note.textContent=`${buildings.length} mapped footprints · ${measured} measured heights · ${estimated} approximate 3D from mapped storeys · ${buildings.length-measured-estimated} outline only. No invented heights for untagged buildings.`;
   }else if(status==='unavailable')note.textContent='Building data unavailable. Planning paused; retry loading.';
   else note.textContent='Select an Earth location to load mapped buildings.';
   $('plan').disabled=this.geoSource==='earth-dem'&&status!=='ready';
@@ -299,7 +320,19 @@ class CityApp{
  installEvents(){
   $('planetMode').onclick=()=>{this.world.setMode('planet');this.updateMode()};$('regionMode').onclick=()=>{if(!this.config){$('earthStatus').textContent='Choose an Earth location on the map first.';return}this.world.setMode('region');this.updateMode()};
   $('newWorld').onclick=()=>{if(this.geoSource==='earth-dem'){if(!this.earthDem){this.world.setMode('planet');return}this.selectEarthSite(this.anchor)}else this.generateWorld()};$('newSite').onclick=()=>this.changeSite(chooseSite([this.site[0]+12,this.site[1]+11],this.readConfig()));
-  $('retryBuildings').onclick=()=>this.loadBuildings();$('applyImagery').onclick=()=>{const key=$('imageryKey').value.trim();this.imageryKey=key;this.world.earthMap?.setImageryKey(key);if(this.world.mode==='region')this.world.refreshImagery();$('imageryKey').value='';$('imageryState').textContent=key?'Loading aerial imagery…':'Using free Sentinel-2 imagery';};
+  $('retryBuildings').onclick=()=>this.loadBuildings();$('showBuildingOutlines').onchange=e=>this.world.setFootprintVisibility(e.target.checked);$('applyImagery').onclick=async()=>{
+  const button=$('applyImagery'),key=$('imageryKey').value.trim(),note=$('imageryState');
+  button.disabled=true;note.textContent='Checking imagery provider…';
+  try{
+   if(!this.world.earthMap)throw new Error('Earth globe not loaded');
+   await this.world.earthMap.setImageryKey(key);
+   this.imageryKey=key;
+   if(this.world.mode==='region')this.world.refreshImagery();
+   else note.textContent=key?'MapTiler satellite imagery enabled':'Using free Sentinel-2 imagery';
+   $('imageryKey').value='';
+  }catch(error){note.textContent=error.message;console.warn('MapTiler imagery setup:',error.message)}
+  finally{button.disabled=false}
+ };
   $('plan').onclick=()=>this.createPlan();$('restart').onclick=()=>this.createPlan();$('toggle').onclick=()=>{this.running=!this.running;this.updateUi()};$('camera').onclick=()=>this.world.resetCamera();
   $('showPlan').onchange=()=>this.world.setHints($('showPlan').checked);
   const selectView=(view)=>{for(const [name,id] of [['massing','viewMassing'],['plan','viewPlan'],['agents','viewAgents']]){$(id).classList.toggle('active',name===view);$(id).setAttribute('aria-pressed',String(name===view))}this.world.setAgentVisibility(view==='agents');this.world.setDisplayMode(view==='plan')};
@@ -307,7 +340,7 @@ class CityApp{
   $('export').onclick=()=>{if(!this.plan)return;const data={...this.plan,governance:$('freeZone').checked?'voluntary-free-zone':'unspecified',tasks:this.plan.tasks.map(t=>({...t}))};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='planet-city-'+this.config.seed.replace(/[^a-z0-9_-]/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
   $('map').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),x=((e.clientX-r.left)/r.width-.5)*156,z=((e.clientY-r.top)/r.height-.5)*156;this.changeSite(chooseSite([x,z],this.readConfig()))};
  }
- updateMode(){let p=this.world.mode==='planet';$('planetMode').classList.toggle('active',p);$('regionMode').classList.toggle('active',!p);$('sceneHelp').innerHTML=p?'Real Earth · Drag to rotate · Zoom to explore<br/>Click a location to load measured elevation':'Measured local relief · Drag to orbit<br/>Click terrain to propose a site';this.updateLocation()}
+ updateMode(){let p=this.world.mode==='planet';$('planetMode').classList.toggle('active',p);$('regionMode').classList.toggle('active',!p);$('sceneHelp').innerHTML=p?'Real Earth · Drag to rotate · Zoom to explore<br/>Click a location to load measured elevation':'Measured local relief · Drag to orbit<br/>Click terrain to propose a site';this.updateLocation();window.dispatchEvent(new Event('planetlab:view-changed'))}
  chooseTask(robot){const pending=this.plan.tasks.filter(t=>t.status==='queued');if(!pending.length)return null;const earliest=Math.min(...pending.map(t=>STAGES.findIndex(s=>s[0]===t.stage)));const tasks=pending.filter(t=>STAGES.findIndex(s=>s[0]===t.stage)===earliest);const matched=tasks.filter(t=>robot.capabilities.includes(t.stage));const choices=matched.length?matched:tasks;return choices.reduce((a,b)=>!a||Math.hypot(b.x-robot.position[0],b.z-robot.position[1])<Math.hypot(a.x-robot.position[0],a.z-robot.position[1])?b:a,null)}
  update(dt){if(!this.plan)return;this.time+=dt;
   for(const bot of this.robots)bot.update(dt);

@@ -28,6 +28,12 @@ export function recordedHeight(tags={}){
  const metres=Number(match[1]) * (/^(ft|feet|')$/i.test(match[2]||'')?.3048:1);
  return Number.isFinite(metres)&&metres>=1.5&&metres<=900?metres:null;
 }
+export function estimatedStoreyHeight(tags={}){
+ // Explicit OSM floor count, approximate 3 m/storey — NOT a measured height.
+ const value=String(tags['building:levels']??'').trim();
+ if(!/^[1-9][0-9]?(?:\.[05])?$/.test(value))return null;
+ const floors=Number(value);return floors>=1&&floors<=80?Math.round(floors*30)/10:null;
+}
 function compactRing(points){
  const out=[];
  for(const p of points){if(!out.length||Math.hypot(p[0]-out.at(-1)[0],p[1]-out.at(-1)[1])>.025)out.push(p)}
@@ -47,7 +53,7 @@ export function parseBuildings(payload,anchor,{limit=1800}={}){
   if(bounds.maxX < -PATCH_HALF_UNITS || bounds.minX>PATCH_HALF_UNITS || bounds.maxZ < -PATCH_HALF_UNITS || bounds.minZ>PATCH_HALF_UNITS)continue;
   // Entirely clipping complex polygons can corrupt the shape; omit buildings outside the patch.
   if(Math.max(...ring.map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1])))) > PATCH_HALF_UNITS-1){clipped++;continue}
-  buildings.push({id:`way/${item.id}`,outline:ring,bounds,heightMetres:recordedHeight(item.tags),levels:item.tags['building:levels']||null,kind:item.tags.building});
+  buildings.push({id:`way/${item.id}`,outline:ring,bounds,heightMetres:recordedHeight(item.tags),estimatedHeightMetres:recordedHeight(item.tags)===null?estimatedStoreyHeight(item.tags):null,levels:item.tags['building:levels']||null,kind:item.tags.building});
   if(buildings.length>=limit)throw new Error('Site has more mapped buildings than preview supports; choose a smaller study area');
  }
  return {source:'openstreetmap',attribution:'© OpenStreetMap contributors (ODbL)',anchor:{...anchor},buildings,clipped,updatedAt:payload.osm3s?.timestamp_osm_base||null};

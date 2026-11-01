@@ -24,3 +24,12 @@ assert.equal(drawn.length,demanded.length);
 assert.ok(drawn.every(a=>a[1]<512&&a[2]<512&&a[1]+a[3]>0&&a[2]+a[4]>0),'Imagery overlaps selected patch');
 assert.match(readFileSync(new URL('./app.mjs',import.meta.url),'utf8'),/uv\.setY\(i,1-uv\.getY\(i\)\)/,'Texture must face true north');
 console.log('PASS — satellite mosaic matches exact DEM patch in metres and map coordinates');
+
+// A selected site at high zoom must adapt its tile count instead of failing.
+const large=await loadSiteImagery({lat:62,lon:10},{size:2048,maptilerKey:'TEST_BROWSER_KEY',loadImage:async(z,x,y)=>{
+ assert.ok(z<=17);return {close(){}};
+}});
+assert.equal(large.width,2048);
+assert.ok(drawn.length>demanded.length);
+assert.match(source,/satellite-v2\/\{z\}\/\{x\}\/\{y\}\.jpg/);
+console.log('PASS — adaptive zoom keeps high-resolution imagery requests bounded');

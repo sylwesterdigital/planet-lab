@@ -80,6 +80,10 @@
 #earthSearch[hidden]{display:none!important}#earthQuery{background:#0c1822;color:#eef9f4;border:0;border-radius:6px;padding:9px 10px;flex:1;min-width:0;font-size:13px}
 #earthSearch button{background:#b8ed8e;color:#10221a;border:0;border-radius:6px;padding:8px 14px;font-weight:750}
 
+#viewBookmarkList button,#viewRecentList button{font-size:11px}
+#viewBookmarkName{min-width:0;flex:1}#viewBookmarkSave{flex:none}
+#viewRecentDetails summary{cursor:pointer;color:var(--teal);font-size:11px}
+.earth-pin.earth-bookmark-pin{background:#ffd589;color:#19202a;border:2px solid #fff2cc;border-radius:50%;width:16px;height:16px;box-shadow:0 0 0 3px #253b4b91}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
@@ -207,7 +211,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.17 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.18 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -226,7 +230,7 @@ html,body{height:100%;overflow:hidden}
 <h2 class="title" style="font-size:19px">Select a location</h2><p class="desc">Click Earth to open the same location in 3D terrain.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">Local terrain</button><button id="planetMode">Earth map</button></div>
 <div class="row2"><div hidden><label class="lab" for="seed">LEGACY SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
-<div class="section" id="existingBuildingsSection" style="padding:8px 0"><strong>Existing buildings · OpenStreetMap</strong><div id="existingBuildingsState" class="hint" role="status">Select a location to load mapped buildings.</div><button class="btn mini" id="retryBuildings" type="button">Reload building data</button></div>
+<div class="section" id="existingBuildingsSection" style="padding:8px 0"><strong>Existing buildings · OpenStreetMap</strong><div id="existingBuildingsState" class="hint" role="status">Select a location to load mapped buildings.</div><button class="btn mini" id="retryBuildings" type="button">Reload building data</button><label class="checkbox" style="margin-top:8px"><input id="showBuildingOutlines" type="checkbox" checked> Show footprint outlines where height is unknown</label></div>
 <details class="section" id="aerialOptions" style="padding:7px 0"><summary>Sharper aerial imagery · optional API key</summary><p class="hint">Free Sentinel-2 is about 10 m/pixel. For sharper imagery, provide your own MapTiler API key (usage charges may apply). Key is not saved.</p><input id="imageryKey" type="password" autocomplete="off" placeholder="MapTiler API key" aria-label="MapTiler API key" style="width:100%;box-sizing:border-box;background:#0c1822;color:#f1fff6;border:1px solid #42616a;border-radius:6px;padding:9px"><button class="btn mini" type="button" id="applyImagery">Apply imagery</button><div class="hint" id="imageryState" role="status">Sentinel-2 (2016)</div></details>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Reload elevation</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Select a location on Earth to load measured terrain.</div>
 <section class="section" id="citySection"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
@@ -252,6 +256,13 @@ html,body{height:100%;overflow:hidden}
 <div class="kpis"><div class="kpi"><strong id="homesCount">0</strong><span>Funded buildings</span></div><div class="kpi"><strong id="roadCount">0</strong><span>Road segments</span></div><div class="kpi"><strong id="allocated">$0</strong><span>Illustrative cost (M)</span></div><div class="kpi"><strong id="remaining">$0</strong><span>Scenario balance (M)</span></div></div>
 <div class="section" id="landUseSection"><h3>Land-use map <span class="small">· planned</span></h3><canvas class="map" id="map" width="450" height="280" title="Click map to propose a nearby site"></canvas><div class="legend"><span style="--chip:#688193">Roads</span><span style="--chip:#d6ad8d">Buildings</span><span style="--chip:#76b87d">Green space</span><span style="--chip:#4388b0">Water / reserve</span></div><div id="mapNote" class="hint">The overview updates when a plan is generated.</div></div>
 <div class="section" id="feasibilitySection" aria-live="polite"><h3>Site feasibility <span class="small">· preliminary screen</span></h3><div id="feasibilityState" class="hint">Select a site to assess</div><ul id="feasibilityList" class="feasibility-findings"><li>Terrain, flood exposure, road access and utilities will be screened before buildings are placed.</li></ul><div class="hint">Measured elevation does not establish flood risk, access, utilities, ownership or planning permission.</div></div>
+<div class="section" id="viewHistorySection"><h3>Locations & views</h3>
+<div class="hint" id="viewRestoreStatus" role="status">Your last Earth location and camera view reopen automatically.</div>
+<div class="buttons"><input id="viewBookmarkName" class="field" maxlength="80" placeholder="Name this view" aria-label="Bookmark name"><button class="btn mini primary" id="viewBookmarkSave" type="button">Bookmark view</button></div>
+<div id="viewBookmarkList" class="snapshot-list" aria-label="Saved camera viewpoints"></div>
+<details id="viewRecentDetails"><summary class="hint">Recent locations</summary><div id="viewRecentList" class="snapshot-list"></div></details>
+<div class="hint">Bookmarks are saved in this browser for the signed-in account. Saved projects below remain on PlanetLab.</div>
+</div>
 <div class="section" id="placebookSection"><h3>Places & saved snapshots</h3>
 <div class="hint">Saved Earth projects are pinned to their real coordinates. Legacy fictional projects remain in the saved list.</div>
 <label class="lab" for="snapshotName">SNAPSHOT NAME</label><input id="snapshotName" class="field" maxlength="100" placeholder="New harbour settlement"/>
@@ -348,12 +359,13 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.17"></script>
-<script type="module" src="./collab.mjs?v=0.4.17"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.17"></script>
-<script type="module" src="./studio.mjs?v=0.4.17"></script>
-<script type="module" src="./placebook.mjs?v=0.4.17"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.17"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.17"></script>
-<script type="module" src="./workflow.mjs?v=0.4.17"></script>
+<script type="module" src="./app.mjs?v=0.4.18"></script>
+<script type="module" src="./collab.mjs?v=0.4.18"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.18"></script>
+<script type="module" src="./studio.mjs?v=0.4.18"></script>
+<script type="module" src="./placebook.mjs?v=0.4.18"></script>
+<script type="module" src="./earth-history.mjs?v=0.4.18"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.18"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.18"></script>
+<script type="module" src="./workflow.mjs?v=0.4.18"></script>
 </body></html>

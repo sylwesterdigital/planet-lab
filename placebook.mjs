@@ -7,7 +7,7 @@ const api=async(path,options={})=>window.planetLabWorlds.api(path,options);
 let cache=[],loading=false;
 const say=(text)=>{$('snapshotStatus').textContent=text};
 const key=(a)=>a&&Number.isFinite(a.lat)&&Number.isFinite(a.lon)?`${a.lat.toFixed(1)},${a.lon.toFixed(1)}`:'';
-const regionMatches=(world,sim)=>world?.anchor && sim && world.seed===sim.config?.seed && Math.abs(world.anchor.lat-sim.anchor.lat)<2.6 && Math.abs(world.anchor.lon-sim.anchor.lon)<2.6;
+const regionMatches=(world,sim)=>{if(!world?.anchor||!sim)return false;if(world.geoSource!=='earth-dem'||sim.geoSource!=='earth-dem')return world.seed===sim.config?.seed;const lat=(world.anchor.lat-sim.anchor.lat)*111195,lon=(world.anchor.lon-sim.anchor.lon)*111195*Math.cos(sim.anchor.lat*Math.PI/180);return Math.hypot(lat,lon)<=1100};
 function visible(){
  const filter=$('snapshotFilter').value,sim=window.planetLabApp;
  return cache.filter(w=>filter==='all'||filter==='stars'&&w.starred||filter==='area'&&regionMatches(w,sim));

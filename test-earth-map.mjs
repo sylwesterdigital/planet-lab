@@ -11,6 +11,9 @@ class Map{
  getStyle(){return {layers:[{id:'roads',type:'line'},{id:'labels',type:'symbol'}]}}
  getSource(id){return this.sources.find(([key])=>key===id)?.[1]}
  addLayer(layer,before){this.layers.push([layer,before])}
+ removeLayer(id){this.layers=this.layers.filter(([layer])=>layer.id!==id)}
+ removeSource(id){this.sources=this.sources.filter(([key])=>key!==id)}
+ getLayer(id){return this.layers.find(([layer])=>layer.id===id)?.[0]}
  setProjection(projection){this.projection=projection}
  addSource(id,source){this.sources.push([id,source])}
  setTerrain(value){this.terrain=value}
@@ -25,9 +28,12 @@ class Marker{
 }
 const maplibregl={Map,Marker,NavigationControl:class{},TerrainControl:class{}};
 const elements={};
-const document={createElement(tag){return {tagName:tag,listeners:{},addEventListener(type,cb){this.listeners[type]=cb}}},getElementById(id){return elements[id]||(elements[id]={textContent:''})}};
+const document={createElement(tag){return {tagName:tag,listeners:{},setAttribute(k,v){this[k]=v},addEventListener(type,cb){this.listeners[type]=cb}}},getElementById(id){return elements[id]||(elements[id]={textContent:''})}};
 const context={maplibregl,document,console,URLSearchParams,Date,Number,Math,
- fetch:async()=>{lookupCalls++;return {ok:true,json:async()=>({features:[{geometry:{coordinates:[-0.128,51.507]},properties:{name:'London',country:'United Kingdom'}}]})}}};
+ fetch:async url=>{
+  if(url.includes('api.maptiler.com'))return url.includes('key=INVALID')?{ok:false,status:403}:{ok:true,json:async()=>({tiles:['https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg']})};
+  lookupCalls++;return {ok:true,json:async()=>({features:[{geometry:{coordinates:[-0.128,51.507]},properties:{name:'London',country:'United Kingdom'}}]})}
+ }};
 vm.runInNewContext(`${source}\nglobalThis.EarthMap=EarthMap;`,context,{filename:'earth-map.mjs'});
 const node={hidden:false},selected=[];
 const earth=new context.EarthMap(node,coords=>selected.push(coords));
@@ -40,8 +46,11 @@ assert.match(latestMap.options.style,/openfreemap/);
 events.load();
 assert.equal(latestMap.terrain,undefined,'Do not load unsupported z13/z14 DEM on globe');
 assert.equal(latestMap.getSource('real-dem'),undefined,'Local DEM remains separate from globe');
-earth.setImageryKey('TEST_BROWSER_KEY');
-assert.ok(latestMap.getSource('earth-aerial').url.includes('satellite-v4'),'Optional high-resolution imagery is activated');
+await earth.setImageryKey('TEST_BROWSER_KEY');
+assert.ok(latestMap.getSource('earth-aerial').url.includes('satellite-v2'),'Optional high-resolution imagery is activated');
+assert.equal(latestMap.getSource('earth-aerial').tileSize,512);
+await assert.rejects(earth.setImageryKey('INVALID'),/HTTP-origin restriction rejected/);
+assert.equal(earth.imageryKey,'TEST_BROWSER_KEY','Bad key must not replace working imagery');
 events.click({lngLat:{lat:51.5,lng:-.13}});
 assert.equal(selected[0].lat,51.5);
 assert.equal(earth.selectedPin.coordinates[0],-.13);

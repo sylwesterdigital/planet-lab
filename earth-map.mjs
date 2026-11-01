@@ -77,17 +77,27 @@ export class EarthMap{
   if(!this.imageryKey||this.map.getSource('earth-aerial'))return;
   // The key remains in this browser session; it is never saved with projects.
   const key=encodeURIComponent(this.imageryKey);
-  this.map.addSource('earth-aerial',{type:'raster',url:`https://api.maptiler.com/tiles/satellite-v4/tiles.json?key=${key}`,tileSize:256,
+  this.map.addSource('earth-aerial',{type:'raster',url:`https://api.maptiler.com/tiles/satellite-v2/tiles.json?key=${key}`,tileSize:512,
    attribution:'Aerial imagery © MapTiler, © imagery providers'});
   const firstLabel=this.map.getStyle().layers.find(layer=>layer.type==='symbol')?.id;
   this.map.addLayer({id:'earth-aerial-layer',type:'raster',source:'earth-aerial',minzoom:5},firstLabel);
  }
- setImageryKey(key){
-  this.imageryKey=String(key||'').trim();
+ async setImageryKey(key){
+  const value=String(key||'').trim();
+  // Validate metadata before mutating the active layer or storing the key.
+  // A failed request must leave the working public imagery untouched.
+  if(value){
+   const response=await fetch(`https://api.maptiler.com/tiles/satellite-v2/tiles.json?key=${encodeURIComponent(value)}`,{mode:'cors'});
+   if(!response.ok)throw new Error(response.status===403?'MapTiler key or HTTP-origin restriction rejected (403)':`MapTiler satellite imagery unavailable (HTTP ${response.status})`);
+   const meta=await response.json();
+   if(!Array.isArray(meta.tiles)||!meta.tiles.length)throw new Error('MapTiler satellite tileset returned invalid metadata');
+  }
+  this.imageryKey=value;
   if(this.map.getLayer?.('earth-aerial-layer'))this.map.removeLayer('earth-aerial-layer');
   if(this.map.getSource('earth-aerial'))this.map.removeSource('earth-aerial');
   this.addHighResolutionLayer();
  }
+
  show(){this.node.hidden=false;this.map.resize()}
  hide(){this.node.hidden=true}
  markSelection(anchor){
@@ -99,16 +109,18 @@ export class EarthMap{
   // Preserve the exact clicked coordinate; no snapped fictional island/region.
   this.map.flyTo({center:[anchor.lon,anchor.lat],zoom:12,pitch:0,duration:1500,essential:true});
  }
- pinsFor(entries=[],open){
+ pinsFor(entries=[],open){this.projectEntries=entries;this.openProject=open;this.updatePins()}
+ bookmarksFor(entries=[],open){this.bookmarkEntries=entries;this.openBookmark=open;this.updatePins()}
+ updatePins(){
   this.pins.forEach(pin=>pin.remove());this.pins=[];
-  for(const item of entries){
-   // Pre-Earth snapshots were generated on a fictional planet; do not claim
-   // that their numeric lat/lon identifies a physical location on Earth.
-   if(item.geoSource!=='earth-dem'||!Number.isFinite(item.anchor?.lat)||!Number.isFinite(item.anchor?.lon))continue;
-   const node=document.createElement('button');node.type='button';node.className='earth-pin';node.title=item.title||'Saved project';node.textContent='●';
-   node.addEventListener('click',event=>{event.stopPropagation();open(item.id)});
-   const pin=new maplibregl.Marker({element:node}).setLngLat([item.anchor.lon,item.anchor.lat]).addTo(this.map);
-   this.pins.push(pin);
-  }
+  const add=(entry,kind,callback)=>{
+   if(!Number.isFinite(entry.anchor?.lat)||!Number.isFinite(entry.anchor?.lon))return;
+   const node=document.createElement('button');node.type='button';node.className='earth-pin'+(kind==='bookmark'?' earth-bookmark-pin':'');
+   node.title=entry.title||'Saved location';node.setAttribute('aria-label',node.title);node.textContent=kind==='bookmark'?'★':'●';
+   node.addEventListener('click',event=>{event.stopPropagation();callback?.(entry.id)});
+   this.pins.push(new maplibregl.Marker({element:node}).setLngLat([entry.anchor.lon,entry.anchor.lat]).addTo(this.map));
+  };
+  for(const item of this.projectEntries||[])if(item.geoSource==='earth-dem')add(item,'project',this.openProject);
+  for(const item of this.bookmarkEntries||[])add(item,'bookmark',this.openBookmark);
  }
 }

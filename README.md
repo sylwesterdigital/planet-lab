@@ -1,3 +1,12 @@
+## v0.4.18 — Resumable Earth viewpoints, mapped heights and reliable MapTiler imagery
+
+- After authentication, PlanetLab restores the last real Earth anchor, selected position within the 1,560 m DEM patch and Three.js camera orientation. Spherical globe map center/zoom/pitch/bearing are retained when globe view is active. Reopening a bookmarked view uses the actual DEM again; it never switches to synthetic terrain.
+- Up to 30 named camera/site bookmarks and 8 recent sites per signed-in account persist **in the current browser only** (localStorage, not server). Each bookmark has an exact Earth coordinate and local position, selectable in the workspace and by geographic globe pin. Existing server-side saved project snapshots remain separate; no schema changes.
+- Existing OpenStreetMap building footprints are still real observed polygons. Exact `height` tags produce measured extrusions; `building:levels` tags provide clearly marked *estimated height* extrusions at 3 m/storey. Buildings with neither tag remain mapped outlines, optionally hidden. Nothing should claim accurate roof geometry, property rights or a surveyed height when not available.
+- 3D building walls follow each local terrain vertex and are extruded vertically, with roof cap triangulation. Mapped footprints remain protected from new simulated construction. Camera orbit is constrained to avoid near-horizontal perspective.
+- Corrected MapTiler satellite-v2 TileJSON/XYZ URLs and validated API keys before activating paid imagery; tile counts adapt to latitude without rejecting valid sites.
+- Release version 0.4.18. No backend migrations and no changes to watcher deployment sequence.
+
 ## v0.4.17 — Real buildings and imagery reliability
 
 - The globe stays spherical and no longer requests Mapterhorn z13/z14 raster-dem tiles. The selected 1.56 km site is still built from DEM elevation (z12).
