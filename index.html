@@ -102,6 +102,16 @@
 .perspective-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#f0fff5}
 #perspectivePreviewImage{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;border:2px solid #ff5a6a;border-radius:8px;background:#122632}
 #perspectivePreviewNote{margin-top:8px;font-size:12px}
+
+#mapQuickControls{position:absolute;z-index:35;right:18px;top:68px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;max-width:min(95%,650px)}
+#mapQuickControls label{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#092430e8;border:1px solid #426b74;border-radius:8px;color:#e0f3ef;font-size:11px;font-weight:700;cursor:pointer}
+#mapQuickControls input{accent-color:#b8ed8e}
+.provider-keys-dialog{width:min(540px,calc(100vw - 24px));max-height:calc(100vh - 95px)}
+.provider-keys-dialog .key-row{grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px}
+.provider-keys-dialog .key-row small{font-size:11px;color:#a8d6cf;line-height:1.35}
+.provider-keys-dialog .key-panel-body{padding:14px}
+.provider-keys-dialog .key-row button{min-width:47px;padding:7px 5px}
+@media(max-width:700px){#mapQuickControls{right:5px;top:96px;gap:3px}#mapQuickControls label{padding:5px;font-size:10px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
@@ -239,7 +249,7 @@ html,body{height:100%;overflow:hidden}
 .tool-dock .row2:has(#scenarioKey),.tool-dock .row2:has(#perspectiveKey){grid-template-columns:1fr}
 .tool-dock #viewHistorySection details{display:block}
 .tool-dock .workflow-entry{display:none!important}
-.tool-dock #aiConnectionsSection{display:none!important}
+.tool-dock #aiConnectionsSection,.tool-dock #aerialOptions{display:none!important}
 .provider-keys-dialog{position:fixed;right:15px;top:67px;width:min(430px,calc(100vw - 30px));max-height:calc(100vh - 80px);overflow:auto;z-index:16000;background:#0f2230;border:1px solid #65838b;border-radius:13px;box-shadow:0 25px 75px #000d}
 .provider-keys-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#23414c}
 .provider-keys-header strong{font-size:17px}.provider-keys-header button{font-size:25px;border:0;background:transparent}
@@ -291,15 +301,15 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.29 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.30 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
 <button id="tabExplore" type="button" aria-pressed="true">Explore</button>
 <button id="tabCreate" type="button" aria-pressed="false">Create</button>
 <button id="tabProjects" type="button" aria-pressed="false">Projects</button>
 <button id="topGlobe" type="button" class="nav-secondary">Globe</button>
 <button id="topSite" type="button" class="nav-secondary">Terrain</button>
-<button id="topKeys" type="button" class="nav-accent">API Keys</button>
+<button id="topKeys" type="button" class="nav-accent">Providers & Keys</button>
 <button id="toolDockToggle" type="button" class="nav-secondary">Tools</button>
-</nav><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+</nav><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">Providers</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -381,6 +391,7 @@ html,body{height:100%;overflow:hidden}
  <div id="toolDockContent" class="tool-dock-content"></div>
 </section>
 <div id="drawingModeBanner" role="status" aria-live="polite" hidden><strong>DRAWING MODE</strong><span>Drag on the map to select a perspective patch</span><button type="button" id="drawingCancel">Cancel</button></div>
+<div id="mapQuickControls" aria-label="Map layers"><label title="Show mapped OpenStreetMap buildings"><input id="quickBuildings" type="checkbox" checked> 3D buildings</label><label title="Show only the mapped 3D buildings on a neutral background"><input id="quickOnlyBuildings" type="checkbox"> Buildings only</label><label title="Use MapTiler imagery configured in Providers & Keys"><input id="quickImagery" type="checkbox"> HD imagery</label></div>
 <div class="view-toolbar" aria-label="Scene presentation"><span>VIEW</span><button type="button" id="viewMassing" class="active" aria-pressed="true" title="Orbit and inspect architectural massing">3D massing</button><button type="button" id="viewPlan" aria-pressed="false" title="Top-down site plan">Site plan</button><button type="button" id="viewAgents" aria-pressed="false" title="Display simulated construction equipment">Show agents</button><label class="view-vegetation"><input type="checkbox" id="showVegetation"> Vegetation</label></div>
 <nav class="workflow-nav" aria-label="PlanetLab workspace">
  <button type="button" id="flowWorld" aria-pressed="false">Globe</button>
@@ -489,15 +500,17 @@ html,body{height:100%;overflow:hidden}
     </form>
   </div>
 </div>
-<section id="providerKeysDialog" class="provider-keys-dialog" aria-label="AI API keys" hidden>
- <header class="provider-keys-header"><strong>AI API Keys</strong><button id="providerKeysClose" type="button" aria-label="Close keys">×</button></header>
+<section id="providerKeysDialog" class="provider-keys-dialog" aria-label="Provider settings" hidden>
+ <header class="provider-keys-header"><strong>Providers & API Keys</strong><button id="providerKeysClose" type="button" aria-label="Close settings">×</button></header>
  <div class="key-panel-body">
  <label class="key-remember"><input id="rememberKeys" type="checkbox"> Remember on this device</label>
- <p class="key-warning">Optional. Stored keys are readable by scripts on this website; use only on a trusted device.</p>
- <div class="key-row"><label for="providerKey-meta">Meta</label><input id="providerKey-meta" type="password" autocomplete="new-password" placeholder="Meta API key"><button id="providerSave-meta" type="button">Save</button><button id="providerForget-meta" type="button">Clear</button><small id="providerState-meta"></small></div>
- <div class="key-row"><label for="providerKey-xai">xAI · Grok Imagine</label><input id="providerKey-xai" type="password" autocomplete="new-password" placeholder="xAI API key"><button id="providerSave-xai" type="button">Save</button><button id="providerForget-xai" type="button">Clear</button><small id="providerState-xai"></small></div>
- <div class="key-row"><label for="providerKey-openai">OpenAI · Image</label><input id="providerKey-openai" type="password" autocomplete="new-password" placeholder="OpenAI API key"><button id="providerSave-openai" type="button">Save</button><button id="providerForget-openai" type="button">Clear</button><small id="providerState-openai"></small></div>
- <div id="providerKeysStatus" role="status" aria-live="polite"></div>
+ <p class="key-warning">Keys are stored only in this browser when enabled. Other scripts on this origin can read them. No test generates paid content.</p>
+ <div class="key-row"><label for="providerKey-meta">Meta · Muse (text / images)</label><input id="providerKey-meta" type="password" autocomplete="off" placeholder="Meta API key"><button id="providerSave-meta" type="button">Save</button><button id="providerForget-meta" type="button">Clear</button><button id="providerCheck-meta" type="button">Test</button><small id="providerState-meta">Not checked</small></div>
+ <div class="key-row"><label for="providerKey-xai">xAI · Grok (text / image / analysis)</label><input id="providerKey-xai" type="password" autocomplete="off" placeholder="xAI API key"><button id="providerSave-xai" type="button">Save</button><button id="providerForget-xai" type="button">Clear</button><button id="providerCheck-xai" type="button">Test</button><small id="providerState-xai">Not checked</small></div>
+ <div class="key-row"><label for="providerKey-openai">OpenAI · Text / Image</label><input id="providerKey-openai" type="password" autocomplete="off" placeholder="OpenAI API key"><button id="providerSave-openai" type="button">Save</button><button id="providerForget-openai" type="button">Clear</button><button id="providerCheck-openai" type="button">Test</button><small id="providerState-openai">Not checked</small></div>
+ <div class="key-row"><label for="providerKey-tripo">Tripo3D · Models & credits</label><input id="providerKey-tripo" type="password" autocomplete="off" placeholder="Tripo API key"><button id="providerSave-tripo" type="button">Save</button><button id="providerForget-tripo" type="button">Clear</button><button id="providerCheck-tripo" type="button">Test</button><small id="providerState-tripo">Not checked</small></div>
+ <div class="key-row"><label for="providerKey-maptiler">MapTiler · High-resolution aerial imagery</label><input id="providerKey-maptiler" type="password" autocomplete="off" placeholder="MapTiler API key"><button id="providerSave-maptiler" type="button">Save</button><button id="providerForget-maptiler" type="button">Clear</button><button id="providerCheck-maptiler" type="button">Test</button><small id="providerState-maptiler">Not checked</small></div>
+ <div id="providerKeysStatus" role="status" aria-live="polite">Test checks actual provider access. Model tests do not verify every separately billed capability; MapTiler checks a tile from this browser. Billing totals are not universally available.</div>
  </div>
 </section>
 <section id="perspectiveGalleryViewer" class="gallery-viewer" role="dialog" aria-modal="true" aria-label="Generated perspective image" hidden>
@@ -515,16 +528,16 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.29"></script>
+<script type="module" src="./app.mjs?v=0.4.30"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.29"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.29"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.30"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.30"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
-<script type="module" src="./ui-shell.mjs?v=0.4.29"></script>
+<script type="module" src="./ui-shell.mjs?v=0.4.30"></script>
 </body></html>

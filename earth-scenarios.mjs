@@ -1,3 +1,4 @@
+import {tracedFetch,openApiConsole} from './api-console.mjs';
 /* Browser-local, georeferenced AI concept imagery. Never overwrites Earth data. */
 import {patchBounds,rasterRect,siteKey,validLayer} from './scenario-core.mjs';
 import {getProviderKey,setProviderKey} from './provider-keys.mjs';
@@ -60,7 +61,7 @@ function updateScene(){
     if(!world.addScenarioLayer(layer.bounds,bitmap,layer.opacity??1,split))bitmap.close();
    }
    images.length=0; // ownership transferred to the Three.js materials
-   world.existingGroup.visible=world.mode==='region'&&(mode==='original'||!applicable.length||!$('scenarioHideBuildings').checked);
+   world.existingGroup.visible=world.mode==='region'&&world.mappedBuildingsVisible&&(mode==='original'||!applicable.length||!$('scenarioHideBuildings').checked);
   }finally{
    for(const image of images)image.bitmap.close();
   }
@@ -144,12 +145,12 @@ $('scenarioGenerate').onclick=async()=>{
  const requestSite=state.site,requestBounds={...state.bounds};
  state.busy=true;button.disabled=true;window.planetLabApp?.world?.setScenarioJob(true,requestBounds);report('Generating visual variant using '+provider+'… (one billed call)');
  try{
-  const response=await fetch('/api/ai/scenario-edit',{method:'POST',cache:'no-store',credentials:'same-origin',
+  const response=await tracedFetch('/api/ai/scenario-edit',{method:'POST',cache:'no-store',credentials:'same-origin',
    headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,
     ['X-PlanetLab-'+(provider==='xai'?'XAI':provider==='meta'?'Meta':'OpenAI')+'-Key']:key},
    body:JSON.stringify({provider,prompt,image:source,size:selectedResolution()})});
   const result=await response.json().catch(()=>({error:'Invalid provider response'}));
-  if(!response.ok)throw new Error(result.error||`Image edit failed (HTTP ${response.status})`);
+  if(!response.ok){openApiConsole();throw new Error(result.error||`Image edit failed (HTTP ${response.status})`)}
   if(siteKey(sim.anchor)!==requestSite||state.site!==requestSite)throw new Error('Location changed while generating. Result was not applied.');
   const output=await fetch(result.image).then(r=>r.blob());
   if(!output.type.startsWith('image/')||output.size>9_000_000)throw new Error('Unexpected edited-image format');

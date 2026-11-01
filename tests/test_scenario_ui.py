@@ -12,7 +12,7 @@ class ScenarioUITest(unittest.TestCase):
  def test_geographic_edit_and_persistence(self):
   js=(ROOT/'earth-scenarios.mjs').read_text()
   self.assertIn("indexedDB.open('planetlab-scenarios-v1'",js)
-  self.assertIn("fetch('/api/ai/scenario-edit'",js)
+  self.assertIn("tracedFetch('/api/ai/scenario-edit'",js)
   self.assertIn('world.addScenarioLayer(layer.bounds',js)
   self.assertIn('size:selectedResolution()',js)
   self.assertIn('setScenarioJob(true,requestBounds)',js)

@@ -17,6 +17,7 @@ function redact(value,depth=0){
     return out;
   }
   if(typeof value==='string'){
+    if(value.startsWith('data:image/'))return '[IMAGE DATA OMITTED, '+value.length+' chars]';
     const str=value.length>MAX_TEXT?value.slice(0,MAX_TEXT)+' … [TRUNCATED]':value;
     return str.replace(/Bearer\s+\S+/gi,'Bearer [REDACTED]').replace(/(api[_-]?key|access[_-]?token)\s*[:=]\s*[^\s,;}]+/gi,'$1=[REDACTED]');
   }
@@ -25,7 +26,7 @@ function redact(value,depth=0){
 function parseBody(body){
   if(body===undefined||body===null)return null;
   if(typeof body!=='string')return '[BINARY / NON-JSON BODY]';
-  try{return redact(JSON.parse(body))}catch{return redact(body)}
+  try{const data=JSON.parse(body);if(data&&typeof data==='object'&&typeof data.image==='string')data.image='[IMAGE DATA OMITTED]';return redact(data)}catch{return redact(body)}
 }
 function textToObject(text){
   try{return redact(JSON.parse(text))}catch{return redact(text)}
@@ -80,10 +81,11 @@ export async function tracedFetch(path,options={}){
     record.status=response.status;
     // The API returns JSON; skip large or unexpected response types.
     const length=Number(response.headers.get('content-length'))||0;
-    if(length>750000){record.response='[RESPONSE TOO LARGE]'}
+    if(length>750000||(response.ok&&url.pathname==='/api/ai/scenario-edit')){record.response='[GENERATED IMAGE RESPONSE OMITTED]'}
     else{
       const raw=await response.clone().text();
       const parsed=textToObject(raw.slice(0,30000));
+      if(parsed&&typeof parsed==='object'&&typeof parsed.image==='string')parsed.image='[GENERATED IMAGE OMITTED]';
       if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed)&&'_trace' in parsed){record.upstream=parsed._trace;delete parsed._trace}
       record.response=parsed;
     }

@@ -4,11 +4,11 @@ import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.15';
 const el=id=>document.getElementById(id);
 const ephemeral = {meta:'',tripo:'',model:'muse-spark-1.3'};
 let previousFocus=null;
-export function connected(provider){return Boolean(provider==='meta'?getProviderKey('meta'):ephemeral[provider]);}
+export function connected(provider){return Boolean(getProviderKey(provider)||ephemeral[provider]);}
 export function getAiHeaders(path){
   const headers={};
   if(path.startsWith('/api/ai/')){
-    if(path.includes('/tripo')){if(ephemeral.tripo)headers['X-PlanetLab-Tripo-Key']=ephemeral.tripo;}
+    if(path.includes('/tripo')){const key=getProviderKey('tripo')||ephemeral.tripo;if(key)headers['X-PlanetLab-Tripo-Key']=key;}
     else if(getProviderKey('meta'))headers['X-PlanetLab-Meta-Key']=getProviderKey('meta');
   }
   return headers;
@@ -20,6 +20,10 @@ function setStatus(message,state=''){
   inline.textContent=getProviderKey('meta')?`Meta ready in this tab · ${ephemeral.model}${ephemeral.tripo?' · Tripo connected':''}`:'No Meta key connected for this tab.';
 }
 export function openAiSetup(){
+  document.getElementById('providerKeysDialog').hidden=false;
+  document.getElementById('aiSetupBackdrop').hidden=true;
+  document.getElementById('providerKey-meta')?.focus();
+  return;
   previousFocus=document.activeElement;
   el('aiSetupBackdrop').hidden=false;
   el('aiMetaKey').value='';el('aiTripoKey').value='';
@@ -56,7 +60,7 @@ async function testMeta(){
   setStatus(`Connected to Meta Model API · ${data.model} · response: ${data.reply}`,'success');
 }
 el('aiSetupOpen').addEventListener('click',openAiSetup);
-el('aiOpenProviderKeys')?.addEventListener('click',()=>{document.getElementById('providerKeysDialog').hidden=false;});
+el('aiOpenProviderKeys')?.addEventListener('click',openAiSetup);
 el('aiSetupTop').addEventListener('click',openAiSetup);
 el('aiSetupClose').addEventListener('click',closeAiSetup);
 el('aiSetupBackdrop').addEventListener('click',e=>{if(e.target===el('aiSetupBackdrop'))closeAiSetup()});
@@ -67,7 +71,7 @@ el('aiTestKey').addEventListener('click',async()=>{const b=el('aiTestKey');b.dis
 el('aiTripoSave').addEventListener('click',()=>{
   const key=el('aiTripoKey').value.trim();
   if(key.length<12||key.length>4096||/[\r\n]/.test(key)){setStatus('Enter a valid Tripo key (12–4096 characters).','error');return}
-  ephemeral.tripo=key;el('aiTripoKey').value='';setStatus('Tripo key ready for this tab. A generation request will verify it.','success');
+  ephemeral.tripo=key;setProviderKey('tripo',key);el('aiTripoKey').value='';setStatus('Tripo key ready for this tab. A generation request will verify it.','success');
 });
 el('aiStartDesign').addEventListener('click',()=>{
   if(!getProviderKey('meta')){setStatus('Configure Meta in API Keys first.','error');return}

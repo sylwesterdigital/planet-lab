@@ -2,7 +2,7 @@
  * therefore persistent storage is disabled unless the user explicitly opts in. */
 const STORE='planetlab:byok-keys-v1';
 const ENABLE='planetlab:byok-remember-v1';
-const names=['meta','xai','openai'];
+const names=['meta','xai','openai','tripo','maptiler'];
 const memory=Object.fromEntries(names.map(name=>[name,'']));
 let remembering=false;
 try {

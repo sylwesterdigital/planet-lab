@@ -2,6 +2,16 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.30",
+      "date": "2026-11-01",
+      "changes": [
+        "Fix unsupported xAI image aspect_ratio values and trace all AI image requests to the API Console with redacted upstream errors",
+        "One provider configuration panel with read-only Meta, xAI, OpenAI, Tripo and MapTiler validation, and Tripo credit balance",
+        "Optional local persistence for Tripo and MapTiler keys; HD imagery toggle and mapped-building visibility controls directly over the terrain",
+        "Close old Meta-only modal when opening unified credentials panel"
+      ]
+    },
+    {
       "version": "0.4.29",
       "date": "2026-11-01",
       "changes": [
@@ -135,5 +145,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.29"
+  "currentVersion": "0.4.30"
 }

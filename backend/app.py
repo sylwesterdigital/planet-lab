@@ -20,7 +20,7 @@ from .models import Base, User, World, Message, Media
 from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.29'
+VERSION = '0.4.30'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
 # Only client-facing entrypoints may be fetched from the release directory.
@@ -478,6 +478,8 @@ def create_app(test_config=None):
     setup_ai(app, db_session, data_dir, actor, require_csrf, fail)
     from .scenario_edits import setup_scenario_edits
     setup_scenario_edits(app, db_session, actor, require_csrf)
+    from .provider_checks import setup_provider_checks
+    setup_provider_checks(app, db_session, actor, require_csrf)
 
     @app.get('/')
     def homepage():

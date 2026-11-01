@@ -1,3 +1,4 @@
+import {tracedFetch,openApiConsole} from './api-console.mjs';
 /* Three flat workspaces on one draggable tool dock, with optional BYOK storage. */
 import {getProviderKey,setProviderKey,forgetProviderKey,rememberEnabled,setRememberEnabled} from './provider-keys.mjs';
 const $=id=>document.getElementById(id);
@@ -62,26 +63,86 @@ handle.addEventListener('pointermove',event=>{
 });
 handle.addEventListener('pointerup',()=>drag=null);
 handle.addEventListener('lostpointercapture',()=>drag=null);
-// Unified credentials available to building, site imagery and perspective generation.
+// One credentials workspace: all providers, one non-billed test action per provider.
 const dialog=$('providerKeysDialog');
+const providers=['meta','xai','openai','tripo','maptiler'];
+const verifications=Object.fromEntries(providers.map(p=>[p,'']));
+let mapLoading=false;
 function updateKeys(){
  $('rememberKeys').checked=rememberEnabled();
- for(const provider of ['meta','xai','openai']){
-  const has=!!getProviderKey(provider);
-  $('providerState-'+provider).textContent=has?(rememberEnabled()?'Saved on this device':'Ready for this tab'):'Not configured';
+ for(const provider of providers){
+  const has=!!getProviderKey(provider),note=$('providerState-'+provider);
+  if(note)note.textContent=verifications[provider]||(has?(rememberEnabled()?'Saved on this device · untested':'Ready in this tab · untested'):'Not configured');
  }
 }
-$('topKeys').onclick=()=>{updateKeys();dialog.hidden=false};
+function openKeys(){updateKeys();dialog.hidden=false;$('aiSetupBackdrop').hidden=true}
+$('topKeys').onclick=openKeys;
 $('providerKeysClose').onclick=()=>{dialog.hidden=true};
 $('rememberKeys').onchange=event=>{try{setRememberEnabled(event.target.checked);updateKeys()}catch(error){$('providerKeysStatus').textContent=error.message;event.target.checked=false}};
-for(const provider of ['meta','xai','openai']){
+function setCheck(provider,message){verifications[provider]=message;updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+': '+message}
+async function checkMapTiler(key){
+ // The key's allowed HTTP origin must be checked from planetlab.me (browser), not from Ubuntu.
+ const response=await fetch('https://api.maptiler.com/tiles/satellite-v2/0/0/0.jpg?key='+encodeURIComponent(key),{mode:'cors',cache:'no-store'});
+ return {ok:response.ok,status:response.status};
+}
+async function checkProvider(provider){
+ const key=getProviderKey(provider),button=$('providerCheck-'+provider);
+ if(!key){setCheck(provider,'Not configured. Save a key first.');return}
+ button.disabled=true;setCheck(provider,'Checking (read-only)…');
+ try{
+  if(provider==='maptiler'){
+   const result=await checkMapTiler(key);
+   setCheck(provider,result.ok?'Verified on this site · satellite tiles accessible':'Rejected by MapTiler (HTTP '+result.status+'). Check domain restrictions');
+  }else{
+   const session=window.planetLabAuthState;
+   if(!session?.user||!session.csrf)throw new Error('Sign in to test a provider');
+   const header='X-PlanetLab-'+(provider==='xai'?'XAI':provider==='openai'?'OpenAI':provider==='meta'?'Meta':'Tripo')+'-Key';
+   const response=await tracedFetch('/api/ai/provider-check/'+provider,{
+    method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':session.csrf,[header]:key}});
+   const result=await response.json();
+   if(!response.ok)throw new Error('Test failed: '+(result.status||result.error||'HTTP '+response.status));
+   if(provider==='tripo')setCheck(provider,'Verified · '+result.balance+' credits available · '+result.frozen+' frozen');
+   else setCheck(provider,'Verified · '+result.model_count+' models visible'+(result.image_model_visible===true?' · image model listed':result.image_model_visible===false?' · image model NOT listed':'' )+' · billing unavailable with this key');
+  }
+ }catch(error){setCheck(provider,error.message);openApiConsole()}
+ finally{button.disabled=false}
+}
+for(const provider of providers){
  const input=$('providerKey-'+provider);
  $('providerSave-'+provider).onclick=()=>{
-  try{if(!input.value.trim())throw new Error('Enter a key first');setProviderKey(provider,input.value);input.value='';updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+' key ready.'}
-  catch(error){$('providerKeysStatus').textContent=error.message}
+  try{if(!input.value.trim())throw new Error('Enter a key first');setProviderKey(provider,input.value);input.value='';verifications[provider]='Saved · not yet tested';updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+' key saved.';
+   if(provider==='maptiler'&&$('quickImagery').checked)applyMapImagery(true);
+  }catch(error){$('providerKeysStatus').textContent=error.message}
  };
- $('providerForget-'+provider).onclick=()=>{forgetProviderKey(provider);input.value='';updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+' key cleared.'};
+ $('providerForget-'+provider).onclick=()=>{forgetProviderKey(provider);input.value='';verifications[provider]='';updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+' key cleared.';
+  if(provider==='maptiler'&&$('quickImagery').checked){$('quickImagery').checked=false;applyMapImagery(false)}
+ };
+ $('providerCheck-'+provider).onclick=()=>checkProvider(provider);
 }
+async function applyMapImagery(enabled){
+ if(mapLoading)return;
+ const app=window.planetLabApp;
+ if(!app)return;
+ const key=enabled?getProviderKey('maptiler'):'';
+ if(enabled&&!key){$('quickImagery').checked=false;openKeys();setCheck('maptiler','Save a MapTiler key first.');return}
+ mapLoading=true;
+ try{
+  await app.world.earthMap?.setImageryKey(key);
+  app.imageryKey=key;
+  if(app.world.mode==='region')app.world.refreshImagery();
+  try{localStorage.setItem('planetlab:hd-imagery-enabled-v1',enabled?'yes':'no')}catch{}
+ }catch(error){$('providerKeysStatus').textContent='MapTiler: '+error.message;$('quickImagery').checked=false;app.imageryKey=''}
+ finally{mapLoading=false}
+}
+$('quickImagery').onchange=event=>applyMapImagery(event.target.checked);
+$('quickBuildings').onchange=event=>{$('showExistingBuildings3d').checked=event.target.checked;$('showExistingBuildings3d').dispatchEvent(new Event('change'))};
+$('quickOnlyBuildings').onchange=event=>{$('showOnlyExistingBuildings').checked=event.target.checked;$('showOnlyExistingBuildings').dispatchEvent(new Event('change'))};
+$('showExistingBuildings3d').addEventListener('change',event=>{$('quickBuildings').checked=event.target.checked});
+$('showOnlyExistingBuildings').addEventListener('change',event=>{$('quickOnlyBuildings').checked=event.target.checked});
 window.addEventListener('planetlab:keys-changed',updateKeys);
+// Restore the user's imagery preference when a stored key exists; never prompt on each visit.
+try{if(localStorage.getItem('planetlab:hd-imagery-enabled-v1')==='yes'&&getProviderKey('maptiler')){
+ $('quickImagery').checked=true;applyMapImagery(true);
+}}catch{}
 show('explore');
 window.planetLabTools={show};

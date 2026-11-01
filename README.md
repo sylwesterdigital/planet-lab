@@ -1,3 +1,11 @@
+## v0.4.30 — Unified providers, mapped buildings, and AI diagnostics
+
+- xAI perspective image editing only sends supported aspect ratios, while retaining the exact selected source crop.
+- The API Console now traces all site and perspective image generation requests, with sanitized upstream status/diagnostic IDs on failure.
+- A unified Providers & API Keys panel holds Meta, xAI, OpenAI, Tripo and MapTiler credentials, with optional browser-local persistence and explicit read-only tests. Tripo credit balances are available from its account endpoint; other providers do not expose a universal balance for standard inference keys.
+- HD imagery and building display switches are available directly on the map.
+- The legacy Meta-only popup is not used to configure credentials.
+
 ## v0.4.27 — Workspaces, provider keys, perspective gallery
 
 - Three primary navigation groups (Explore, Create, Projects) replace the large sidebars. Controls remain connected to the existing application and are presented in one draggable, collapsible map tools panel.

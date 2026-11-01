@@ -266,7 +266,7 @@ class WorldView{
  }
  setFootprintVisibility(visible){this.existingGroup.children.forEach(o=>{if(o.userData.kind==='mapped-footprint')o.visible=!!visible})}
  setExistingBuildingVisibility(visible){this.mappedBuildingsVisible=!!visible;this.existingGroup.visible=this.mode==='region'&&this.mappedBuildingsVisible}
- setExistingBuildingIsolation(visible){this.onlyExistingBuildings=!!visible;this.setMode(this.mode)}
+ setExistingBuildingIsolation(visible){this.onlyExistingBuildings=!!visible;const region=this.mode==='region';this.regionGroup.visible=region&&!this.onlyExistingBuildings;this.buildGroup.visible=region&&!this.onlyExistingBuildings;this.studioGroup.visible=region&&!this.onlyExistingBuildings;this.robotsGroup.visible=region&&this.showAgents&&!this.onlyExistingBuildings;this.vegetationGroup.visible=region&&this.showVegetation&&!this.onlyExistingBuildings;this.ghostGroup.visible=region&&!this.onlyExistingBuildings;this.scenarioLayerGroup.visible=region&&!this.onlyExistingBuildings}
  showViewBookmarks(entries=[]){
   clearGroup(this.bookmarkGroup);
   if(this.config?.geoSource!=='earth-dem')return;

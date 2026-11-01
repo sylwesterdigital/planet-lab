@@ -66,7 +66,6 @@ assert.equal(a.get('aiSetupBackdrop').hidden,true,'No AI modal on initial load')
 a.window.emit('planetlab:auth-changed',{user:{handle:'returning_user'}});
 assert.equal(a.get('aiSetupBackdrop').hidden,true,'No AI modal when session resumes');
 a.get('aiSetupTop').click();
-assert.equal(a.get('aiSetupBackdrop').hidden,false,'Explicit AI Setup opens modal');
-a.get('aiSetupClose').click();
-assert.equal(a.get('aiSetupBackdrop').hidden,true,'AI setup closes on request');
+assert.equal(a.get('aiSetupBackdrop').hidden,true,'Legacy Meta-only modal must stay closed');
+assert.equal(a.get('providerKeysDialog').hidden,false,'AI Setup opens unified provider settings');
 console.log('PASS — welcome, globe navigation, working starter actions and on-demand AI keys');

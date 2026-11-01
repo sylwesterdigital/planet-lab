@@ -32,6 +32,21 @@ class ScenarioEditTest(unittest.TestCase):
             self.assertIn('top-down',payload['prompt'])
             if provider=='xai':self.assertEqual(payload['image']['url'],SOURCE)
             else:self.assertEqual(payload['images'][0]['image_url'],SOURCE)
+    def test_xai_uses_supported_ratio_not_unchecked_pixel_dimensions(self):
+        supported = edits.XAI_RATIOS
+        self.assertIn(edits.xai_aspect(2048, 1365), supported)
+        self.assertEqual(edits.xai_aspect(2048, 1365), '3:2')
+        payload = edits.provider_payload('xai', 'Restore', SOURCE, 2048, 2010, 1323, 'perspective')
+        self.assertEqual(payload['aspect_ratio'], '3:2')
+        self.assertNotEqual(payload['aspect_ratio'], '2010:1323')
+        self.assertIn('perspective view', payload['prompt'])
+
+    def test_provider_error_is_structured_and_never_leaks_source(self):
+        data = b'{"error":{"type":"invalid_request_error","param":"aspect_ratio","message":"secret-user-key aspect_ratio must be supported"}}'
+        detail = edits.safe_provider_error(data)
+        self.assertEqual(detail['param'], 'aspect_ratio')
+        self.assertNotIn('secret-user-key', str(detail))
+
     def test_resolution_payloads_use_provider_specific_options(self):
         self.assertEqual(edits.provider_payload('xai', 'Edit imagery', SOURCE, 2048)['resolution'], '2k')
         self.assertEqual(edits.provider_payload('xai', 'Edit imagery', SOURCE, 1024)['resolution'], '1k')
