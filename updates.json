@@ -2,10 +2,20 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.33",
+      "date": "2026-11-01",
+      "changes": [
+        "Composition editor now has per-layer image thumbnails, explicit move-up/down, eye and delete icons and persistent undo/redo metadata.",
+        "Patch drawing works directly inside the large image editor with a visible on-panel preview and generation button.",
+        "Retry OpenStreetMap building fetch on second Overpass instance and back off briefly on double failure.",
+        "MapLibre canvas size and credentials form warnings addressed; prior gallery images migrated."
+      ]
+    },
+    {
       "version": "0.4.31",
       "date": "2026-11-01",
       "changes": [
-        "Versioned reissue of the v0.4.30 implementation; satisfies the release watcher’s monotonically increasing version requirement."
+        "Versioned reissue of the v0.4.30 implementation; satisfies the release watcher\u2019s monotonically increasing version requirement."
       ]
     },
     {
@@ -152,5 +162,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.31"
+  "currentVersion": "0.4.33"
 }

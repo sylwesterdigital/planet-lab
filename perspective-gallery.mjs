@@ -1,5 +1,5 @@
 import {tracedFetch,openApiConsole} from './api-console.mjs';
-import {getAiHeaders} from './ai-connections.mjs?v=0.4.32';
+import {getAiHeaders} from './ai-connections.mjs?v=0.4.33';
 import {siteKey} from './scenario-core.mjs';
 import {getProviderKey,setProviderKey} from './provider-keys.mjs';
 
@@ -21,7 +21,9 @@ const state={
   rect:null,
   drag:null,
   history:[],
-  future:[]
+  future:[],
+  sourcePreview:null,
+  sourceSize:null
  }
 };
 let dbPromise=null;
@@ -51,6 +53,21 @@ async function listSite(site){
   const req=database.transaction('items','readonly').objectStore('items').index('site').getAll(site);
   req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>b.created-a.created));
   req.onerror=()=>reject(req.error);
+ });
+}
+async function listLegacySite(site){
+ return new Promise(resolve=>{
+  const req=indexedDB.open('planetlab-perspective-gallery-v1');
+  req.onupgradeneeded=()=>{req.transaction.abort()};
+  req.onerror=()=>resolve([]);
+  req.onsuccess=()=>{
+   const database=req.result;
+   if(!database.objectStoreNames.contains('items')){database.close();resolve([]);return}
+   const tx=database.transaction('items','readonly');
+   const get=tx.objectStore('items').index('site').getAll(site);
+   get.onsuccess=()=>{database.close();resolve(get.result||[])};
+   get.onerror=()=>{database.close();resolve([])};
+  };
  });
 }
 async function put(item){
@@ -189,11 +206,11 @@ function viewerPointer(ev){
  return {x:Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height))};
 }
 function drawViewerRect(rect){
- const box=viewerSelection();
- if(!box)return;
+ const box=viewerSelection();if(!box)return;
  if(!rect){box.hidden=true;box.style.display='none';return;}
  box.hidden=false;box.style.display='block';
- box.style.left=(rect.x*100)+'%';box.style.top=(rect.y*100)+'%';box.style.width=(rect.w*100)+'%';box.style.height=(rect.h*100)+'%';
+ box.style.left=(rect.x*100)+'%';box.style.top=(rect.y*100)+'%';
+ box.style.width=(rect.w*100)+'%';box.style.height=(rect.h*100)+'%';
 }
 function compositionAspect(item){
  const w=item?.canvasWidth||item?.resolution||1024;
@@ -201,71 +218,109 @@ function compositionAspect(item){
  return `${w} / ${h}`;
 }
 function setCompositionRect(rect,push=true){
+ if(push&&rect){pushCompositionHistory('Patch selection')}
  state.composition.rect=rect?{...rect}:null;
  drawViewerRect(state.composition.rect);
- if(rect&&push){
-  state.composition.history.push({type:'selection',rect:{...rect},at:Date.now(),label:'Selection updated'});
-  if(state.composition.history.length>50)state.composition.history.shift();
-  state.composition.future=[];
- }
- updateViewerMeta();
+ const item=currentItem();if(item){item.lastSelection=state.composition.rect;put(item).catch(error=>compositionStatus(error.message,true))}
+ updateViewerMeta();updateCompositionPreview();
+}
+function compositionStatus(message,error=false){
+ const note=$('galleryViewerStatus');
+ if(note){note.textContent=message;note.style.color=error?'#ff8e9b':'#b9e6d7'}
+ status(message,error);
 }
 function enableCompositionSelection(enable){
  state.composition.selecting=!!enable;
- $('galleryViewerDrawPatch').classList.toggle('drawing-active',enable);
- $('galleryViewerDrawPatch').textContent=enable?'Cancel patch':'Draw patch on image';
- $('galleryViewerSelectionHint').textContent=enable?'Drag on the image to select the next AI patch.':state.composition.rect?'Patch ready on the composition.':'Select a composition patch to generate another layer.';
- if(!enable)state.composition.drag=null;
+ const btn=$('galleryViewerDrawPatch');
+ btn.classList.toggle('drawing-active',enable);
+ btn.setAttribute('aria-pressed',String(enable));
+ btn.textContent=enable?'✕ Cancel drawing':'▭ Draw patch';
+ const stage=viewerStage();stage.classList.toggle('selecting',enable);
+ const hit=$('galleryViewerDrawSurface');
+ hit.hidden=!enable;
+ const hint=$('galleryViewerSelectionHint');
+ hint.textContent=enable?'DRAWING MODE — drag directly across the large image. Esc cancels.':state.composition.rect?'Patch selected. Set a prompt and generate another layer.':'Click Draw patch, then drag over the image.';
+ if(!enable){state.composition.drag=null;}
+ compositionStatus(enable?'Drawing mode active — drag on the image.':state.composition.rect?'Patch selected; ready for another AI generation.':'Choose Draw patch to start.');
 }
-function onViewerPointerDown(ev){if(!state.composition.selecting)return;ev.preventDefault();state.composition.drag={start:viewerPointer(ev),current:viewerPointer(ev)};updateViewerDrag()}
-function updateViewerDrag(){if(!state.composition.drag)return;const rect=normalizeRect(state.composition.drag.start,state.composition.drag.current,null,null);drawViewerRect(rect)}
-function onViewerPointerMove(ev){if(!state.composition.drag)return;ev.preventDefault();state.composition.drag.current=viewerPointer(ev);updateViewerDrag()}
+function onViewerPointerDown(ev){
+ if(!state.composition.selecting||ev.button!==0)return;
+ ev.preventDefault();ev.stopPropagation();
+ const hit=$('galleryViewerDrawSurface');
+ hit.setPointerCapture?.(ev.pointerId);
+ state.composition.drag={id:ev.pointerId,start:viewerPointer(ev),current:viewerPointer(ev)};
+ updateViewerDrag();
+}
+function updateViewerDrag(){
+ if(!state.composition.drag)return;
+ drawViewerRect(normalizeRect(state.composition.drag.start,state.composition.drag.current,null,null));
+}
+function onViewerPointerMove(ev){
+ if(!state.composition.drag||ev.pointerId!==state.composition.drag.id)return;
+ ev.preventDefault();ev.stopPropagation();state.composition.drag.current=viewerPointer(ev);updateViewerDrag();
+}
 function onViewerPointerUp(ev){
- if(!state.composition.drag)return;ev.preventDefault();
+ if(!state.composition.drag||ev.pointerId!==state.composition.drag.id)return;
+ ev.preventDefault();ev.stopPropagation();
  state.composition.drag.current=viewerPointer(ev);
  const rect=normalizeRect(state.composition.drag.start,state.composition.drag.current,null,null);
  state.composition.drag=null;
- if(rect.w<0.03||rect.h<0.03){status('Composition patch too small. Drag a larger rectangle.',true);drawViewerRect(state.composition.rect);return}
- setCompositionRect(rect,true);enableCompositionSelection(false);
- try{showPreview(resolution());status('Review the exact composition patch before generating the next layer.')}catch(error){status(error.message,true)}
+ if(rect.w<0.02||rect.h<0.02){compositionStatus('Patch too small — drag a larger rectangle.',true);drawViewerRect(state.composition.rect);return}
+ enableCompositionSelection(false);
+ setCompositionRect(rect,true);
+ // The crop preview stays INSIDE the visible editor. The old modal was behind it.
+ compositionStatus('Patch selected. Cropped preview is shown alongside the layer stack.');
 }
-
-function resetViewerHistory(){state.composition.history=[];state.composition.future=[];renderViewerHistory()}
-function pushCompositionHistory(label='Updated composition'){
+function onViewerPointerCancel(ev){
+ if(!state.composition.drag)return;
+ state.composition.drag=null;drawViewerRect(state.composition.rect);
+}
+function layerSnapshot(item){
+ return {layers:item.layers.map(({image,blob,_url,...metadata})=>({...metadata})),activeLayerId:item.activeLayerId,rect:state.composition.rect?{...state.composition.rect}:null,operations:JSON.parse(JSON.stringify(item.operations||[]))};
+}
+function resetViewerHistory(){
  const item=currentItem();
- if(!item)return;
- state.composition.history.push({label,at:Date.now(),layers:JSON.parse(JSON.stringify(item.layers))});
- if(state.composition.history.length>60)state.composition.history.shift();
- state.composition.future=[];
+ state.composition.history=item?.undoStack||[];
+ state.composition.future=item?.redoStack||[];
  renderViewerHistory();
 }
-function applyCompositionSnapshot(stack){
- const item=currentItem();
- if(!item||!stack)return;
- item.layers=JSON.parse(JSON.stringify(stack));
- if(!item.layers.some(layer=>layer.id===item.activeLayerId))item.activeLayerId=item.layers[item.layers.length-1]?.id||null;
+function pushCompositionHistory(label='Updated composition'){
+ const item=currentItem();if(!item)return;
+ item.undoStack ||= [];
+ item.redoStack=[];
+ item.undoStack.push({label,at:Date.now(),snapshot:layerSnapshot(item)});
+ if(item.undoStack.length>35)item.undoStack.shift();
+ state.composition.history=item.undoStack;
+ state.composition.future=item.redoStack;
+ renderViewerHistory();
+}
+function applyCompositionSnapshot(snapshot){
+ const item=currentItem();if(!item||!snapshot)return;
+ item.layers=snapshot.layers.map(layer=>({...layer}));
+ item.operations=JSON.parse(JSON.stringify(snapshot.operations||[]));
+ item.activeLayerId=snapshot.activeLayerId;
+ if(!item.layers.some(layer=>layer.id===item.activeLayerId))item.activeLayerId=item.layers.at(-1)?.id||null;
+ state.composition.rect=snapshot.rect?{...snapshot.rect}:null;
+ item.lastSelection=state.composition.rect;
  renderComposition();
- put(item).catch(()=>{});
+ put(item).catch(error=>compositionStatus('Cannot save history: '+error.message,true));
 }
 function undoComposition(){
- const item=currentItem();
- if(!item||!state.composition.history.length){status('Nothing to undo in this composition.',true);return}
- state.composition.future.push({label:'redo',at:Date.now(),layers:JSON.parse(JSON.stringify(item.layers))});
- const previous=state.composition.history.pop();
- if(previous?.layers)applyCompositionSnapshot(previous.layers);
- renderViewerHistory();
- status('Composition change undone.');
+ const item=currentItem();if(!item?.undoStack?.length){compositionStatus('Nothing to undo.',true);return}
+ item.redoStack ||= [];
+ item.redoStack.push({label:'Redo',at:Date.now(),snapshot:layerSnapshot(item)});
+ const previous=item.undoStack.pop();
+ applyCompositionSnapshot(previous.snapshot);
+ resetViewerHistory();compositionStatus('Undo: '+previous.label);
 }
 function redoComposition(){
- const item=currentItem();
- if(!item||!state.composition.future.length){status('Nothing to redo in this composition.',true);return}
- state.composition.history.push({label:'undo',at:Date.now(),layers:JSON.parse(JSON.stringify(item.layers))});
- const next=state.composition.future.pop();
- if(next?.layers)applyCompositionSnapshot(next.layers);
- renderViewerHistory();
- status('Composition change restored.');
+ const item=currentItem();if(!item?.redoStack?.length){compositionStatus('Nothing to redo.',true);return}
+ item.undoStack ||= [];
+ item.undoStack.push({label:'Undo',at:Date.now(),snapshot:layerSnapshot(item)});
+ const next=item.redoStack.pop();
+ applyCompositionSnapshot(next.snapshot);
+ resetViewerHistory();compositionStatus('Redo applied.');
 }
-
 function restoreView(view){
  const world=siteWorld();if(!world||!view)return;
  const c=world.camera,t=world.controls?.target;
@@ -273,8 +328,9 @@ function restoreView(view){
  if(t&&view.target&&['x','y','z'].every(k=>Number.isFinite(view.target[k]))){t.set(view.target.x,view.target.y,view.target.z);world.controls.update()}
  world.render?.();
 }
-function layerSrc(layer){
+function layerSrc(layer,item=currentItem()){
  if(layer.image)return layer.image;
+ if(item?.assets?.[layer.id])return item.assets[layer.id];
  if(layer._url)return layer._url;
  if(layer.blob){layer._url=URL.createObjectURL(layer.blob);return layer._url;}
  return '';
@@ -294,36 +350,38 @@ function blobToDataUrl(blob){
 }
 async function normalizeLoadedItem(item){
  const normalized={...item};
+ normalized.assets ||= {};
+ normalized.undoStack ||= [];
+ normalized.redoStack ||= [];
+ normalized.operations ||= [];
  if(Array.isArray(normalized.layers)&&normalized.layers.length){
-  normalized.layers=normalized.layers.map((layer,index)=>({
-   id:layer.id||crypto.randomUUID(),
-   name:layer.name||`Layer ${index+1}`,
-   type:layer.type||'generated',
-   visible:layer.visible!==false,
-   opacity:Number.isFinite(layer.opacity)?layer.opacity:1,
-   rect:layer.rect||{x:0,y:0,w:1,h:1},
-   image:layer.image||'',
-   provider:layer.provider||normalized.provider||'',
-   prompt:layer.prompt||normalized.prompt||'',
-   created:layer.created||normalized.created||Date.now()
-  }));
-  normalized.activeLayerId=normalized.activeLayerId||normalized.layers[normalized.layers.length-1]?.id||null;
+  normalized.layers=normalized.layers.map((layer,index)=>{
+   const id=layer.id||crypto.randomUUID();
+   if(layer.image&&!normalized.assets[id])normalized.assets[id]=layer.image;
+   return {id,name:layer.name||`Layer ${index+1}`,type:layer.type||'generated',visible:layer.visible!==false,
+    opacity:Number.isFinite(layer.opacity)?layer.opacity:1,rect:layer.rect||{x:0,y:0,w:1,h:1},
+    provider:layer.provider||normalized.provider||'',prompt:layer.prompt||normalized.prompt||'',
+    model:layer.model||normalized.model||'',created:layer.created||normalized.created||Date.now()};
+  });
+  normalized.activeLayerId=normalized.activeLayerId||normalized.layers.at(-1)?.id||null;
+  delete normalized.baseImage;delete normalized.blob;
   return normalized;
  }
  const image=normalized.blob?await blobToDataUrl(normalized.blob):normalized.image||'';
- normalized.baseImage=normalized.baseImage||image;
  normalized.canvasWidth=normalized.canvasWidth||normalized.width||1024;
  normalized.canvasHeight=normalized.canvasHeight||normalized.height||1024;
  normalized.layers=[];
- if(normalized.baseImage)normalized.layers.push({id:'base-'+(normalized.id||crypto.randomUUID()),name:'Base source',type:'base',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},image:normalized.baseImage,created:normalized.created||Date.now()});
- if(image)normalized.layers.push({id:crypto.randomUUID(),name:normalized.name||'AI concept',type:'generated',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},image,provider:normalized.provider||'',prompt:normalized.prompt||'',created:normalized.created||Date.now()});
- normalized.activeLayerId=normalized.layers[normalized.layers.length-1]?.id||normalized.layers[0]?.id||null;
- delete normalized.blob;
+ // Earlier releases saved only the generated result, not the source. Do not fake it.
+ const base=normalized.baseImage||'';
+ if(base){const id=crypto.randomUUID();normalized.assets[id]=base;normalized.layers.push({id,name:'Base source',type:'base',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1}})}
+ if(image){const id=crypto.randomUUID();normalized.assets[id]=image;normalized.layers.push({id,name:normalized.name||'Imported AI concept',type:base?'generated':'base',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},provider:normalized.provider||'',prompt:normalized.prompt||'',created:normalized.created||Date.now()})}
+ normalized.activeLayerId=normalized.layers.at(-1)?.id||null;
+ delete normalized.baseImage;delete normalized.blob;
  return normalized;
 }
 function galleryThumb(item){
  const top=[...(item.layers||[])].filter(layer=>layer.visible!==false).slice().reverse().find(Boolean) || item.layers?.[item.layers.length-1] || null;
- if(top)return layerSrc(top);
+ if(top)return layerSrc(top,item);
  if(item.baseImage)return item.baseImage;
  return '';
 }
@@ -332,7 +390,7 @@ function closeGallery(){
  viewer().hidden=true;
  $('galleryViewerImage').removeAttribute('src');
  $('galleryViewerImage').hidden=true;
- viewerStage().replaceChildren();
+ viewerStage().querySelectorAll('.composition-layer').forEach(node=>node.remove());
  state.viewerScale=1;
  state.composition.rect=null;
  drawViewerRect(null);
@@ -342,35 +400,34 @@ function closeGallery(){
 function renderViewerHistory(){
  const root=viewerHistoryList(); if(!root)return;
  root.replaceChildren();
- const entries=state.composition.history.slice(-6).reverse();
- if(!entries.length){root.textContent='No composition edits yet.';return}
- for(const entry of entries){
-  const row=document.createElement('div'); row.className='viewer-history-item';
-  row.textContent=(entry.label||'Edit')+' · '+new Date(entry.at||Date.now()).toLocaleTimeString();
+ const entries=(currentItem()?.operations||[]).slice(-8).reverse();
+ if(!entries.length){root.textContent='No generation steps yet.';return}
+ for(const step of entries){
+  const row=document.createElement('div');row.className='viewer-history-item';
+  const op=step.type==='generate-layer'?'AI patch':step.type==='create-composition'?'Base generation':step.type||'Edit';
+  const detail=step.prompt?` · ${step.prompt.slice(0,45)}`:'';
+  row.textContent=op+detail+' · '+new Date(step.created||Date.now()).toLocaleTimeString();
   root.append(row);
  }
 }
 function updateViewerMeta(){
  const item=currentItem();
- $('galleryViewerMeta').textContent=item?`Layers: ${item.layers.length} · ${Math.round((state.composition.rect?.w||1)*100)}% width patch ready`:'';
+ $('galleryViewerMeta').textContent=item?`${item.layers.length} layers · ${item.canvasWidth||1024} × ${item.canvasHeight||1024} px${state.composition.rect?' · patch selected':''}`:'';
 }
 function renderComposition(){
- const item=currentItem();
- if(!item)return;
+ const item=currentItem();if(!item)return;
  const stage=viewerStage();
- const selection=viewerSelection();
- stage.replaceChildren();
- if(selection)stage.append(selection);
+ // Preserve selection and pointer-capture nodes while replacing image layers.
+ stage.querySelectorAll('.composition-layer').forEach(node=>node.remove());
  stage.style.aspectRatio=compositionAspect(item);
  stage.style.transform=`scale(${state.viewerScale})`;
  stage.style.transformOrigin='center center';
- const layers=item.layers||[];
- layers.forEach((layer,index)=>{
+ (item.layers||[]).forEach((layer,index)=>{
   if(layer.visible===false)return;
   const img=document.createElement('img');
   img.className='composition-layer';
-  if(layer.id===item.activeLayerId)img.classList.add('selected');
-  img.src=layerSrc(layer);
+  img.draggable=false;
+  img.src=layerSrc(layer,item);
   img.alt=layer.name||`Layer ${index+1}`;
   img.style.left=((layer.rect?.x||0)*100)+'%';
   img.style.top=((layer.rect?.y||0)*100)+'%';
@@ -378,38 +435,89 @@ function renderComposition(){
   img.style.height=((layer.rect?.h||1)*100)+'%';
   img.style.opacity=String(layer.opacity??1);
   img.style.zIndex=String(index+1);
-  img.addEventListener('click',ev=>{ev.stopPropagation();item.activeLayerId=layer.id;renderComposition();renderLayerList();});
+  img.addEventListener('click',ev=>{
+   if(state.composition.selecting)return;
+   ev.stopPropagation();item.activeLayerId=layer.id;renderComposition();
+  });
   stage.append(img);
  });
  $('galleryViewerImage').hidden=true;
  renderLayerList();
  drawViewerRect(state.composition.rect);
  updateViewerMeta();
+ renderViewerHistory();
+}
+function layerActionButton(icon,title,onClick,disabled=false){
+ const b=document.createElement('button');b.type='button';b.className='viewer-layer-action';
+ b.textContent=icon;b.title=title;b.setAttribute('aria-label',title);
+ b.disabled=disabled;b.onclick=event=>{event.stopPropagation();onClick()};return b;
+}
+function layerMutation(label,modify){
+ const item=currentItem();if(!item)return;
+ pushCompositionHistory(label);
+ modify(item);
+ renderComposition();refreshGallery();
+ put(item).catch(error=>compositionStatus('Cannot save composition: '+error.message,true));
+}
+function moveLayer(id,direction){
+ const item=currentItem();const idx=item?.layers.findIndex(l=>l.id===id)??-1;
+ if(idx<0)return;
+ // Layers are stored bottom -> top: up means index + 1.
+ const dest=idx+direction;
+ if(dest<0||dest>=item.layers.length)return;
+ if(item.layers[idx].type==='base'||item.layers[dest].type==='base')return;
+ layerMutation('Reorder layer',i=>{[i.layers[idx],i.layers[dest]]=[i.layers[dest],i.layers[idx]];i.activeLayerId=id});
+}
+function toggleLayer(id){
+ const item=currentItem(),layer=item?.layers.find(l=>l.id===id);if(!layer)return;
+ layerMutation(layer.visible?'Hide layer':'Show layer',i=>{
+  const l=i.layers.find(l=>l.id===id);l.visible=!l.visible;i.activeLayerId=id;
+ });
+}
+function deleteLayer(id){
+ const item=currentItem(),idx=item?.layers.findIndex(l=>l.id===id)??-1;
+ if(idx<0)return;
+ if(item.layers[idx].type==='base'){compositionStatus('Base source cannot be deleted.',true);return}
+ layerMutation('Delete layer',i=>{i.layers.splice(idx,1);i.activeLayerId=i.layers[Math.min(idx,i.layers.length-1)]?.id||null});
 }
 function renderLayerList(){
- const item=currentItem();
- const root=viewerLayerList(); if(!root)return;
+ const item=currentItem(),root=viewerLayerList();if(!root)return;
  root.replaceChildren();
  if(!item?.layers?.length){root.textContent='No layers.';return}
- item.layers.forEach((layer,index)=>{
-  const row=document.createElement('div'); row.className='viewer-layer-row'+(layer.id===item.activeLayerId?' active':'');
-  const pick=document.createElement('button'); pick.type='button'; pick.className='viewer-layer-pick'; pick.textContent=layer.name||`Layer ${index+1}`; pick.onclick=()=>{item.activeLayerId=layer.id;renderComposition()};
-  const eye=document.createElement('button'); eye.type='button'; eye.className='viewer-layer-eye'; eye.textContent=layer.visible===false?'Show':'Hide'; eye.onclick=async()=>{pushCompositionHistory((layer.visible===false?'Show ':'Hide ')+(layer.name||'layer')); layer.visible=layer.visible===false; await put(item); renderComposition();};
-  row.append(pick,eye); root.append(row);
- });
+ // Highest visible row is also highest compositing z-index.
+ for(let idx=item.layers.length-1;idx>=0;idx--){
+  const layer=item.layers[idx];
+  const row=document.createElement('div');row.className='viewer-layer-row'+(layer.id===item.activeLayerId?' active':'')+(layer.visible===false?' hidden-layer':'');
+  row.dataset.layerId=layer.id;
+  const thumb=document.createElement('img');thumb.className='viewer-layer-thumb';thumb.alt='';thumb.src=layerSrc(layer,item);
+  const pick=document.createElement('button');pick.type='button';pick.className='viewer-layer-pick';
+  pick.textContent=layer.name||`Layer ${idx+1}`;pick.title=pick.textContent;
+  pick.onclick=()=>{item.activeLayerId=layer.id;renderComposition()};
+  const actions=document.createElement('div');actions.className='viewer-layer-actions';
+  actions.append(
+   layerActionButton('↑','Move '+layer.name+' up',()=>moveLayer(layer.id,+1),idx===item.layers.length-1||layer.type==='base'),
+   layerActionButton('↓','Move '+layer.name+' down',()=>moveLayer(layer.id,-1),idx===0||layer.type==='base'||item.layers[idx-1]?.type==='base'),
+   layerActionButton(layer.visible===false?'◌':'👁',(layer.visible===false?'Show ':'Hide ')+layer.name,()=>toggleLayer(layer.id)),
+   layerActionButton('🗑','Delete '+layer.name,()=>deleteLayer(layer.id),layer.type==='base')
+  );
+  row.append(thumb,pick,actions);root.append(row);
+ }
 }
 function showGalleryImage(id){
  const item=state.items.find(candidate=>candidate.id===id);
  if(!item)return;
  state.current=item.id;
  state.viewerScale=1;
+ $('galleryViewerPrompt').value=item.prompt||'Restore the selected area with photorealistic textures while preserving scene geometry and viewpoint.';
+ $('galleryViewerProvider').value=['meta','xai','openai'].includes(item.provider)?item.provider:'xai';
  $('galleryViewerTitle').textContent=item.name||'Perspective composition';
  viewer().hidden=false;
- state.composition.rect=null;
- drawViewerRect(null);
+ state.composition.rect=item.lastSelection?{...item.lastSelection}:null;
+ drawViewerRect(state.composition.rect);
  enableCompositionSelection(false);
  resetViewerHistory();
  renderComposition();
+ updateCompositionPreview();
  refreshGallery();
 }
 function nextGallery(direction){if(!state.items.length)return;const i=state.items.findIndex(item=>item.id===state.current);showGalleryImage(state.items[(i+direction+state.items.length)%state.items.length].id)}
@@ -422,33 +530,17 @@ $('galleryViewerZoomIn').onclick=()=>zoomGallery(1);
 $('galleryViewerZoomOut').onclick=()=>zoomGallery(-1);
 $('galleryViewerUndo').onclick=()=>undoComposition();
 $('galleryViewerRedo').onclick=()=>redoComposition();
-$('galleryViewerDrawPatch').onclick=()=>{if(!currentItem()){status('Open a composition first.',true);return}enableCompositionSelection(!state.composition.selecting)};
-$('galleryViewerMoveUp').onclick=async()=>{
- const item=currentItem(); if(!item)return;
- const idx=item.layers.findIndex(layer=>layer.id===item.activeLayerId); if(idx<1){status('Selected layer is already at the top.',true);return}
- pushCompositionHistory('Move layer up');
- [item.layers[idx-1],item.layers[idx]]=[item.layers[idx],item.layers[idx-1]]; await put(item); renderComposition(); status('Layer moved up.');
-};
-$('galleryViewerMoveDown').onclick=async()=>{
- const item=currentItem(); if(!item)return;
- const idx=item.layers.findIndex(layer=>layer.id===item.activeLayerId); if(idx<0||idx>=item.layers.length-1){status('Selected layer is already at the bottom.',true);return}
- pushCompositionHistory('Move layer down');
- [item.layers[idx],item.layers[idx+1]]=[item.layers[idx+1],item.layers[idx]]; await put(item); renderComposition(); status('Layer moved down.');
-};
-$('galleryViewerToggle').onclick=async()=>{
- const item=currentItem(); const layer=item?.layers?.find(candidate=>candidate.id===item.activeLayerId); if(!layer){status('Select a layer first.',true);return}
- pushCompositionHistory(layer.visible===false?'Show layer':'Hide layer');
- layer.visible=layer.visible===false; await put(item); renderComposition(); status(layer.visible===false?'Layer hidden.':'Layer shown.');
-};
-$('galleryViewerDelete').onclick=async()=>{
- const item=currentItem(); const idx=item?.layers?.findIndex(candidate=>candidate.id===item.activeLayerId)??-1; if(idx<0){status('Select a layer first.',true);return}
- const layer=item.layers[idx]; if(layer.type==='base'){status('Base source layer cannot be deleted.',true);return}
- pushCompositionHistory('Delete layer');
- item.layers.splice(idx,1); item.activeLayerId=item.layers[Math.max(0,idx-1)]?.id||item.layers[0]?.id||null; await put(item); renderComposition(); status('Layer removed from the composition.');
-};
-
+$('galleryViewerDrawPatch').onclick=()=>{if(!currentItem()){compositionStatus('Open a composition first.',true);return}enableCompositionSelection(!state.composition.selecting)};
+$('galleryViewerGenerate').onclick=()=>generatePerspective('composition');
+$('galleryViewerPreview').onclick=()=>updateCompositionPreview();
+$('galleryViewerProvider').onchange=()=>{$('perspectiveProvider').value=$('galleryViewerProvider').value};
 viewerFrame().addEventListener('wheel',e=>{if(viewer().hidden)return;e.preventDefault();zoomGallery(e.deltaY<0?1:-1)},{passive:false});
-['pointerdown','pointermove','pointerup','pointerleave'].forEach(type=>viewerFrame().addEventListener(type,ev=>({pointerdown:onViewerPointerDown,pointermove:onViewerPointerMove,pointerup:onViewerPointerUp,pointerleave:onViewerPointerUp})[type](ev)));
+const drawSurface=$('galleryViewerDrawSurface');
+drawSurface.addEventListener('pointerdown',onViewerPointerDown);
+drawSurface.addEventListener('pointermove',onViewerPointerMove);
+drawSurface.addEventListener('pointerup',onViewerPointerUp);
+drawSurface.addEventListener('pointercancel',onViewerPointerCancel);
+drawSurface.addEventListener('lostpointercapture',onViewerPointerCancel);
 document.addEventListener('keydown',e=>{
  if(viewer().hidden)return;
  if(e.key==='Escape'){if(state.composition.selecting)enableCompositionSelection(false); else closeGallery();e.stopImmediatePropagation()}
@@ -480,7 +572,11 @@ async function loadSite(){
  if(!state.site){refreshGallery();return}
  state.rect=null;state.history=[];state.future=[];drawRect(null);overlay().hidden=true;
  try{
-  const raw=await listSite(state.site);
+  let raw=await listSite(state.site);
+  if(!raw.length){const older=await listLegacySite(state.site);
+   for(const old of older){try{await put(await normalizeLoadedItem(old))}catch(error){console.warn('Legacy composition import:',error.message)}}
+   raw=await listSite(state.site);
+  }
   state.items=[];
   for(const item of raw)state.items.push(await normalizeLoadedItem(item));
  }catch(error){status('Perspective gallery unavailable: '+error.message,true)}
@@ -508,40 +604,54 @@ function captureView(rect,size=1024){
  if(!image.startsWith('data:image/jpeg;base64,')||image.length<500||image.length>3_250_000)throw new Error('The selected image is too large. Choose a smaller output resolution or a smaller crop.');
  return image;
 }
+async function flattenLayersToData(item,rect,dims){
+ const render=document.createElement('canvas');
+ render.width=item.canvasWidth||item.resolution||1024;
+ render.height=item.canvasHeight||item.resolution||1024;
+ const rctx=render.getContext('2d');rctx.imageSmoothingEnabled=true;rctx.imageSmoothingQuality='high';
+ // Concurrent image decode, strictly ordered compositing.
+ const layers=(item.layers||[]).filter(layer=>layer.visible!==false);
+ const images=await Promise.all(layers.map(layer=>new Promise((resolve,reject)=>{
+  const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Layer image could not be decoded'));
+  img.src=layerSrc(layer,item);
+ })));
+ layers.forEach((layer,i)=>{
+  rctx.globalAlpha=Math.min(1,Math.max(0,Number(layer.opacity??1)));
+  const box=layer.rect||{x:0,y:0,w:1,h:1};
+  rctx.drawImage(images[i],box.x*render.width,box.y*render.height,box.w*render.width,box.h*render.height);
+ });
+ rctx.globalAlpha=1;
+ const out=document.createElement('canvas');out.width=dims.width;out.height=dims.height;
+ const ctx=out.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+ const box=rect||{x:0,y:0,w:1,h:1};
+ ctx.drawImage(render,box.x*render.width,box.y*render.height,box.w*render.width,box.h*render.height,0,0,dims.width,dims.height);
+ let image='';
+ for(const q of [.91,.83,.75,.65]){image=out.toDataURL('image/jpeg',q);if(image.length<=3_250_000)break}
+ if(image.length>3_250_000)throw new Error('Patch image exceeds upload size; select a smaller region.');
+ return {image,width:dims.width,height:dims.height};
+}
 function captureCompositionCrop(item,rect,longEdge=1024){
  if(!item)throw new Error('Open a composition first.');
- if(!rect)throw new Error('Select a patch on the generated composition first.');
- const fullW=item.canvasWidth||item.resolution||1024;
- const fullH=item.canvasHeight||item.resolution||1024;
- const ratio=Math.max((rect.w*fullW)/Math.max(rect.h*fullH,.0001),0.01);
+ if(!rect)throw new Error('Draw a patch on the composition first.');
+ const fullW=item.canvasWidth||item.resolution||1024,fullH=item.canvasHeight||item.resolution||1024;
+ const ratio=Math.max((rect.w*fullW)/Math.max(rect.h*fullH,.0001),.01);
  let width,height;
- if(ratio>=1){width=longEdge;height=Math.max(512,Math.round(longEdge/ratio));} else {height=longEdge;width=Math.max(512,Math.round(longEdge*ratio));}
- const out=document.createElement('canvas'); out.width=width; out.height=height;
- const ctx=out.getContext('2d',{willReadFrequently:true});
- ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- const render=document.createElement('canvas'); render.width=fullW; render.height=fullH;
- const rctx=render.getContext('2d',{willReadFrequently:true});
- for(const layer of item.layers||[]){
-  if(layer.visible===false)continue;
-  const img=new Image(); img.src=layerSrc(layer);
-  // synchronous drawing after decode is handled by pending promise collection
- }
- return flattenLayersToData(item,rect,{width,height},out,ctx,render,rctx);
+ if(ratio>=1){width=longEdge;height=Math.max(512,Math.round(longEdge/ratio))}
+ else{height=longEdge;width=Math.max(512,Math.round(longEdge*ratio))}
+ return flattenLayersToData(item,rect,{width,height});
 }
-function flattenLayersToData(item,rect,dims,out,ctx,render,rctx){
- const jobs=(item.layers||[]).filter(layer=>layer.visible!==false).map(layer=>new Promise((resolve,reject)=>{
-  const img=new Image();
-  img.onload=()=>{rctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;rctx.drawImage(img,(layer.rect?.x||0)*render.width,(layer.rect?.y||0)*render.height,(layer.rect?.w||1)*render.width,(layer.rect?.h||1)*render.height);resolve()};
-  img.onerror=()=>reject(new Error('Failed to load a composition layer.'));
-  img.src=layerSrc(layer);
- }));
- return Promise.all(jobs).then(()=>{
-  const sx=(rect?.x||0)*render.width,sy=(rect?.y||0)*render.height,sw=(rect?.w||1)*render.width,sh=(rect?.h||1)*render.height;
-  ctx.drawImage(render,sx,sy,sw,sh,0,0,dims.width,dims.height);
-  return {image:out.toDataURL('image/jpeg',.9),width:dims.width,height:dims.height};
- });
+async function updateCompositionPreview(){
+ const item=currentItem(),rect=state.composition.rect;
+ const image=$('galleryViewerPatchPreview');const label=$('galleryViewerCropInfo');
+ if(!image||!label)return;
+ if(!item||!rect){image.hidden=true;image.removeAttribute('src');label.textContent='No patch selected';return}
+ try{
+  const result=await captureCompositionCrop(item,rect,Math.min(resolution(),1024));
+  if(item!==currentItem()||state.composition.rect!==rect)return;
+  image.src=result.image;image.hidden=false;
+  label.textContent=`Selected crop ${result.width} × ${result.height} (exact composition coordinates)`;
+ }catch(error){label.textContent='Preview failed: '+error.message;compositionStatus(error.message,true)}
 }
-
 async function showPreview(size=1024){
  let uri='',note='';
  if(hasOpenComposition()){
@@ -580,6 +690,7 @@ document.addEventListener('keydown',event=>{
  const tag=(event.target?.tagName||'').toUpperCase();
  if(event.key==='Escape'&&!previewModal().hidden){hidePreview();return}
  if(event.key==='Escape'&&state.selecting){enableSelection(false);return}
+ if(hasOpenComposition())return; // Composition previews stay in the visible editor.
  if(event.key!=='Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey)return;
  if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(tag))return;
  event.preventDefault();
@@ -600,64 +711,78 @@ async function sendGenerationRequest({provider,key,prompt,source,width,height,si
  return result;
 }
 
-$('perspectiveGenerate').onclick=async()=>{
+async function generatePerspective(mode='scene'){
  if(state.busy)return;
+ const isComposition=mode==='composition';
  const session=window.planetLabAuthState;
- const provider=$('perspectiveProvider').value;
- const prompt=$('perspectivePrompt').value.trim();
+ const provider=isComposition?$('galleryViewerProvider').value:$('perspectiveProvider').value;
+ const prompt=(isComposition?$('galleryViewerPrompt').value:$('perspectivePrompt').value).trim();
  const typed=$('perspectiveKey').value.trim();
  const metaHeaders=getAiHeaders('/api/ai/scenario-edit');
  const key=typed||getProviderKey(provider)||state.keys[provider]||(provider==='meta'?metaHeaders['X-PlanetLab-Meta-Key']:'');
- if(!session?.user||!session.csrf){status('Sign in to generate a perspective concept.',true);return}
- if(currentSite()!==state.site||!state.site){status('Load a site first.',true);return}
- if(prompt.length<4||prompt.length>1500){status('Enter a prompt (4–1500 characters).',true);return}
- if(!key){status('Open API Keys in the top bar to configure '+provider+'.',true);return}
+ if(!session?.user||!session.csrf){compositionStatus('Sign in to generate an image.',true);return}
+ if(currentSite()!==state.site||!state.site){compositionStatus('Load the site first.',true);return}
+ if(prompt.length<4||prompt.length>1500){compositionStatus('Enter a prompt (4–1500 characters).',true);return}
+ if(!key){compositionStatus('Configure the '+provider+' API key in Providers & Keys in the top bar.',true);return}
+ if(isComposition&&!state.composition.rect){compositionStatus('Draw a patch on the image first.',true);return}
+ if(!isComposition&&!state.rect){status('Draw a perspective patch first.',true);return}
  let sourcePayload,width,height;
  try{
-  const capture=await captureForGeneration();
-  if(typeof capture==='string'){sourcePayload=capture;const dims=outputSize(resolution(),state.rect);width=dims.width;height=dims.height;}
-  else{sourcePayload=capture.image;width=capture.width;height=capture.height;}
-  previewImage().src=sourcePayload; previewImage().hidden=false; previewModal().hidden=false;
- }catch(error){status(error.message,true);return}
- state.busy=true;setBusy(true,'Generating perspective concept…');status('Generating perspective concept…');
+  if(isComposition){
+   const capture=await captureCompositionCrop(currentItem(),state.composition.rect,resolution());
+   sourcePayload=capture.image;width=capture.width;height=capture.height;
+  }else{
+   const dims=outputSize(resolution(),state.rect);sourcePayload=captureView(state.rect,dims);width=dims.width;height=dims.height;
+   previewImage().src=sourcePayload;previewImage().hidden=false;previewModal().hidden=false;
+  }
+ }catch(error){compositionStatus(error.message,true);return}
+ const generationSite=state.site,compositionId=isComposition?currentItem()?.id:null,submissionRect=isComposition?{...state.composition.rect}:null;
+ state.busy=true;setBusy(true,isComposition?'Generating selected composition patch…':'Generating perspective concept…');
+ if(isComposition){
+  $('galleryViewerGenerate').disabled=true;
+  $('galleryViewerGenerate').textContent='Generating…';
+  compositionStatus('Sending '+width+' × '+height+' selected patch to '+provider+'…');
+ }else status('Generating perspective concept…');
  const world=siteWorld();
  const itemView=world?{camera:{x:world.camera.position.x,y:world.camera.position.y,z:world.camera.position.z},target:{x:world.controls.target.x,y:world.controls.target.y,z:world.controls.target.z}}:null;
  try{
   const result=await sendGenerationRequest({provider,key,prompt,source:sourcePayload,width,height,size:resolution()});
   const generatedImage=await providerResultToDataUrl(result.image);
+  if(state.site!==generationSite)throw new Error('Location changed. Result was not saved.');
   state.keys[provider]=key;if(typed)setProviderKey(provider,key);$('perspectiveKey').value='';
-  if(hasOpenComposition()){
-   const item=currentItem();
+  if(isComposition){
+   const item=state.items.find(i=>i.id===compositionId);
+   if(!item||currentItem()?.id!==compositionId)throw new Error('Composition changed while generating; result not added.');
+   // Preserve the selection used when the job started, regardless of later UI changes.
+   const rect={...submissionRect};
    pushCompositionHistory('Add AI layer');
-   const rect=state.composition.rect?{...state.composition.rect}:{x:0,y:0,w:1,h:1};
-   item.layers.push({id:crypto.randomUUID(),name:$('perspectiveSelectedName').value.trim()||prompt.slice(0,48),type:'generated',visible:true,opacity:1,rect,image:generatedImage,provider,prompt,model:result.model,created:Date.now()});
-   item.activeLayerId=item.layers[item.layers.length-1].id;
+   const id=crypto.randomUUID();
+   item.assets[id]=generatedImage;
+   item.layers.push({id,name:prompt.slice(0,48),type:'generated',visible:true,opacity:1,rect,provider,prompt,model:result.model,created:Date.now()});
+   item.activeLayerId=id;
    item.operations=(item.operations||[]).concat({type:'generate-layer',provider,prompt,rect,created:Date.now(),camera:itemView});
-   await put(item);
-   renderComposition(); refreshGallery(); hidePreview(); status('New layer added to the composition.');
+   await put(item);renderComposition();refreshGallery();
+   compositionStatus('New AI image saved as a layer in its exact patch position.');
   }else{
-   const baseImage=sourcePayload;
-   const created=Date.now();
-   const item={
-    id:crypto.randomUUID(),
-    site:state.site,
-    name:$('perspectiveSelectedName').value.trim()||prompt.slice(0,50),
+   const created=Date.now(),id=crypto.randomUUID(),baseId=crypto.randomUUID(),generatedId=crypto.randomUUID();
+   const item={id,site:state.site,name:$('perspectiveSelectedName').value.trim()||prompt.slice(0,50),
     prompt,provider,model:result.model,created,view:itemView,rect:{...state.rect},resolution:resolution(),
     canvasWidth:width,canvasHeight:height,
-    baseImage,
+    assets:{[baseId]:sourcePayload,[generatedId]:generatedImage},
     layers:[
-     {id:crypto.randomUUID(),name:'Base source',type:'base',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},image:baseImage,created},
-     {id:crypto.randomUUID(),name:'AI concept',type:'generated',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},image:generatedImage,provider,prompt,model:result.model,created}
-    ],
-    activeLayerId:null,
-    operations:[{type:'create-composition',provider,prompt,rect:{...state.rect},created,camera:itemView}]
-   };
-   item.activeLayerId=item.layers[item.layers.length-1].id;
-   await put(item); state.items.unshift(item); state.current=item.id; refreshGallery(); hidePreview();showGalleryImage(item.id); status('Perspective composition saved in gallery.');
+     {id:baseId,name:'Base source',type:'base',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},created},
+     {id:generatedId,name:'AI concept',type:'generated',visible:true,opacity:1,rect:{x:0,y:0,w:1,h:1},provider,prompt,model:result.model,created}
+    ],activeLayerId:generatedId,
+    undoStack:[],redoStack:[],operations:[{type:'create-composition',provider,prompt,rect:{...state.rect},created,camera:itemView}]};
+   await put(item);state.items.unshift(item);state.current=id;refreshGallery();hidePreview();showGalleryImage(item.id);
+   status('Perspective composition saved. Select a patch to create more layers.');
   }
- }catch(error){status(error.message,true)}finally{state.busy=false;setBusy(false)}
-};
-
+ }catch(error){compositionStatus(error.message,true)}finally{
+  state.busy=false;setBusy(false);
+  $('galleryViewerGenerate').disabled=false;$('galleryViewerGenerate').textContent='Generate selected patch';
+ }
+}
+$('perspectiveGenerate').onclick=()=>generatePerspective('scene');
 ['pointerdown','pointermove','pointerup','pointerleave'].forEach(type=>overlay().addEventListener(type,ev=>({pointerdown:onPointerDown,pointermove:onPointerMove,pointerup:onPointerUp,pointerleave:onPointerUp})[type](ev)));
 window.addEventListener('planetlab:site-selected',loadSite);
 window.addEventListener('planetlab:site-changed',loadSite);

@@ -34,3 +34,13 @@ assert.equal(assessTerrain(60,60,cfg).occupied,false);
 const plan=generateCity(cfg);
 assert.ok(!plan.tasks.some(t=>['home','cottage','apartments'].includes(t.type)&&occupiedByBuilding(t.x,t.z,parsed)),'Existing buildings must not be overwritten');
 console.log('PASS — real OSM footprint geometry; measured heights only; no overlap with proposed buildings');
+// Transient 502 on primary Overpass must fall back, without inventing footprints.
+const alternateAnchor={lat:38.8784,lon:4.5099};
+const requests=[];
+const fallback=await fetchSiteBuildings(alternateAnchor,{fetchImpl:async url=>{
+ requests.push(url);
+ if(requests.length===1)return {ok:false,status:502};
+ return {ok:true,json:async()=>({elements:[]})};
+}});
+assert.equal(requests.length,2,'Use a second Overpass service after a transient primary 502');
+assert.deepEqual(fallback.buildings,[],'Never synthesize buildings when source data is empty');

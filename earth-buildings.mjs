@@ -5,6 +5,9 @@
 import {nearbyLatLon,EARTH_RADIUS_M,PATCH_HALF_UNITS,METRES_PER_UNIT} from './earth-terrain.mjs';
 const RAD=Math.PI/180,HALF_M=PATCH_HALF_UNITS*METRES_PER_UNIT;
 export const OVERPASS_URL='https://overpass-api.de/api/interpreter';
+export const OVERPASS_FALLBACK_URL='https://overpass.private.coffee/api/interpreter';
+const BACKOFF_MS=45_000;
+const failures=new Map();
 const cache=new Map(),CACHE_MS=15*60*1000;
 export function bboxForSite(anchor,half=HALF_M){
  const sw=nearbyLatLon(anchor,-half,-half),ne=nearbyLatLon(anchor,half,half);
@@ -79,11 +82,26 @@ export function occupiedByBuilding(x,z,data,buffer=1.5){
  return false;
 }
 export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal}={}){
- const key=`${anchor.lat.toFixed(7)},${anchor.lon.toFixed(7)}`;const previous=cache.get(key);
+ const key=`${anchor.lat.toFixed(7)},${anchor.lon.toFixed(7)}`;
+ const previous=cache.get(key);
  if(previous&&Date.now()-previous.at<CACHE_MS)return previous.data;
- const response=await fetchImpl(OVERPASS_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({data:buildingQuery(anchor)}),mode:'cors',signal});
- if(!response.ok)throw new Error(`OpenStreetMap buildings unavailable (HTTP ${response.status})`);
- const body=await response.json(),data=parseBuildings(body,anchor);
- cache.set(key,{at:Date.now(),data});if(cache.size>12)cache.delete(cache.keys().next().value);
- return data;
+ const failure=failures.get(key);
+ if(failure&&Date.now()-failure.at<BACKOFF_MS)throw new Error('OpenStreetMap building service temporarily unavailable. Retry shortly; no buildings were synthesized. '+failure.message);
+ const endpoints=[OVERPASS_URL,OVERPASS_FALLBACK_URL];
+ const issues=[];
+ for(const endpoint of endpoints){
+  try{
+   const response=await fetchImpl(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({data:buildingQuery(anchor)}),mode:'cors',signal});
+   if(!response.ok)throw new Error(`HTTP ${response.status}`);
+   const body=await response.json(),data=parseBuildings(body,anchor);
+   cache.set(key,{at:Date.now(),data});if(cache.size>12)cache.delete(cache.keys().next().value);
+   failures.delete(key);return data;
+  }catch(error){
+   if(signal?.aborted)throw error;
+   issues.push(`${new URL(endpoint).hostname}: ${error.message}`);
+  }
+ }
+ const message=issues.join(' · ');
+ failures.set(key,{at:Date.now(),message});
+ throw new Error('OpenStreetMap buildings unavailable; both Overpass services failed. '+message);
 }

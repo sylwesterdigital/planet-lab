@@ -269,15 +269,37 @@ html,body{height:100%;overflow:hidden}
 .gallery-viewer-sidebar{background:#102331;border-left:1px solid #274556;padding:14px;overflow:auto;display:grid;gap:12px;align-content:start}
 .gallery-viewer-sidebar h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#b8ced6}
 .gallery-viewer-hint{font-size:12px;color:#a8bec8;line-height:1.45}
-.gallery-viewer-stage{position:relative;max-width:min(1100px,92vw);width:100%;background:#0a151e;border:1px solid #355366;border-radius:10px;overflow:hidden;box-shadow:0 14px 44px #0008}
-.composition-layer{position:absolute;object-fit:fill;inset:auto;border:0;user-select:none;-webkit-user-drag:none}
-.composition-layer.selected{outline:3px solid rgba(180,255,126,.95);outline-offset:-3px}
-.gallery-viewer-selection{position:absolute;border:3px solid #ff5164;background:linear-gradient(135deg,rgba(255,81,100,.22),rgba(114,225,255,.18));box-shadow:0 0 0 9999px rgba(0,0,0,.18) inset;pointer-events:none;display:none;z-index:999}
-.gallery-viewer-selection::before,.gallery-viewer-selection::after{content:"";position:absolute;width:16px;height:16px;border:3px solid #fff}.gallery-viewer-selection::before{left:-6px;top:-6px;border-right:0;border-bottom:0}.gallery-viewer-selection::after{right:-6px;bottom:-6px;border-left:0;border-top:0}
-.viewer-layer-list,.viewer-history-list{display:grid;gap:8px}
-.viewer-layer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #305262;border-radius:10px;background:#122b39}
+/* Composition is a working image editor rather than a passive lightbox. */
+.gallery-viewer-stage{position:relative;width:min(100%,1100px);max-height:calc(100vh - 110px);aspect-ratio:4/3;max-width:100%;background:#07131b;border:1px solid #48677b;border-radius:5px;box-shadow:0 14px 44px #0008;touch-action:none;overflow:hidden}
+.gallery-viewer-frame{cursor:default}
+.composition-layer{position:absolute;display:block;object-fit:fill;inset:auto;border:0;user-select:none;-webkit-user-drag:none;pointer-events:auto}
+.composition-layer.selected{outline:2px solid rgba(180,255,126,.85);outline-offset:-2px}
+.gallery-viewer-selection{position:absolute;border:3px solid #ff3c56;background:rgba(255,60,86,.13);pointer-events:none;display:none;z-index:9999;box-shadow:0 0 18px #fa3e5a88}
+.gallery-viewer-selection::before,.gallery-viewer-selection::after{content:"";position:absolute;width:13px;height:13px;border:3px solid white}.gallery-viewer-selection::before{left:-7px;top:-7px}.gallery-viewer-selection::after{right:-7px;bottom:-7px}
+#galleryViewerDrawSurface{position:absolute;inset:0;z-index:10000;touch-action:none;cursor:crosshair;background:transparent}
+#galleryViewerDrawSurface[hidden]{display:none!important}
+.gallery-viewer-sidebar{width:340px}
+.viewer-layer-list,.viewer-history-list{display:grid;gap:6px}
+.viewer-layer-row{display:grid;grid-template-columns:58px minmax(0,1fr) 1fr;gap:7px;align-items:center;border:1px solid #3c5665;border-radius:9px;background:#172b39;padding:7px;min-height:66px}
 .viewer-layer-row.active{border-color:#b8eb77;box-shadow:0 0 0 1px #b8eb77 inset}
-.viewer-layer-pick,.viewer-layer-eye{border:1px solid #4b6a7c;background:#1f3a49;color:#f0f7fb;border-radius:8px;padding:8px 10px;font:inherit;cursor:pointer}.viewer-layer-pick{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-layer-row.hidden-layer{opacity:.52}
+.viewer-layer-thumb{width:58px;height:48px;object-fit:cover;border-radius:5px;background:#050e15;border:1px solid #496572;box-shadow:none!important;max-width:none!important;max-height:none!important}
+.viewer-layer-pick{border:0;background:transparent;color:#f0f7fb;border-radius:5px;padding:4px 1px;font-size:11px;font-weight:700;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;cursor:pointer}
+.viewer-layer-actions{display:flex;align-items:center;justify-content:end;gap:2px}
+.viewer-layer-action{font:600 15px system-ui,sans-serif;display:grid;place-items:center;padding:0;width:26px;height:30px;border:1px solid transparent;background:transparent;border-radius:5px;color:#e3f2f5;cursor:pointer}
+.viewer-layer-action:hover:not(:disabled){background:#385d6e;border-color:#577c8b}.viewer-layer-action:disabled{opacity:.25;cursor:default}
+.gallery-viewer-sidebar .drawing-active{background:#be1731!important;color:white!important;border:2px solid white!important}
+.gallery-viewer-status{font-size:12px;padding:8px 10px;border:1px solid #3d5e6b;border-radius:8px;background:#0a1b26;color:#bde3d9;min-height:34px;line-height:1.4}
+.gallery-viewer-crop{width:100%;max-height:190px;object-fit:contain;border:2px solid #ff5668;border-radius:6px;background:#07141f;display:block}
+.gallery-viewer-crop[hidden]{display:none!important}
+.gallery-viewer-sidebar select,.gallery-viewer-sidebar textarea{width:100%;min-width:0;border:1px solid #436473;border-radius:7px;background:#0a1d2b;color:#eef7fa;padding:9px;font-size:12px;box-sizing:border-box}
+.gallery-viewer-sidebar textarea{min-height:74px;resize:vertical}
+.gallery-viewer-sidebar .viewer-generate{background:#b7ec91;color:#142519;font-weight:800;border:0;border-radius:8px;min-height:40px;cursor:pointer}
+.gallery-viewer-sidebar .viewer-generate:disabled{opacity:.5;cursor:wait}
+.gallery-viewer-tools{display:grid;gap:7px}
+.gallery-viewer-tools>button{background:#214150;color:#e9f6f6;border:1px solid #496b7c;border-radius:7px;padding:10px;font-weight:800;cursor:pointer}
+.gallery-viewer-hint{font-size:12px;color:#bfd0d7;line-height:1.45}
+@media(max-width:900px){.gallery-viewer-body{grid-template-columns:minmax(0,1fr) 280px}.gallery-viewer-sidebar{width:280px}.viewer-layer-row{grid-template-columns:46px minmax(0,1fr);}.viewer-layer-thumb{width:46px}.viewer-layer-actions{grid-column:1/-1}}
 .viewer-history-item{padding:8px 10px;border:1px solid #284654;border-radius:10px;background:#0f202b;font-size:11px;color:#aec4ce}
 .gallery-viewer-actions.secondary button{font-size:12px;padding:8px 10px}
 .gallery-viewer-meta{font-size:12px;color:#b9d0d9}
@@ -317,7 +339,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.32 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.33 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
 <button id="tabExplore" type="button" aria-pressed="true">Explore</button>
 <button id="tabCreate" type="button" aria-pressed="false">Create</button>
 <button id="tabProjects" type="button" aria-pressed="false">Projects</button>
@@ -518,7 +540,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 <section id="providerKeysDialog" class="provider-keys-dialog" aria-label="Provider settings" hidden>
  <header class="provider-keys-header"><strong>Providers & API Keys</strong><button id="providerKeysClose" type="button" aria-label="Close settings">×</button></header>
- <div class="key-panel-body">
+ <form class="key-panel-body" id="providerKeysForm" autocomplete="off">
  <label class="key-remember"><input id="rememberKeys" type="checkbox"> Remember on this device</label>
  <p class="key-warning">Keys are stored only in this browser when enabled. Other scripts on this origin can read them. No test generates paid content.</p>
  <div class="key-row"><label for="providerKey-meta">Meta · Muse (text / images)</label><input id="providerKey-meta" type="password" autocomplete="off" placeholder="Meta API key"><button id="providerSave-meta" type="button">Save</button><button id="providerForget-meta" type="button">Clear</button><button id="providerCheck-meta" type="button">Test</button><small id="providerState-meta">Not checked</small></div>
@@ -527,26 +549,26 @@ html,body{height:100%;overflow:hidden}
  <div class="key-row"><label for="providerKey-tripo">Tripo3D · Models & credits</label><input id="providerKey-tripo" type="password" autocomplete="off" placeholder="Tripo API key"><button id="providerSave-tripo" type="button">Save</button><button id="providerForget-tripo" type="button">Clear</button><button id="providerCheck-tripo" type="button">Test</button><small id="providerState-tripo">Not checked</small></div>
  <div class="key-row"><label for="providerKey-maptiler">MapTiler · High-resolution aerial imagery</label><input id="providerKey-maptiler" type="password" autocomplete="off" placeholder="MapTiler API key"><button id="providerSave-maptiler" type="button">Save</button><button id="providerForget-maptiler" type="button">Clear</button><button id="providerCheck-maptiler" type="button">Test</button><small id="providerState-maptiler">Not checked</small></div>
  <div id="providerKeysStatus" role="status" aria-live="polite">Test checks actual provider access. Model tests do not verify every separately billed capability; MapTiler checks a tile from this browser. Billing totals are not universally available.</div>
- </div>
+ </form>
 </section>
-<section id="perspectiveGalleryViewer" class="gallery-viewer" role="dialog" aria-modal="true" aria-label="Generated perspective image" hidden>
- <div class="gallery-viewer-toolbar"><strong id="galleryViewerTitle">Perspective composition</strong><div class="gallery-viewer-actions"><button type="button" id="galleryViewerPrevious" aria-label="Previous image">←</button><button type="button" id="galleryViewerNext" aria-label="Next image">→</button><button type="button" id="galleryViewerZoomOut" aria-label="Zoom out">−</button><button type="button" id="galleryViewerZoomIn" aria-label="Zoom in">+</button><button type="button" id="galleryViewerClose" aria-label="Close image">×</button></div></div>
+<section id="perspectiveGalleryViewer" class="gallery-viewer" role="dialog" aria-modal="true" aria-label="Perspective image composition editor" hidden>
+ <div class="gallery-viewer-toolbar"><strong id="galleryViewerTitle">Image composition</strong><div class="gallery-viewer-actions"><button type="button" id="galleryViewerPrevious" aria-label="Previous composition">←</button><button type="button" id="galleryViewerNext" aria-label="Next composition">→</button><button type="button" id="galleryViewerZoomOut" aria-label="Zoom out">−</button><button type="button" id="galleryViewerZoomIn" aria-label="Zoom in">+</button><button type="button" id="galleryViewerClose" aria-label="Close composition">×</button></div></div>
  <div class="gallery-viewer-body">
-  <div id="galleryViewerFrame" class="gallery-viewer-frame"><div id="galleryViewerStage" class="gallery-viewer-stage"><div id="galleryViewerSelection" class="gallery-viewer-selection" hidden></div></div><img id="galleryViewerImage" alt="Generated perspective image" hidden></div>
-  <aside class="gallery-viewer-sidebar" aria-label="Composition layers and history">
+  <div id="galleryViewerFrame" class="gallery-viewer-frame"><div id="galleryViewerStage" class="gallery-viewer-stage"><div id="galleryViewerSelection" class="gallery-viewer-selection" hidden></div><div id="galleryViewerDrawSurface" hidden aria-label="Drag here to select an image patch"></div></div><img id="galleryViewerImage" alt="Generated perspective image" hidden></div>
+  <aside class="gallery-viewer-sidebar" aria-label="Composition editor">
    <div class="gallery-viewer-meta" id="galleryViewerMeta">Layers: 0</div>
-   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerDrawPatch">Draw patch on image</button><button type="button" id="galleryViewerUndo">Undo</button><button type="button" id="galleryViewerRedo">Redo</button></div>
-   <div class="gallery-viewer-hint" id="galleryViewerSelectionHint">Select a composition patch to generate another layer.</div>
-   <div>
-    <h4>Layer stack</h4>
-    <div id="galleryViewerLayers" class="viewer-layer-list">No layers.</div>
-   </div>
-   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerMoveUp">Move up</button><button type="button" id="galleryViewerMoveDown">Move down</button></div>
-   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerToggle">Hide / show</button><button type="button" id="galleryViewerDelete">Delete layer</button></div>
-   <div>
-    <h4>Composition history</h4>
-    <div id="galleryViewerHistory" class="viewer-history-list">No composition edits yet.</div>
-   </div>
+   <div class="gallery-viewer-tools"><button type="button" id="galleryViewerDrawPatch" aria-pressed="false">▭ Draw patch</button></div>
+   <div class="gallery-viewer-hint" id="galleryViewerSelectionHint">Click Draw patch, then drag over the image.</div>
+   <img id="galleryViewerPatchPreview" class="gallery-viewer-crop" alt="Exact patch that will be sent to AI" hidden/>
+   <div id="galleryViewerCropInfo" class="gallery-viewer-hint">No patch selected</div>
+   <div class="gallery-viewer-tools"><button type="button" id="galleryViewerPreview">Refresh patch preview</button></div>
+   <label class="lab" for="galleryViewerPrompt">NEXT AI EDIT</label><textarea id="galleryViewerPrompt" maxlength="1500" placeholder="Describe what to change only inside the selected patch."></textarea>
+   <label class="lab" for="galleryViewerProvider">PROVIDER</label><select id="galleryViewerProvider"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · Image</option></select>
+   <button type="button" class="viewer-generate" id="galleryViewerGenerate">Generate selected patch</button>
+   <div id="galleryViewerStatus" role="status" aria-live="polite" class="gallery-viewer-status">Draw a patch to generate another layer.</div>
+   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerUndo">↶ Undo</button><button type="button" id="galleryViewerRedo">↷ Redo</button></div>
+   <h4>Layers · top to bottom</h4><div id="galleryViewerLayers" class="viewer-layer-list">No layers.</div>
+   <h4>Generation history</h4><div id="galleryViewerHistory" class="viewer-history-list">No generations yet.</div>
   </aside>
  </div>
 </section>
@@ -561,16 +583,16 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.32"></script>
+<script type="module" src="./app.mjs?v=0.4.33"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.32"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.32"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.33"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.33"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
-<script type="module" src="./ui-shell.mjs?v=0.4.32"></script>
+<script type="module" src="./ui-shell.mjs?v=0.4.33"></script>
 </body></html>

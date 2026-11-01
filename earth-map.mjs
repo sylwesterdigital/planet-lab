@@ -13,7 +13,8 @@ const SENTINEL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/
 export class EarthMap{
  constructor(node,onSelect){
   this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';this.tileTemplate='';
-  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true});
+  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true,
+   pixelRatio:Math.min(typeof window==='undefined'?1:window.devicePixelRatio||1,1.5),maxCanvasSize:[6144,6144]});
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
   // Styles can override projection specified in the constructor. ALWAYS set it after
   // style.load; without this, MapLibre displays a flat world even at globe zoom.

@@ -146,3 +146,5 @@ try{if(localStorage.getItem('planetlab:hd-imagery-enabled-v1')==='yes'&&getProvi
 }}catch{}
 show('explore');
 window.planetLabTools={show};
+
+$('providerKeysForm')?.addEventListener('submit',event=>event.preventDefault());
