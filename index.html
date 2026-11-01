@@ -95,6 +95,12 @@
 #perspectiveSelection::before{left:-8px;top:-8px}#perspectiveSelection::after{right:-8px;bottom:-8px}
 .perspective-item{display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:center;border:1px solid #355463;border-radius:7px;padding:6px;background:#0e202b}
 .perspective-item.chosen{border-color:#b8f1a0}.perspective-item img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #385261}.perspective-item .btn{white-space:normal;text-align:left}
+
+#perspectivePreviewModal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,10,14,.72);backdrop-filter:blur(3px);z-index:12}
+.perspective-preview-card{width:min(92%,720px);max-height:88%;overflow:auto;background:#0d1b24;border:1px solid #486473;border-radius:12px;box-shadow:0 30px 60px rgba(0,0,0,.45);padding:12px}
+.perspective-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#f0fff5}
+#perspectivePreviewImage{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;border:2px solid #ff5a6a;border-radius:8px;background:#122632}
+#perspectivePreviewNote{margin-top:8px;font-size:12px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
@@ -231,7 +237,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.24 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.25 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -288,7 +294,7 @@ html,body{height:100%;overflow:hidden}
 <section class="section" id="perspectiveEditor"><h3>Perspective concept gallery</h3>
  <div class="hint">Draw a rectangle over the current perspective view, generate separate concept images, and keep them in a gallery for this location.</div>
  <div class="buttons"><button type="button" class="btn primary" id="perspectivePick">Draw perspective patch</button><button type="button" class="btn mini" id="perspectiveUndo">Undo</button><button type="button" class="btn mini" id="perspectiveRedo">Redo</button></div>
- <canvas id="perspectiveCrop" width="1024" height="1024" aria-label="Selected perspective patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:1px solid #315365;border-radius:6px;background:#122632"></canvas>
+ <div class="hint" style="margin-top:8px">After drawing a rectangle, press <strong>Enter</strong> to review the exact image crop that will be sent to AI.</div><canvas id="perspectiveCrop" width="1024" height="1024" aria-label="Selected perspective patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:2px solid #ff5a6a;border-radius:6px;background:#122632"></canvas>
  <label class="lab" for="perspectivePrompt" style="margin-top:9px">PERSPECTIVE IMAGE INSTRUCTION</label>
  <textarea id="perspectivePrompt" class="field textarea" maxlength="1500" placeholder="Generate a realistic cleaned-up visual concept from this perspective view.">Generate a realistic, high-quality visual concept from this perspective view. Preserve the overall perspective and proportions, improve texture quality, and remove distracting artifacts.</textarea>
  <div class="row2"><div><label class="lab" for="perspectiveProvider">IMAGE PROVIDER</label><select id="perspectiveProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><label class="lab" for="perspectiveKey">API KEY (TAB ONLY)</label><input class="field" id="perspectiveKey" type="password" autocomplete="off" placeholder="Provider API key"/></div></div>
@@ -306,7 +312,7 @@ html,body{height:100%;overflow:hidden}
 <button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Measured elevation only. Roads, utilities, parcels and risks remain unverified.</div>
 </section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
 <div class="hint">Agents are abstract task markers; off by default. The 3D scene is conceptual massing, not a construction-ready BIM model.</div></section>
-</aside><div class="stage"><div id="earthMap" aria-label="Interactive spherical Earth with satellite imagery" hidden></div><div id="earthStatus" role="status" aria-live="polite">Loading 3D Earth…</div><form id="earthSearch" aria-label="Find a real place"><input id="earthQuery" name="place" placeholder="Find city, mountain, address…" required autocomplete="off" maxlength="120" aria-label="Search a real place"/><button type="submit">Find</button></form><div id="perspectiveOverlay" aria-hidden="true" hidden><div id="perspectiveSelection"></div></div><canvas id="scene"></canvas>
+</aside><div class="stage"><div id="earthMap" aria-label="Interactive spherical Earth with satellite imagery" hidden></div><div id="earthStatus" role="status" aria-live="polite">Loading 3D Earth…</div><form id="earthSearch" aria-label="Find a real place"><input id="earthQuery" name="place" placeholder="Find city, mountain, address…" required autocomplete="off" maxlength="120" aria-label="Search a real place"/><button type="submit">Find</button></form><div id="perspectiveOverlay" aria-hidden="true" hidden><div id="perspectiveSelection"></div></div><div id="perspectivePreviewModal" hidden><div class="perspective-preview-card"><div class="perspective-preview-head"><strong>Image being sent to AI</strong><button type="button" class="btn mini" id="perspectivePreviewClose">Close</button></div><img id="perspectivePreviewImage" alt="Perspective patch preview"/><div class="hint" id="perspectivePreviewNote">This exact cropped perspective image will be sent to the selected AI provider.</div></div></div><canvas id="scene"></canvas>
 <div class="view-toolbar" aria-label="Scene presentation"><span>VIEW</span><button type="button" id="viewMassing" class="active" aria-pressed="true" title="Orbit and inspect architectural massing">3D massing</button><button type="button" id="viewPlan" aria-pressed="false" title="Top-down site plan">Site plan</button><button type="button" id="viewAgents" aria-pressed="false" title="Display simulated construction equipment">Show agents</button><label class="view-vegetation"><input type="checkbox" id="showVegetation"> Vegetation</label></div>
 <nav class="workflow-nav" aria-label="PlanetLab workspace">
  <button type="button" id="flowWorld" aria-pressed="false">Globe</button>
@@ -426,14 +432,14 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.24"></script>
+<script type="module" src="./app.mjs?v=0.4.25"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.24"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.24"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.25"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.25"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
