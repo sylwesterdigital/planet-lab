@@ -1,4 +1,4 @@
-# PlanetLab v0.4.12 — conceptual spatial workstation
+# PlanetLab v0.4.13 — conceptual spatial workstation
 
 PlanetLab is a Three.js frontend with a Flask API, local world snapshots, optional
 AI provider integrations, and a staged macOS-to-Ubuntu deployment workflow.
@@ -17,6 +17,24 @@ estimation, or a construction-ready design tool.
   or explicitly configured server credentials; third-party calls require valid keys.
 - **House demo:** the original single-house assembly example remains at
   `/house/index.html`.
+
+## Changes in v0.4.13
+
+- Fix Building Studio preview not appearing: add the generated model to a visible
+  Three.js studio group in regional view. The model is removed on site changes,
+  retains metre scale, and the camera frames the generated model.
+- Use Meta's documented Chat Completions `json_schema` response mode with a
+  controllable reasoning effort and larger output-token limit. A response with
+  `finish_reason=length` and `content=null` is treated as a clear provider
+  error. Do not fabricate AI output or repeat paid calls automatically.
+- Surface AI errors in Building Studio rather than opening API Console, prevent
+  duplicate clicks while generating, and show the actual concept dimensions,
+  area, room count and site-slope warning prominently.
+- The design is **editable 3D massing**, not a generated permit plan or
+  accessibility certification. Building generation still needs actual GIS,
+  physical site surveys, compliance and reliable utilities to become a real
+  engineering/planning workflow.
+- Add an offline Building Studio scene test and Meta truncation/schema tests.
 
 ## Changes in v0.4.12
 
@@ -59,6 +77,7 @@ estimation, or a construction-ready design tool.
 ```sh
 node test-planner.mjs
 node test-entry.mjs
+node test-studio.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
@@ -68,7 +87,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.12.zip` in the Mac repository's
+The watcher accepts `PLANETLAB_RELEASE_v0.4.13.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

@@ -1,4 +1,4 @@
-/* DOM-free interaction checks for v0.4.12 initial journey (requires Node only). */
+/* DOM-free interaction checks for v0.4.13 initial journey (requires Node only). */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';

@@ -1,4 +1,4 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.12';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.13';
 /* Session-only BYOK: never persist keys into cookies, Storage, URL or the server DB. */
 const el=id=>document.getElementById(id);
 const ephemeral = {meta:'',tripo:'',model:'muse-spark-1.3'};

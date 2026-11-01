@@ -256,8 +256,48 @@ def build_prompt(brief):
             "(modern/industrial/rustic/futuristic/traditional), windowsPerSide, "
             "interiorRooms, material. No narrative or markdown. "
             "Do not output code, URLs or unsafe commands. This is concept geometry, "
-            "not an engineering blueprint. User brief: " + brief[:1800])
+            "not an engineering blueprint. interiorRooms means rooms PER FLOOR. "
+            "Respect explicit floor count, location, room count and material preferences. "
+            "User brief: " + brief[:1800])
+
+
+def building_response_format():
+    """Meta Chat Completions JSON-schema mode, without SDK dependencies."""
+    properties = {
+        'name': {'type': 'string'}, 'width': {'type': 'number'},
+        'depth': {'type': 'number'}, 'floors': {'type': 'integer'},
+        'floorHeight': {'type': 'number'},
+        'roof': {'type': 'string', 'enum': ['flat', 'gable', 'shed']},
+        'style': {'type': 'string', 'enum': ['modern', 'industrial', 'rustic', 'futuristic', 'traditional']},
+        'windowsPerSide': {'type': 'integer'}, 'interiorRooms': {'type': 'integer'},
+        'material': {'type': 'string'},
+    }
+    return {'type': 'json_schema', 'json_schema': {
+        'name': 'planetlab_building',
+        'schema': {'type': 'object', 'properties': properties,
+                   'required': list(properties), 'additionalProperties': False}}}
 
 
 def extract_chat_text(result):
-    return result['choices'][0]['message']['content']
+    """Do not confuse HTTP 200 with a successful generation.
+
+    Muse can consume its token budget on internal reasoning and return null content.
+    Do not invent a building or automatically repeat a billable request.
+    """
+    try:
+        choice = result['choices'][0]
+        finish = choice.get('finish_reason')
+        message = choice['message']
+        content = message.get('content')
+    except (KeyError, IndexError, TypeError, AttributeError) as exc:
+        raise IntegrationError('Meta returned an incomplete completion response. Try again.') from exc
+    if finish == 'length':
+        raise IntegrationError('Meta reached its output limit without completing the design. Try again with a shorter brief.')
+    if message.get('refusal'):
+        raise IntegrationError('Meta declined to generate this building specification.')
+    if isinstance(content, list):
+        content = ''.join(part.get('text', '') for part in content
+                          if isinstance(part, dict) and part.get('type') == 'text')
+    if not isinstance(content, str) or not content.strip():
+        raise IntegrationError('Meta returned no building design. Retry the request or use manual building controls.')
+    return content

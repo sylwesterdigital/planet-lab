@@ -1,12 +1,23 @@
-import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.12';
+import {tracedFetch,openApiConsole} from './api-console.mjs?v=0.4.13';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.12';
+import {getAiHeaders,selectedModel,connected,openAiSetup} from './ai-connections.mjs?v=0.4.13';
 
 const $=id=>document.getElementById(id);
 let csrf='', activeUser=null, currentBuilding=null, buildingGroup=null, libraryGroup=null, currentJob=null;
 const libLoader = new GLTFLoader();
 const notice=(msg)=>{$('studioStatus').textContent=msg};
+const showResult=(b,siteRelief)=>{
+  const panel=$('buildingResult');if(!panel)return;panel.hidden=false;
+  const gross=(Number(b.width)*Number(b.depth)*Number(b.floors)).toFixed(0);
+  const rooms=Number(b.interiorRooms)||0;
+  panel.replaceChildren();
+  const heading=document.createElement('strong');heading.textContent=b.name||'Concept building';panel.append(heading);
+  const info=document.createElement('p');info.textContent=`${b.width} × ${b.depth} m · ${b.floors} floor(s) · ${gross} m² gross floor area · ${rooms} room(s) per floor`;panel.append(info);
+  const constraint=document.createElement('small');constraint.textContent=siteRelief>1.5
+    ?`Site varies by roughly ${siteRelief.toFixed(1)} m beneath the footprint. Grading/foundation assessment needed; dimensions are conceptual.`
+    :'Editable 3D massing only. No structural, energy, access or planning compliance checks.';panel.append(constraint);
+};
 async function api(path,options={}){
   const method=options.method||'GET';const headers={...(!(options.body instanceof FormData)&&options.body?{'Content-Type':'application/json'}:{}),...getAiHeaders(path),...(options.headers||{})};
   if(method!=='GET')headers['X-CSRF-Token']=csrf;
@@ -42,11 +53,20 @@ function setInputs(b){
 function putBuilding(b,store=true){
   const s=sim();const x=s.site[0],z=s.site[1],w=Number(b.width),d=Number(b.depth),floors=Math.min(20,Number(b.floors)),fh=Number(b.floorHeight)||3,h=floors*fh;
   if(!Number.isFinite(w*d*h)||w<3||d<3||floors<1)throw new Error('Invalid geometry dimensions');
-  if(buildingGroup){s.world.scene.remove(buildingGroup);buildingGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose?.()})}
-  buildingGroup=new THREE.Group();buildingGroup.name='planetlab-studio-building';buildingGroup.scale.setScalar(.1); // building dimensions are metres; scene units are 10ms.world.scene.add(buildingGroup);
-  const terrain=s.world.height(x,z);
+  const footprint=[[0,0],[-w/20,-d/20],[-w/20,d/20],[w/20,-d/20],[w/20,d/20]];
+  const elevations=footprint.map(([dx,dz])=>s.world.height(x+dx,z+dz));
+  if(elevations.some(y=>!Number.isFinite(y)))throw new Error('Terrain height unavailable at building site');
+  if(Math.min(...elevations)<=.35)throw new Error('The proposed building footprint overlaps water or exposed shoreline. Select a drier site.');
+  const relief=(Math.max(...elevations)-Math.min(...elevations))*10;
+  const terrain=Math.max(...elevations);
+  if(buildingGroup){s.world.studioGroup.remove(buildingGroup);buildingGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose?.()})}
+  buildingGroup=new THREE.Group();buildingGroup.name='planetlab-studio-building';
+  buildingGroup.scale.setScalar(.1); // building dimensions in metres; 1 scene unit = 10 m
+  s.world.studioGroup.add(buildingGroup); // Studio is visible only in local terrain mode.
   buildingGroup.position.set(x,terrain+.042,z);
-  const color={modern:'#cfcbc0',industrial:'#8c999d',rustic:'#c6a780',futuristic:'#a8c8d3',traditional:'#dfc4b1'}[b.style]||'#c8c8c8';
+  const material=String(b.material||'').toLowerCase();
+  const color=material.includes('wood')||material.includes('timber')?'#b38a65':material.includes('brick')?'#b77869':material.includes('glass')?'#a1b6b4':
+    ({modern:'#cfcbc0',industrial:'#8c999d',rustic:'#c6a780',futuristic:'#a8c8d3',traditional:'#dfc4b1'}[b.style]||'#c8c8c8');
   box(buildingGroup,0,-.2,0,w+.45,.4,d+.45,'#888c86');
   for(let floor=0;floor<floors;floor++){
     const bottom=floor*fh,top=bottom+fh;
@@ -74,13 +94,20 @@ function putBuilding(b,store=true){
   }
   roof(buildingGroup,w,h,d,b.roof);
   if(store){currentBuilding={...b};if(s.plan){s.plan.studioBuildings=[{...b,position:[x,z]}]}}
-  notice(`Building: ${floors} floor(s) · ${w} × ${d}m · concept geometry. Orbit/zoom in 3D.`);
+  showResult(b,relief);
+  if(store){
+    s.world.setMode('region');s.updateMode?.();
+    s.world.camera.position.set(x+Math.max(5,w/5),terrain+Math.max(3,h/14),z+Math.max(6,d/4));
+    s.world.controls.target.set(x,terrain+Math.max(.65,h/25),z);
+    s.world.controls.update();
+  }
+  notice('3D building placed at selected site. Edit dimensions and rebuild to compare.');
 }
 function enterBuilding(){const s=sim(),b=currentBuilding;if(!b)throw new Error('Create a building first');
   const x=s.site[0],z=s.site[1],y=s.world.height(x,z);
   s.world.setMode('region');s.world.camera.position.set(x+Math.min(.12,b.width/40),y+.2,z+.08);
   s.world.controls.target.set(x,y+.17,z-.15);s.world.controls.update();
-  notice('Interior inspection. Drag to orbit; reset camera to return. No collision physics yet.');
+  notice('Building camera positioned. Orbit to inspect the conceptual model; this is not an interior walkthrough.');
 }
 function requireConnection(provider='meta'){
   if(!connected(provider)){
@@ -91,7 +118,7 @@ function requireConnection(provider='meta'){
   }
 }
 function currentWorld(){const value=Number($('worldList').value);if(!Number.isInteger(value)||value<1)throw new Error('Save and select a world first');return value}
-async function studioAction(fn){try{await fn()}catch(e){notice(e.code==='AI_KEY_REQUIRED'?e.message:`Error: ${e.message} · Open API Console for details.`);if(e.code!=='AI_KEY_REQUIRED'){console.error(e);openApiConsole()}}}
+async function studioAction(fn){try{await fn()}catch(e){notice(e.code==='AI_KEY_REQUIRED'?e.message:`Design not generated: ${e.message}`);if(e.code!=='AI_KEY_REQUIRED')console.error(e)}}
 async function listMedia(){const id=currentWorld();const result=await api(`/api/worlds/${id}/media`);
   const select=$('assetList');select.replaceChildren(new Option('Select imported GLB',''));
   for(const item of result.media.filter(m=>/\.glb$/i.test(m.filename)))select.add(new Option(`${item.filename} (${(item.size/1048576).toFixed(1)} MB)`,item.id));
@@ -106,8 +133,14 @@ function placeAsset(id){const s=sim();if(!id)throw new Error('Select GLB asset')
   },undefined,()=>notice('Unable to load GLB asset'));
 }
 $('aiBuilding').onclick=()=>studioAction(async()=>{
-  requireConnection('meta');notice('Requesting AI building specification…');const result=await api('/api/ai/building',{method:'POST',body:JSON.stringify({brief:$('aiBrief').value,tier:$('aiTier').value,model:selectedModel()})});
-  currentBuilding=result.building;setInputs(result.building);putBuilding(result.building);
+  requireConnection('meta');
+  const button=$('aiBuilding');if(button.disabled)return;button.disabled=true;
+  const oldLabel=button.textContent;button.textContent='Generating design…';
+  try{
+    notice('Meta is preparing a structured building specification.');
+    const result=await api('/api/ai/building',{method:'POST',body:JSON.stringify({brief:$('aiBrief').value,tier:$('aiTier').value,model:selectedModel()})});
+    currentBuilding=result.building;setInputs(result.building);putBuilding(result.building);
+  }finally{button.disabled=false;button.textContent=oldLabel}
 });
 $('manualBuilding').onclick=()=>studioAction(()=>{const b=specFromInputs();putBuilding(b)});
 $('enterBuilding').onclick=()=>studioAction(enterBuilding);
@@ -143,6 +176,11 @@ $('assetRefresh').onclick=()=>studioAction(listMedia);
 $('assetPlace').onclick=()=>studioAction(()=>placeAsset($('assetList').value));
 // Persist the parametric studio building alongside the original procedural blueprint.
 window.planetLabStudio={applyStored:(plan)=>{const b=plan?.studioBuildings?.[0];if(b){currentBuilding=b;setInputs(b);putBuilding(b,false)}},getBuilding:()=>currentBuilding};
+window.addEventListener('planetlab:site-changed',()=>{
+  if(buildingGroup){const group=window.planetLabApp?.world?.studioGroup;group?.remove(buildingGroup);
+    buildingGroup.traverse(o=>{o.geometry?.dispose();o.material?.dispose?.()});buildingGroup=null}
+  currentBuilding=null;if($('buildingResult'))$('buildingResult').hidden=true;
+});
 window.addEventListener('planetlab:auth-changed', event=>{
   csrf=event.detail.csrf;activeUser=event.detail.user;
 });

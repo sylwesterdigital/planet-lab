@@ -243,6 +243,7 @@ def local_tests(stage):
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
     detail(run(['node', 'test-entry.mjs'], cwd=stage, timeout=15))
+    detail(run(['node', 'test-studio.mjs'], cwd=stage, timeout=15))
     run(['python3','tests/test_blueprints_unit.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_public_assets.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_auth_ui.py'], cwd=stage, timeout=20)
@@ -254,8 +255,9 @@ def local_tests(stage):
     run(['python3','tests/test_workflow_ui.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_entry_experience.py'], cwd=stage, timeout=20)
     run(['python3','tests/test_geography_ui.py'], cwd=stage, timeout=20)
+    run(['python3','tests/test_building_generation.py'], cwd=stage, timeout=20)
     import ast
-    for filename in ['backend/app.py','backend/models.py','backend/blueprints.py','backend/ai_routes.py','backend/integrations.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_blueprints_unit.py','tests/test_public_assets.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py','tests/test_geography_ui.py']:
+    for filename in ['backend/app.py','backend/models.py','backend/blueprints.py','backend/ai_routes.py','backend/integrations.py','tests/test_building_generation.py','scripts/release_watcher.py','tests/test_backend.py','tests/test_blueprints_unit.py','tests/test_public_assets.py','tests/test_ai.py','tests/test_auth_ui.py','tests/test_ai_setup.py','tests/test_api_console.py','tests/test_places.py','tests/test_places_ui.py','tests/test_geography_ui.py']:
         ast.parse((stage / filename).read_text(), filename=filename)
     run(['bash', '-n', 'scripts/install-ubuntu.sh'], cwd=stage, timeout=15)
     if (stage / 'scripts/install-macos-watcher.sh').is_file():

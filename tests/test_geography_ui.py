@@ -1,4 +1,4 @@
-"""Regression checks for physical scale and visible planning limits in v0.4.12."""
+"""Regression checks for physical scale and visible planning limits in v0.4.13."""
 import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]

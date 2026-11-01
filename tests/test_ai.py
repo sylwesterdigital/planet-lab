@@ -91,6 +91,23 @@ class ProviderAPITest(unittest.TestCase):
             self.assertEqual(badmodel.status_code,400,badmodel.json)
             external.assert_not_called()
 
+    def test_meta_success_without_content_returns_actionable_502(self):
+        reg=self.send('/api/register',{'handle':'maker4','password':'secure-testing-password'})
+        self.assertEqual(reg.status_code,201)
+        self.csrf=reg.json['csrf']
+        truncated={'choices':[{'finish_reason':'length','message':{'role':'assistant','content':None}}]}
+        with patch('backend.ai_routes.provider_request',return_value=truncated) as provider:
+            failed=self.client.post('/api/ai/building',json={
+                'brief':'Contemporary lakeside house, 2 storeys','tier':'standard','model':'muse-spark-1.3'},
+                headers={'X-CSRF-Token':self.csrf,'X-PlanetLab-Meta-Key':'valid-private-test-key'})
+        self.assertEqual(failed.status_code,502,failed.json)
+        self.assertIn('output limit',failed.json['error'])
+        self.assertEqual(provider.call_count,1,'No hidden second billable request')
+        body=provider.call_args.args[2]
+        self.assertEqual(body['reasoning_effort'],'minimal')
+        self.assertEqual(body['response_format']['type'],'json_schema')
+        self.assertGreaterEqual(body['max_completion_tokens'],1500)
+
     def test_upstream_provider_failure_still_returns_502(self):
         reg=self.send('/api/register',{'handle':'maker3','password':'secure-testing-password'})
         self.assertEqual(reg.status_code,201)

@@ -16,7 +16,8 @@ from flask import abort, jsonify, request, session
 from sqlalchemy import select
 
 from .integrations import (IntegrationError, DEFAULTS, public_settings, update, required,
-                           provider_request, parse_building, build_prompt, extract_chat_text)
+                           provider_request, parse_building, build_prompt, extract_chat_text,
+                           building_response_format)
 from .models import AssetJob, Media, User, World
 
 
@@ -125,8 +126,10 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
             result = provider_request(cfg, '/chat/completions', {
                 'model': model,
                 'messages': [{'role': 'user', 'content': 'Reply with only the word ready'}],
-                'max_completion_tokens': 15}, timeout=25)
+                'max_completion_tokens': 128, 'reasoning_effort': 'minimal'}, timeout=25)
             reply = str(extract_chat_text(result)).strip()[:80]
+            if not reply:
+                raise IntegrationError('Meta returned no connection-test response.')
             return jsonify(ok=True, model=model, reply=reply)
         except (IntegrationError, KeyError, TypeError, IndexError) as exc:
             return ai_error(exc, 'Unexpected Meta API response')
@@ -143,12 +146,22 @@ def setup_ai(app, db_session, data_dir, actor, require_csrf, fail):
         try:
             settings = provider_for_request('meta')
             model=requested_model(value)
+            # Reasoning tokens count against the output cap. Request constrained
+            # JSON and budget enough visible tokens for the entire building object.
+            # One explicit user action = one paid provider call, never an automatic retry.
+            tier = value.get('tier', 'standard')
+            if tier not in ('standard', 'complex'):
+                raise ClientProviderInputError('Invalid design detail level')
             result = provider_request(settings, '/chat/completions', {
-                'model':model,
-                'messages':[
-                    {'role':'developer', 'content':'You are a building geometry JSON generator. Reply with JSON only.'},
-                    {'role':'user','content':build_prompt(brief)}],
-                'max_completion_tokens':750}, timeout=65)
+                'model': model,
+                'messages': [
+                    {'role': 'developer', 'content':
+                     'Return exactly one JSON object for an editable conceptual building. '
+                     'Use metres and rooms per floor; follow the requested brief.'},
+                    {'role': 'user', 'content': build_prompt(brief)}],
+                'response_format': building_response_format(),
+                'reasoning_effort': 'minimal' if tier == 'standard' else 'low',
+                'max_completion_tokens': 2000 if tier == 'standard' else 3200}, timeout=65)
             building = parse_building(extract_chat_text(result))
             return jsonify(building=building, model=model,
                            note='Concept geometry only; not engineering or real-estate advice')
