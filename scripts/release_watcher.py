@@ -238,7 +238,7 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','earth-imagery.mjs','earth-buildings.mjs','earth-views.mjs','earth-history.mjs','test-earth-views.mjs','test-buildings.mjs','test-earth.mjs','test-earth-map.mjs','test-imagery.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','earth-imagery.mjs','earth-buildings.mjs','earth-views.mjs','earth-history.mjs','test-earth-views.mjs','test-scenarios.mjs','scenario-core.mjs','earth-scenarios.mjs','test-buildings.mjs','test-earth.mjs','test-earth-map.mjs','test-imagery.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
@@ -249,6 +249,7 @@ def local_tests(stage):
     detail(run(['node', 'test-earth-views.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-entry.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-studio.mjs'], cwd=stage, timeout=15))
+    detail(run(['node', 'test-scenarios.mjs'], cwd=stage, timeout=15))
     # Use module discovery from the staged project root: direct execution of
     # tests/test_*.py puts tests/ (not the project root) on sys.path and breaks
     # imports such as `from backend.integrations import ...`.

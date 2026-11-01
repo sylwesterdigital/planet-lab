@@ -1,3 +1,13 @@
+## v0.4.20 — AI georeferenced site-composition scenarios
+
+- In City plan > AI site composition, select two corners on the loaded 3D terrain. PlanetLab captures the exact source imagery crop and leaves the original imagery and DEM intact.
+- Use Meta Muse Image (`muse-image-1.0`), xAI Grok Imagine (`grok-imagine-image-2.0`) or OpenAI GPT Image 2 (`gpt-image-2`) with your own session-only key. One deliberate Generate click results in one provider call.
+- Edited images are georeferenced onto the selected rectangle. Scenarios support layers, visibility, opacity, original/split comparison, duplication and deletion. Variants persist in browser IndexedDB for the currently selected Earth coordinate. Changing browser or clearing site data removes these local variants.
+- Design building jumps to Building Studio and uses the scenario patch centre for proposed placement. Existing 3D buildings may be hidden for composition only; mapped OSM building footprints remain protected in site-planning analyses. AI imagery has no real-world demolition or planning effects.
+- Provider keys and prompts are never persisted on the server, debug console, or in browser storage. Generated variants are stored only in the browser.
+- Users are responsible for sufficient rights to edit imagery from external providers.
+- No database migration or watcher protocol change.
+
 ## v0.4.19 — Navigable view history; correctly oriented terrain imagery; DEM quality controls
 
 - **View history:** Back/Forward controls and visible visited-view list restore real-Earth sites, site targets, 3D camera positions and globe camera coordinates. Changing the camera within one area records an additional viewpoint. Up to 36 distinct views persist in the current browser for the signed-in handle. Named bookmarks and server-backed projects remain separate. Older v0.4.18 browser bookmarks migrate without a database change.

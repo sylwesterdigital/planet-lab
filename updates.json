@@ -2,6 +2,16 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.20",
+      "date": "2026-11-01",
+      "changes": [
+        "Select an actual georeferenced local terrain patch and send a cropped image to Meta Muse Image, xAI Grok Imagine, or OpenAI GPT Image 2",
+        "Save AI variants as persistent browser-local scenario layers, edit opacity, split-compare with original and duplicate/delete versions",
+        "Preserve original satellite map and measured DEM; use selected patch as placement focus for Building Studio",
+        "Session-only provider API keys and authenticated, one-call-per-request image editing proxy"
+      ]
+    },
+    {
       "version": "0.4.18",
       "date": "2026-11-01",
       "changes": [

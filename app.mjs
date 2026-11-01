@@ -23,13 +23,13 @@ class WorldView{
   this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));this.renderer.xr.enabled=true;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
   this.camera=new THREE.PerspectiveCamera(44,1,.1,600);this.controls=new OrbitControls(this.camera,canvas);this.controls.enableDamping=true;this.controls.minDistance=.25;this.controls.maxDistance=220;this.controls.maxPolarAngle=Math.PI*.42;
   this.scene.add(new THREE.HemisphereLight('#bddbff','#3b412f',2.4));let sun=new THREE.DirectionalLight('#ffefd4',3.0);sun.position.set(-48,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-110;sun.shadow.camera.right=110;sun.shadow.camera.bottom=-110;sun.shadow.camera.top=110;sun.shadow.camera.near=1;sun.shadow.camera.far=250;sun.shadow.bias=-.0006;this.scene.add(sun);
-  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.existingGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.bookmarkGroup=new THREE.Group();this.scene.add(this.bookmarkGroup);this.scene.add(this.planetGroup,this.regionGroup,this.existingGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);this.studioGroup=new THREE.Group();this.scene.add(this.studioGroup);
+  this.planetGroup=new THREE.Group();this.regionGroup=new THREE.Group();this.buildGroup=new THREE.Group();this.existingGroup=new THREE.Group();this.displayMode='massing';this.robotsGroup=new THREE.Group();this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.showAgents=false;this.showVegetation=false;this.markersGroup=new THREE.Group();this.ghostGroup=new THREE.Group();this.scenarioOutline=new THREE.Group();this.scene.add(this.scenarioOutline);this.scenarioSelecting=false;this.baseImageryCanvas=null;this.bookmarkGroup=new THREE.Group();this.scene.add(this.bookmarkGroup);this.scene.add(this.planetGroup,this.regionGroup,this.existingGroup,this.buildGroup,this.robotsGroup,this.markersGroup,this.ghostGroup);this.studioGroup=new THREE.Group();this.scene.add(this.studioGroup);
   this.pinGroup=new THREE.Group();this.planetGroup.add(this.pinGroup);this.pinIndex=[];this.raycaster=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.terrain=null;this.globe=null;this.selection=null;
   let down=null;canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;this.click(e)});
   window.addEventListener('resize',()=>this.resize());this.resize();this.setMode('region');
  }
  resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/r.height;this.camera.updateProjectionMatrix()}
- setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.existingGroup.visible=region;this.studioGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.bookmarkGroup.visible=region;this.controls.maxPolarAngle=region?Math.PI*.42:Math.PI;this.controls.enablePan=region;this.controls.enabled=region;this.canvas.style.visibility=region?'visible':'hidden';if(this.earthMap){region?this.earthMap.hide():this.earthMap.show()}const form=document.getElementById('earthSearch');if(form)form.hidden=region;const mapStatus=document.getElementById('earthStatus');if(mapStatus)mapStatus.hidden=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
+ setMode(mode){this.mode=mode;const region=mode==='region';this.planetGroup.visible=!region;this.regionGroup.visible=region;this.buildGroup.visible=region;this.existingGroup.visible=region;this.studioGroup.visible=region;this.robotsGroup.visible=region&&this.showAgents;this.vegetationGroup.visible=region&&this.showVegetation;this.markersGroup.visible=region;this.ghostGroup.visible=region;this.bookmarkGroup.visible=region;this.scenarioOutline.visible=region;this.controls.maxPolarAngle=region?Math.PI*.42:Math.PI;this.controls.enablePan=region;this.controls.enabled=region;this.canvas.style.visibility=region?'visible':'hidden';if(this.earthMap){region?this.earthMap.hide():this.earthMap.show()}const form=document.getElementById('earthSearch');if(form)form.hidden=region;const mapStatus=document.getElementById('earthStatus');if(mapStatus)mapStatus.hidden=region;this.resetCamera();if(region&&this.displayMode==='plan')this.setDisplayMode('plan')}
  resetCamera(){if(this.mode==='planet'){this.camera.position.set(0,8,83);this.controls.target.set(0,0,0);this.controls.minDistance=38;this.controls.maxDistance=160}else{const h=this.config?.geoSource==='earth-dem'?this.height(...this.site):2;this.camera.position.set(this.site[0]+57,h+68,this.site[1]+89);this.controls.target.set(this.site[0],h,this.site[1]);this.controls.minDistance=.25;this.controls.maxDistance=210}this.controls.update()}
  setDisplayMode(mode){
   this.displayMode=mode;
@@ -89,7 +89,7 @@ class WorldView{
   }
  }
  generateTerrain(config){this.config=config;clearGroup(this.regionGroup);this.vegetationGroup=new THREE.Group();this.regionGroup.add(this.vegetationGroup);this.vegetationGroup.visible=this.showVegetation;clearGroup(this.buildGroup);clearGroup(this.existingGroup);clearGroup(this.studioGroup);clearGroup(this.markersGroup);clearGroup(this.ghostGroup);
-  this._siteImageToken=null;clearGroup(this.bookmarkGroup);const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
+  this._siteImageToken=null;this.baseImageryCanvas=null;clearGroup(this.scenarioOutline);clearGroup(this.bookmarkGroup);const size=156,sub=104;const geo=new THREE.PlaneGeometry(size,size,sub,sub);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=[];const sea=new THREE.Color('#2d6079'),shore=new THREE.Color('#bea981'),plain=new THREE.Color('#739c77'),forest=new THREE.Color('#467d65'),peak=new THREE.Color('#9eaaa3');
   for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=terrainHeight(x,z,config);p.setY(i,y);let col;if(config.geoSource==='earth-dem'){const altitude=sampleElevation(config.dem,x,z);col=altitude<=.25?sea.clone():altitude<5?shore.clone():altitude<1000?plain.clone().lerp(forest,clamp((altitude-5)/450,0,.8)):forest.clone().lerp(peak,clamp((altitude-1000)/1800,0,1))}else if(y<=.35)col=sea.clone();else if(y<1.7)col=shore.clone();else if(y<6.5)col=plain.clone().lerp(forest,clamp((y-2)/10,0,.5));else col=forest.clone().lerp(peak,clamp((y-6.5)/16,0,1));c.push(col.r,col.g,col.b)}geo.setAttribute('color',new THREE.Float32BufferAttribute(c,3));geo.computeVertexNormals();
   this.terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));this.terrain.receiveShadow=true;this.regionGroup.add(this.terrain);
   // A satellite texture uses the same geographic bounds as the DEM.
@@ -109,15 +109,36 @@ class WorldView{
   const tileTemplate=this.earthMap?.tileTemplate||'';
   loadSiteImagery(this.config.dem.anchor,{maptilerKey:key,tileTemplate}).then(canvas=>{
    if(this._siteImageToken!==token||this.terrain!==mesh)return;
-   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
-   // North is +Z, east is +X: the georeferenced raster stays unmirrored.
-   const previous=mesh.material;mesh.material=new THREE.MeshStandardMaterial({map:texture,roughness:1,side:THREE.DoubleSide});
-   previous.map?.dispose();previous.dispose();
+   this.baseImageryCanvas=canvas;this.applyImageCanvas(canvas);
+   window.dispatchEvent(new Event('planetlab:imagery-ready'));
    const note=document.getElementById('imageryState');if(note)note.textContent=key?'High-resolution aerial imagery active':'Sentinel-2 imagery (2016 · approx. 10 m/pixel)';
   }).catch(error=>{
    const note=document.getElementById('imageryState');if(note)note.textContent=error.message;
    console.warn('Site imagery unavailable:',error.message);
   });
+ }
+ applyImageCanvas(canvas){
+  if(!this.terrain||!canvas)return;
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  texture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
+  const previous=this.terrain.material;
+  this.terrain.material=new THREE.MeshStandardMaterial({map:texture,roughness:1,side:THREE.DoubleSide});
+  previous.map?.dispose();previous.dispose();
+ }
+ drawScenarioBounds(bounds){
+  clearGroup(this.scenarioOutline);
+  if(!bounds||!this.config)return;
+  const segments=24,vertices=[];
+  const edge=(ax,az,bx,bz)=>{for(let i=0;i<segments;i++){
+   const t=i/segments,u=(i+1)/segments;
+   for(const k of [t,u]){const x=ax+(bx-ax)*k,z=az+(bz-az)*k;vertices.push(x,this.height(x,z)+.35,z)}
+  }};
+  edge(bounds.xMin,bounds.zMin,bounds.xMax,bounds.zMin);
+  edge(bounds.xMax,bounds.zMin,bounds.xMax,bounds.zMax);
+  edge(bounds.xMax,bounds.zMax,bounds.xMin,bounds.zMax);
+  edge(bounds.xMin,bounds.zMax,bounds.xMin,bounds.zMin);
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  this.scenarioOutline.add(new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:'#b9ff7a',depthTest:true})));
  }
  showExistingBuildings(data){
   clearGroup(this.existingGroup);
@@ -187,6 +208,8 @@ class WorldView{
     window.dispatchEvent(new CustomEvent('planetlab:open-pin',{detail:{id:pinHit.object.userData.placeId}}));return;
   }
   const hit=globeHit;if(hit){const p=this.planetGroup.worldToLocal(hit.point.clone()).normalize(),lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(p.z,p.x)*180/Math.PI;this.changeAnchor({lat:Math.round(lat*10)/10,lon:Math.round(lon*10)/10});return}}if(this.mode==='region'&&this.terrain){
+  if(this.scenarioSelecting){const patchHit=this.raycaster.intersectObject(this.terrain)[0];
+   if(patchHit){window.dispatchEvent(new CustomEvent('planetlab:scenario-point',{detail:{x:patchHit.point.x,z:patchHit.point.z}}))}return}
   const bookmark=this.raycaster.intersectObjects(this.bookmarkGroup.children)[0];
   if(bookmark?.object?.userData.bookmarkId){window.dispatchEvent(new CustomEvent('planetlab:open-view-bookmark',{detail:{id:bookmark.object.userData.bookmarkId}}));return}
   const meshHit=this.raycaster.intersectObjects(this.buildGroup.children,true).find(intersection=>{

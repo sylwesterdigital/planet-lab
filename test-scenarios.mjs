@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {patchBounds,rasterRect,siteKey,validLayer} from './scenario-core.mjs';
+const rect=patchBounds({x:-40,z:20},{x:20,z:-40});
+assert.deepEqual(rect,{xMin:-40,xMax:20,zMin:-40,zMax:20});
+const uv=rasterRect(rect,1560,1560);
+assert.equal(uv.x,380);assert.equal(uv.y,580);assert.equal(uv.width,600);assert.equal(uv.height,600);
+const north=rasterRect({xMin:-78,xMax:78,zMin:0,zMax:78},1024,1024);
+assert.deepEqual(north,{x:0,y:0,width:1024,height:512});
+assert.throws(()=>patchBounds({x:1,z:1},{x:2,z:2}),/at least/);
+assert.equal(siteKey({lat:51.488553,lon:-0.080233}),'51.48855:-0.08023');
+assert(validLayer({id:'00000000-1234',site:'51:-0.1',bounds:rect,provider:'xai',prompt:'something'}));
+assert(!validLayer({id:'00000000-1234',site:'51:-0.1',bounds:{...rect,xMax:99},provider:'xai',prompt:'something'}));
+console.log('Scenario patch / orientation / site / metadata tests passed');

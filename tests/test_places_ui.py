@@ -7,7 +7,7 @@ class PlaceUiTest(unittest.TestCase):
  def test_version_and_updates(self):
   page=(ROOT/'index.html').read_text()
   self.assertIn('<strong>PlanetLab</strong>',page)
-  self.assertIn('v0.4.19',page)
+  self.assertIn('v0.4.20',page)
   self.assertIn('https://github.com/sylwesterdigital/planet-lab',page)
   self.assertIn('updates.json', (ROOT/'update-feed.mjs').read_text())
  def test_geopins_and_snapshots(self):

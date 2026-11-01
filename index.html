@@ -84,6 +84,8 @@
 #viewBookmarkName{min-width:0;flex:1}#viewBookmarkSave{flex:none}
 #viewRecentDetails summary{cursor:pointer;color:var(--teal);font-size:11px}
 .earth-pin.earth-bookmark-pin{background:#ffd589;color:#19202a;border:2px solid #fff2cc;border-radius:50%;width:16px;height:16px;box-shadow:0 0 0 3px #253b4b91}
+
+.scenario-layer{display:flex;align-items:center;gap:7px;border:1px solid #355463;border-radius:7px;padding:5px;background:#0e202b}.scenario-layer.chosen{border-color:#b8f1a0}.scenario-layer .btn{white-space:normal;text-align:left;flex:1}.scenario-layer input{accent-color:#b9ff7a}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
@@ -211,7 +213,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.19 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.20 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -232,6 +234,24 @@ html,body{height:100%;overflow:hidden}
 <div class="row2"><div hidden><label class="lab" for="seed">LEGACY SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
 <div class="section" id="existingBuildingsSection" style="padding:8px 0"><strong>Existing buildings · OpenStreetMap</strong><div id="existingBuildingsState" class="hint" role="status">Select a location to load mapped buildings.</div><button class="btn mini" id="retryBuildings" type="button">Reload building data</button><label class="checkbox" style="margin-top:8px"><input id="showBuildingOutlines" type="checkbox" checked> Show footprint outlines where height is unknown</label></div>
 <details class="section" id="aerialOptions" style="padding:7px 0"><summary>Sharper aerial imagery · optional API key</summary><p class="hint">Free Sentinel-2 is about 10 m/pixel. For sharper imagery, provide your own MapTiler API key (usage charges may apply). Key is not saved.</p><input id="imageryKey" type="password" autocomplete="off" placeholder="MapTiler API key" aria-label="MapTiler API key" style="width:100%;box-sizing:border-box;background:#0c1822;color:#f1fff6;border:1px solid #42616a;border-radius:6px;padding:9px"><button class="btn mini" type="button" id="applyImagery">Apply imagery</button><div class="hint" id="imageryState" role="status">Sentinel-2 (2016)</div></details>
+<section class="section" id="scenarioEditor"><h3>AI site composition</h3>
+ <div class="hint">Select a real patch; edit its imagery without changing the original terrain or map.</div>
+ <button type="button" class="btn primary full" id="scenarioPick">Select patch (2 clicks)</button>
+ <canvas id="scenarioCrop" width="512" height="512" aria-label="Selected overhead imagery patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:1px solid #315365;border-radius:6px;background:#122632"></canvas>
+ <label class="lab" for="scenarioPrompt" style="margin-top:9px">EDIT INSTRUCTION</label>
+ <textarea id="scenarioPrompt" class="field textarea" maxlength="1500" placeholder="Remove all buildings in this patch; retain existing trees, paths and park lawns.">Remove buildings from the selected patch, retain trees and green lawns, and create a realistic park mockup.</textarea>
+ <div class="row2"><div><label class="lab" for="scenarioProvider">IMAGE PROVIDER</label><select id="scenarioProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><label class="lab" for="scenarioKey">API KEY (TAB ONLY)</label><input class="field" id="scenarioKey" type="password" autocomplete="off" placeholder="Provider API key"/></div></div>
+ <button type="button" class="btn primary full" id="scenarioGenerate">Generate AI site variant</button>
+ <div class="hint" role="status" aria-live="polite" id="scenarioStatus">Choose two ground corners to begin.</div>
+ <label class="lab" for="scenarioMode" style="margin-top:10px">IMAGE COMPARISON</label>
+ <select id="scenarioMode" class="field"><option value="edited">Scenario layers</option><option value="original">Original imagery</option><option value="split">Split comparison</option></select>
+ <label class="lab" for="scenarioOpacity" style="margin-top:10px">SELECTED LAYER OPACITY</label><input id="scenarioOpacity" type="range" min="0" max="100" value="100" style="width:100%" />
+ <label class="lab" for="scenarioSplit" style="margin-top:6px">SPLIT POSITION</label><input id="scenarioSplit" type="range" min="0" max="100" value="50" style="width:100%"/>
+ <label class="checkbox"><input type="checkbox" id="scenarioHideBuildings" checked/> Hide real 3D buildings in visual scenarios</label>
+ <div id="scenarioList" aria-label="Saved variants at this site" style="display:grid;gap:5px;margin-top:10px;font-size:10px">No scenarios for this location.</div>
+ <div class="buttons"><button type="button" class="btn mini" id="scenarioDuplicate">Duplicate</button><button type="button" class="btn mini" id="scenarioRemove">Delete</button><button type="button" class="btn mini primary" id="scenarioBuild">Design building</button></div>
+ <div class="hint">Variants are saved in this browser for the selected Earth location. Image edits are visual concepts only, not real site clearance or GIS updates. A provider call may incur charges.</div>
+ </section>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Reload elevation</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Select a location on Earth to load measured terrain.</div>
 <section class="section" id="citySection"><h3>02 / City masterplan</h3><label class="lab" for="brief">PLANNING BRIEF</label><textarea id="brief" class="field textarea">Compact resilient settlement, walkable public spaces, clean energy and small homes.</textarea>
 <div class="row2"><div><label class="lab" for="profile">ECONOMY / CITY PROFILE</label><select id="profile" class="field"><option value="mixed">Balanced settlement</option><option value="agricultural">Agricultural</option><option value="industrial">Industrial</option><option value="resort">Holiday / Vegas</option><option value="spa">Spa / wellness</option><option value="datacenter">Data centre hub</option><option value="metropolis">Dense metropolis</option></select></div><div><label class="lab" for="level">COMPLEXITY</label><select id="level" class="field"><option value="basic" selected>Basic</option><option value="simple">Simple</option><option value="average">Average</option><option value="advanced">Advanced</option><option value="super">Super complex</option></select></div></div>
@@ -366,6 +386,7 @@ html,body{height:100%;overflow:hidden}
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.20"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>

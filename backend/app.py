@@ -20,7 +20,7 @@ from .models import Base, User, World, Message, Media
 from .blueprints import valid_blueprint
 from .ai_routes import setup_ai
 
-VERSION = '0.4.19'
+VERSION = '0.4.20'
 MAX_UPLOAD = 50 * 1024 * 1024
 ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mp3', '.wav', '.ogg'}
 # Only client-facing entrypoints may be fetched from the release directory.
@@ -29,7 +29,7 @@ ALLOWED_MEDIA = {'.glb', '.gltf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp
 PUBLIC_ASSETS = frozenset({
     'index.html', 'house/index.html', 'updates.json',
     'app.mjs', 'planner.mjs', 'collab.mjs', 'studio.mjs',
-    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs', 'earth-map.mjs', 'earth-terrain.mjs', 'earth-imagery.mjs', 'earth-buildings.mjs', 'earth-views.mjs', 'earth-history.mjs',
+    'placebook.mjs', 'workflow.mjs', 'system-catalog.mjs', 'earth-map.mjs', 'earth-terrain.mjs', 'earth-imagery.mjs', 'earth-buildings.mjs', 'earth-views.mjs', 'earth-history.mjs', 'earth-scenarios.mjs', 'scenario-core.mjs',
     'ai-connections.mjs', 'api-console.mjs', 'update-feed.mjs',
 })
 
@@ -476,6 +476,8 @@ def create_app(test_config=None):
             return send_file(file_path, mimetype=mimetype, as_attachment=False)
 
     setup_ai(app, db_session, data_dir, actor, require_csrf, fail)
+    from .scenario_edits import setup_scenario_edits
+    setup_scenario_edits(app, db_session, actor, require_csrf)
 
     @app.get('/')
     def homepage():
