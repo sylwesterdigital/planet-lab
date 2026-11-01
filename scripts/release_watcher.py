@@ -238,12 +238,13 @@ def verify(archive, output):
 
 
 def local_tests(stage):
-    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','test-earth.mjs','test-earth-map.mjs']:
+    for source in ['app.mjs','planner.mjs','collab.mjs','studio.mjs','ai-connections.mjs','api-console.mjs','test-planner.mjs','placebook.mjs','system-catalog.mjs','update-feed.mjs','workflow.mjs','earth-map.mjs','earth-terrain.mjs','earth-imagery.mjs','test-earth.mjs','test-earth-map.mjs','test-imagery.mjs']:
         run(['node', '--check', source], cwd=stage, timeout=15)
     output = run(['node', 'test-planner.mjs'], cwd=stage, timeout=25)
     detail(output)
     detail(run(['node', 'test-earth.mjs'], cwd=stage, timeout=25))
     detail(run(['node', 'test-earth-map.mjs'], cwd=stage, timeout=15))
+    detail(run(['node', 'test-imagery.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-entry.mjs'], cwd=stage, timeout=15))
     detail(run(['node', 'test-studio.mjs'], cwd=stage, timeout=15))
     # Use module discovery from the staged project root: direct execution of

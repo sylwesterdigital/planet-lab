@@ -5,9 +5,13 @@ import vm from 'node:vm';
 const source=readFileSync(new URL('./earth-map.mjs',import.meta.url),'utf8').replace(/^import .*\n/gm,'').replace('export class EarthMap','class EarthMap');
 const events={};let latestMap=null,lookupCalls=0,opened=[];
 class Map{
- constructor(options){this.options=options;latestMap=this;this.markers=[];this.sources=[]}
+ constructor(options){this.options=options;latestMap=this;this.markers=[];this.sources=[];this.layers=[];this.projection={type:'mercator'}}
  on(event,cb){events[event]=cb}
  addControl(){}
+ getStyle(){return {layers:[{id:'roads',type:'line'},{id:'labels',type:'symbol'}]}}
+ getSource(id){return this.sources.find(([key])=>key===id)?.[1]}
+ addLayer(layer,before){this.layers.push([layer,before])}
+ setProjection(projection){this.projection=projection}
  addSource(id,source){this.sources.push([id,source])}
  setTerrain(value){this.terrain=value}
  resize(){}
@@ -27,20 +31,26 @@ const context={maplibregl,document,console,URLSearchParams,Date,Number,Math,
 vm.runInNewContext(`${source}\nglobalThis.EarthMap=EarthMap;`,context,{filename:'earth-map.mjs'});
 const node={hidden:false},selected=[];
 const earth=new context.EarthMap(node,coords=>selected.push(coords));
-assert.equal(latestMap.options.projection.type,'globe');
+assert.equal(latestMap.projection.type,'mercator','A style can override the constructor projection');
+events['style.load']();
+assert.equal(latestMap.projection.type,'globe','Must be spherical after style.load');
+assert.ok(latestMap.layers.find(([layer])=>layer.id==='earth-blue-marble-layer'));
+assert.ok(latestMap.layers.find(([layer])=>layer.id==='earth-sentinel-layer'));
 assert.match(latestMap.options.style,/openfreemap/);
 events.load();
 assert.ok(latestMap.terrain,'Measured elevation is activated');
-assert.equal(latestMap.sources[0][1].encoding,'terrarium');
+assert.equal(latestMap.getSource('real-dem').encoding,'terrarium');
 events.click({lngLat:{lat:51.5,lng:-.13}});
 assert.equal(selected[0].lat,51.5);
+assert.equal(earth.selectedPin.coordinates[0],-.13);
+assert.equal(earth.selectedPin.coordinates[1],51.5);
 const form={listeners:{},addEventListener(type,cb){this.listeners[type]=cb}},query={value:'London'},status={textContent:''};
 earth.connectSearch(form,query,status);
 await form.listeners.submit({preventDefault(){}});
 assert.equal(lookupCalls,1);assert.equal(latestMap.fly.center[0],-.128);
 assert.match(status.textContent,/Select an exact building site/);
 earth.pinsFor([{id:1,geoSource:'fictional',anchor:{lat:20,lon:40}},{id:2,geoSource:'earth-dem',anchor:{lat:51.5,lon:-.13},title:'Saved Earth site'}],id=>opened.push(id));
-assert.equal(latestMap.markers.length,1,'Legacy fictional pins never masquerade as Earth sites');
-latestMap.markers[0].element.listeners.click({stopPropagation(){}});
+assert.equal(latestMap.markers.filter(marker=>!marker.removed).length,2,'Only the clicked site and one saved Earth pin are shown');
+latestMap.markers[1].element.listeners.click({stopPropagation(){}});
 assert.deepEqual(opened,[2]);
 console.log('PASS — real globe click, terrain source, place search and saved Earth pins');

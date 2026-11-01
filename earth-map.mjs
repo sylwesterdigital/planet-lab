@@ -5,11 +5,33 @@
 import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
 const MAP_STYLE='https://tiles.openfreemap.org/styles/liberty';
 const TERRAIN='https://tiles.mapterhorn.com/tilejson.json';
+// NASA's 500-m Blue Marble and EOX's CC BY 4.0 2016 Sentinel-2 mosaic.
+// A single coordinate system is shared by this globe and the selected DEM patch.
+const BLUE_MARBLE='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/2004-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
+const SENTINEL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg';
 export class EarthMap{
  constructor(node,onSelect){
-  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;
-  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,20],zoom:1.65,projection:{type:'globe'},pitch:0,attributionControl:true});
+  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;
+  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true});
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
+  // Styles can override projection specified in the constructor. ALWAYS set it after
+  // style.load; without this, MapLibre displays a flat world even at globe zoom.
+  this.map.on('style.load',()=>{
+   this.map.setProjection({type:'globe'});
+   const firstLabel=this.map.getStyle().layers.find(layer=>layer.type==='symbol')?.id;
+   if(!this.map.getSource('earth-blue-marble')){
+    this.map.addSource('earth-blue-marble',{type:'raster',tiles:[BLUE_MARBLE],tileSize:256,maxzoom:8,
+     attribution:'Imagery: NASA EOSDIS GIBS (Blue Marble)'});
+    this.map.addLayer({id:'earth-blue-marble-layer',type:'raster',source:'earth-blue-marble',
+     paint:{'raster-fade-duration':150}},firstLabel);
+   }
+   if(!this.map.getSource('earth-sentinel')){
+    this.map.addSource('earth-sentinel',{type:'raster',tiles:[SENTINEL],tileSize:256,minzoom:5,maxzoom:14,
+     attribution:'Imagery: EOX Sentinel-2 cloudless 2016 (CC BY 4.0; Copernicus data)'});
+    this.map.addLayer({id:'earth-sentinel-layer',type:'raster',source:'earth-sentinel',minzoom:5,
+     paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,0,7,1], 'raster-fade-duration':200}},firstLabel);
+   }
+  });
   this.map.on('load',()=>{
    this.ready=true;
    this.map.addSource('real-dem',{type:'raster-dem',url:TERRAIN,tileSize:512,encoding:'terrarium',attribution:'Terrain: Mapterhorn (CC BY 4.0)'});
@@ -17,14 +39,17 @@ export class EarthMap{
    this.map.addControl(new maplibregl.TerrainControl({source:'real-dem',exaggeration:1}),'top-right');
   });
   this.map.on('click',e=>{
-   // Clicking any named street, country or mountain selects that actual coordinate.
-   const anchor={lat:Number(e.lngLat.lat.toFixed(6)),lon:Number(e.lngLat.lng.toFixed(6))};
+   // Ignore sky clicks (there is no Earth surface there in the globe projection).
+   if(this.map.transform?.isPointOnMapSurface && !this.map.transform.isPointOnMapSurface(e.point))return;
+   if(!e.lngLat||!Number.isFinite(e.lngLat.lat)||!Number.isFinite(e.lngLat.lng))return;
+   const anchor={lat:Number(e.lngLat.lat.toFixed(7)),lon:Number(e.lngLat.lng.toFixed(7))};
+   this.markSelection(anchor);
    this.onSelect(anchor);
   });
   this.map.on('error',e=>{
    if(this.node.hidden)return;
    const status=document.getElementById('earthStatus');
-   if(status)status.textContent='Map data unavailable. Check map tile connectivity.';
+   if(status&&!this.ready)status.textContent='Earth map unavailable. Check map tile connectivity.';
    console.warn('Earth map provider:',e.error?.message||e);
   });
  }
@@ -53,7 +78,15 @@ export class EarthMap{
  }
  show(){this.node.hidden=false;this.map.resize()}
  hide(){this.node.hidden=true}
- focus(anchor){this.map.flyTo({center:[anchor.lon,anchor.lat],zoom:12,pitch:50,duration:1700,essential:true})}
+ markSelection(anchor){
+  this.selectedPin?.remove();
+  const element=document.createElement('div');element.className='earth-selection-marker';element.title='Selected location';
+  this.selectedPin=new maplibregl.Marker({element,anchor:'center'}).setLngLat([anchor.lon,anchor.lat]).addTo(this.map);
+ }
+ focus(anchor){
+  // Preserve the exact clicked coordinate; no snapped fictional island/region.
+  this.map.flyTo({center:[anchor.lon,anchor.lat],zoom:12,pitch:0,duration:1500,essential:true});
+ }
  pinsFor(entries=[],open){
   this.pins.forEach(pin=>pin.remove());this.pins=[];
   for(const item of entries){

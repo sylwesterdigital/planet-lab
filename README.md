@@ -1,6 +1,15 @@
-# PlanetLab v0.4.15 — real Earth terrain exploration and release verification
+## v0.4.16: spherical Earth and same-place local terrain
 
-The default globe is now **Earth**: MapLibre GL renders actual
+- MapLibre projection is forced to `globe` after `style.load` (v0.4.15 was flattened by the map style).
+- NASA Blue Marble imagery covers the sphere; EOX Sentinel-2 2016 fills in zoomed views with CC BY 4.0 attribution.
+- Clicking Earth selects the exact latitude and longitude (7 decimal places) and loads the Mapterhorn DEM for the corresponding 1,560 m square.
+- The local 3D relief is textured with the same area's satellite imagery, geographically aligned to the DEM.
+- Saved real-Earth coordinates remain pinned; older fictional coordinates are not misrepresented as real-world places.
+- Public imagery/DEM services do not require a key; service uptime and imagery availability are not guaranteed.
+
+# PlanetLab v0.4.16 — spherical Earth, real imagery, exact-location terrain
+
+The real Earth terrain exploration default globe is now **Earth**: MapLibre GL renders actual
 OpenStreetMap cartography via OpenFreeMap with Mapterhorn elevation tiles.
 No API key is required for this initial stack; both services operate as
 public, best-effort providers. Their data must be attributed on the map.
@@ -42,9 +51,7 @@ and inland water classification is approximate. The city generator's road,
 parcel, utility and cost data remain illustrative; no flood-risk or
 regulatory claims should be derived from elevation alone. MapLibre and
 DEM tiles are live online dependencies, so a provider outage can prevent
-loading a new Earth site. The visual transition is from MapLibre globe to a
-Three.js terrain mesh derived from those same DEM samples; it is not yet an
-orthophoto-textured scene. Verify MapLibre's CDN and elevation-tile access
+loading a new Earth site. The visual transition is from a spherical MapLibre Earth with public satellite imagery to a Three.js terrain mesh derived from the same DEM and covered with georeferenced Sentinel-2 imagery. Verify MapLibre's CDN and elevation-tile access
 in the browser before production rollout.
 
 ## Changes in v0.4.13
@@ -118,7 +125,7 @@ Run all tests with dependencies on the staging server before activating a releas
 
 ## Deployment
 
-The watcher accepts `PLANETLAB_RELEASE_v0.4.15.zip` in the Mac repository's
+The watcher accepts `PLANETLAB_RELEASE_v0.4.16.zip` in the Mac repository's
 `updates/` directory. It validates manifest hashes, runs local and staged tests,
 pushes through configured Git SSH, and activates the Ubuntu version with rollback
 checks. **Placing a ZIP there initiates deployment**; review its changes first.

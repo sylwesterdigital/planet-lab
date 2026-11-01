@@ -10,6 +10,8 @@ class GeographyUiTests(unittest.TestCase):
   self.assertIn('sceneElevation(config.dem,x,z)',planner)
   self.assertIn("geoSource==='earth-dem'",planner)
   self.assertIn('fetchEarthGrid(anchor)',app)
+  self.assertIn('loadSiteImagery(config.dem.anchor)',app)
+  self.assertIn("this.geoSource==='earth-dem'?[0,0]",app)
   self.assertIn('this.world.earthMap',app)
   self.assertIn('10 / 6371000',planner)
   self.assertIn('clearGroup(this.regionGroup)',app)

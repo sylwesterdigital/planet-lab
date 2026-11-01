@@ -60,15 +60,16 @@
 /* v0.4.13: visible evidence and constraints, not unexplained decorative KPIs */
 .feasibility-findings{margin:9px 0 11px;padding-left:18px;display:grid;gap:7px;color:#c9d9d6;font-size:11px;line-height:1.45}
 #feasibilityState{font-weight:700;color:#d6e6ae}
-#earthMap{position:absolute;inset:0;z-index:1;width:100%;height:100%}#earthMap[hidden]{display:none!important}
+#earthMap{position:absolute;inset:0;z-index:1;width:100%;height:100%;background:#020810}#earthMap[hidden]{display:none!important}
 #earthStatus[hidden]{display:none!important}
 #earthStatus{position:absolute;z-index:12;bottom:19px;left:18px;max-width:min(480px,calc(100% - 40px));font-size:12px;line-height:1.4;color:#e8f3ed;background:#0c2228df;border:1px solid #375b62;border-radius:9px;padding:10px 13px;pointer-events:none}
+.earth-selection-marker{width:16px;height:16px;border:3px solid #d5ffab;border-radius:50%;background:#14322d;box-shadow:0 0 0 6px #b9fb9655,0 0 23px #b9fb96;pointer-events:none}
 .earth-pin{border:2px solid #f6ffed;background:#259f7d;color:white;border-radius:50%;height:23px;width:23px;font-size:11px;box-shadow:0 0 0 4px #1b654a77;cursor:pointer}
 .workspace[data-flow="world"] .left > :not(.workflow-entry){display:none}
 .workspace[data-flow="world"] .workflow-entry .welcome-purpose{display:block;font-size:13px;line-height:1.5;margin:8px 0 15px}
 .workspace[data-flow="build"] #citySection,.workspace[data-flow="build"] .left > .section{display:none}
-.workspace[data-flow="world"] .right{display:none}
-.workspace[data-flow="world"]{grid-template-columns:300px minmax(0,1fr)!important}
+.workspace[data-flow="world"]>.right{display:none!important}
+.workspace[data-flow="world"]{grid-template-columns:280px minmax(0,1fr)!important}
 .workspace[data-flow="world"] .bottom,.workspace[data-flow="world"] .view-toolbar,.workspace[data-flow="world"] #planTag,.workspace[data-flow="world"] .scene-instructions{display:none}
 .workflow-entry .welcome-purpose,.workflow-entry .globe-explainer,.workflow-entry .workflow-caveat,.workflow-entry .welcome-next{display:none}
 .workflow-entry{padding-bottom:12px}.workflow-choices{display:flex;gap:7px}.workflow-choice{padding:9px 6px;flex:1}.workflow-choice span{display:none}.workflow-choice strong{font-size:11px}
@@ -206,13 +207,13 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.15 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.16 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
  <h1 id="welcomeUser" aria-live="polite">Welcome to PlanetLab</h1>
  <p class="welcome-purpose">Explore real Earth, plan sites and design buildings.</p>
- <div class="globe-explainer"><strong>What is the big globe?</strong><span>Real Earth mapping and elevation. Click a location to load its actual terrain.</span></div>
+ <div class="globe-explainer"><strong>What is the big globe?</strong><span>Real Earth mapping and elevation. Click a point on Earth to open its actual terrain.</span></div>
  <p class="welcome-next">What would you like to do?</p>
  <div class="workflow-choices">
   <button type="button" class="workflow-choice primary-choice" id="startExplore"><strong>Explore Earth</strong><span>Choose land and inspect the same terrain up close.</span></button>
@@ -222,7 +223,7 @@ html,body{height:100%;overflow:hidden}
  <p class="workflow-caveat">Explore and plan without AI. Keys are only requested when you choose an AI feature. This is a conceptual simulation: no real-world planning or engineering validation.</p>
 </section>
 <p class="eyebrow">REAL EARTH</p>
-<h2 class="title" style="font-size:19px">Select a location</h2><p class="desc">Click any real place on the globe to inspect its terrain.</p>
+<h2 class="title" style="font-size:19px">Select a location</h2><p class="desc">Click Earth to open the same location in 3D terrain.</p>
 <div class="mode-tabs"><button class="active" id="regionMode">Local terrain</button><button id="planetMode">Earth map</button></div>
 <div class="row2"><div hidden><label class="lab" for="seed">LEGACY SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
 <div class="buttons"><button class="btn soft" id="newWorld">↻ Reload elevation</button><button class="btn soft" id="newSite">◎ Find suitable site</button></div><div class="hint" id="siteText">Select a location on Earth to load measured terrain.</div>
@@ -233,7 +234,7 @@ html,body{height:100%;overflow:hidden}
 <button class="btn primary full" id="plan">✧ Generate masterplan</button><div class="buttons"><button class="btn mini" id="export">↓ Blueprint JSON</button><button class="btn mini" id="restart">↻ Restart build</button></div><div class="hint">Measured elevation only. Roads, utilities, parcels and risks remain unverified.</div>
 </section><section class="section"><h3>03 / Construction playback</h3><button class="btn full" id="toggle">Ⅱ Pause teams</button><div class="row2"><div><label class="lab" for="speed">SIMULATION SPEED</label><select class="field" id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></div><div><label class="lab">CAMERA</label><button class="btn mini" style="width:100%;height:34px" id="camera">Reset view</button></div></div><label class="checkbox" style="margin-top:12px"><input id="showPlan" type="checkbox" checked/> Show pending building plots</label>
 <div class="hint">Agents are abstract task markers; off by default. The 3D scene is conceptual massing, not a construction-ready BIM model.</div></section>
-</aside><div class="stage"><div id="earthMap" aria-label="Real Earth map" hidden></div><div id="earthStatus" role="status" aria-live="polite">Loading real Earth map…</div><form id="earthSearch" aria-label="Find a real place"><input id="earthQuery" name="place" placeholder="Find city, mountain, address…" required autocomplete="off" maxlength="120" aria-label="Search a real place"/><button type="submit">Find</button></form><canvas id="scene"></canvas>
+</aside><div class="stage"><div id="earthMap" aria-label="Interactive spherical Earth with satellite imagery" hidden></div><div id="earthStatus" role="status" aria-live="polite">Loading 3D Earth…</div><form id="earthSearch" aria-label="Find a real place"><input id="earthQuery" name="place" placeholder="Find city, mountain, address…" required autocomplete="off" maxlength="120" aria-label="Search a real place"/><button type="submit">Find</button></form><canvas id="scene"></canvas>
 <div class="view-toolbar" aria-label="Scene presentation"><span>VIEW</span><button type="button" id="viewMassing" class="active" aria-pressed="true" title="Orbit and inspect architectural massing">3D massing</button><button type="button" id="viewPlan" aria-pressed="false" title="Top-down site plan">Site plan</button><button type="button" id="viewAgents" aria-pressed="false" title="Display simulated construction equipment">Show agents</button><label class="view-vegetation"><input type="checkbox" id="showVegetation"> Vegetation</label></div>
 <nav class="workflow-nav" aria-label="PlanetLab workspace">
  <button type="button" id="flowWorld" aria-pressed="false">Globe</button>
@@ -345,12 +346,12 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.15"></script>
-<script type="module" src="./collab.mjs?v=0.4.15"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.15"></script>
-<script type="module" src="./studio.mjs?v=0.4.15"></script>
-<script type="module" src="./placebook.mjs?v=0.4.15"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.15"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.15"></script>
-<script type="module" src="./workflow.mjs?v=0.4.15"></script>
+<script type="module" src="./app.mjs?v=0.4.16"></script>
+<script type="module" src="./collab.mjs?v=0.4.16"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.16"></script>
+<script type="module" src="./studio.mjs?v=0.4.16"></script>
+<script type="module" src="./placebook.mjs?v=0.4.16"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.16"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.16"></script>
+<script type="module" src="./workflow.mjs?v=0.4.16"></script>
 </body></html>

@@ -17,6 +17,7 @@ class PublicAssetPolicyTest(unittest.TestCase):
         self.assertIsInstance(assignment.value, ast.Call)
         assets = ast.literal_eval(assignment.value.args[0])
         self.assertGreater(len(assets), 8)
+        self.assertIn('earth-imagery.mjs',assets)
         for asset in assets:
             with self.subTest(asset=asset):
                 self.assertTrue((ROOT / asset).is_file())
