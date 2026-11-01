@@ -1,11 +1,19 @@
-## v0.4.18 — Resumable Earth viewpoints, mapped heights and reliable MapTiler imagery
+## v0.4.19 — Navigable view history; correctly oriented terrain imagery; DEM quality controls
+
+- **View history:** Back/Forward controls and visible visited-view list restore real-Earth sites, site targets, 3D camera positions and globe camera coordinates. Changing the camera within one area records an additional viewpoint. Up to 36 distinct views persist in the current browser for the signed-in handle. Named bookmarks and server-backed projects remain separate. Older v0.4.18 browser bookmarks migrate without a database change.
+- **Image orientation:** The local 3D mesh now derives its UV coordinates directly from east/north world axes (`+X` east, `+Z` north) and the exact site image bounding box. North remains at the top; no mirrored/rotated texture alignment.
+- **Terrain spikes:** The DEM loader detects and interpolates only isolated, extreme single-grid-cell outliers supported by stable surrounding measurements, including at patch boundaries. It does not flatten cliffs, ridges or continuous gradients. Corrected sample counts are exposed to the user and interpolated points are not claimed to be raw measurements.
+- **MapTiler:** TileJSON and an actual satellite tile are validated before a supplied key is enabled. Terrain imagery downloads use the provider's advertised tile template instead of assuming an image extension. A rejected key does not replace the previously working imagery. Keys are held in tab memory only.
+- Verified source/archival tests locally. Browser rendering with authenticated MapTiler tiles still needs production validation; API restrictions depend on the account. No changes to the watcher or database schema.
+
+## v0.4.19 — Resumable Earth viewpoints, mapped heights and reliable MapTiler imagery
 
 - After authentication, PlanetLab restores the last real Earth anchor, selected position within the 1,560 m DEM patch and Three.js camera orientation. Spherical globe map center/zoom/pitch/bearing are retained when globe view is active. Reopening a bookmarked view uses the actual DEM again; it never switches to synthetic terrain.
 - Up to 30 named camera/site bookmarks and 8 recent sites per signed-in account persist **in the current browser only** (localStorage, not server). Each bookmark has an exact Earth coordinate and local position, selectable in the workspace and by geographic globe pin. Existing server-side saved project snapshots remain separate; no schema changes.
 - Existing OpenStreetMap building footprints are still real observed polygons. Exact `height` tags produce measured extrusions; `building:levels` tags provide clearly marked *estimated height* extrusions at 3 m/storey. Buildings with neither tag remain mapped outlines, optionally hidden. Nothing should claim accurate roof geometry, property rights or a surveyed height when not available.
 - 3D building walls follow each local terrain vertex and are extruded vertically, with roof cap triangulation. Mapped footprints remain protected from new simulated construction. Camera orbit is constrained to avoid near-horizontal perspective.
 - Corrected MapTiler satellite-v2 TileJSON/XYZ URLs and validated API keys before activating paid imagery; tile counts adapt to latitude without rejecting valid sites.
-- Release version 0.4.18. No backend migrations and no changes to watcher deployment sequence.
+- Release version 0.4.19. No backend migrations and no changes to watcher deployment sequence.
 
 ## v0.4.17 — Real buildings and imagery reliability
 

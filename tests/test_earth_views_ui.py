@@ -7,7 +7,7 @@ class EarthViewsUiTest(unittest.TestCase):
   page=(ROOT/'index.html').read_text()
   for name in ('viewBookmarkName','viewBookmarkSave','viewBookmarkList','viewRecentList','showBuildingOutlines'):
    self.assertIn('id="'+name+'"',page)
-  self.assertIn('src="./earth-history.mjs?v=0.4.18"',page)
+  self.assertIn('src="./earth-history.mjs?v=0.4.19"',page)
   self.assertIn('earth-history.mjs', (ROOT/'backend/app.py').read_text())
  def test_restore_has_real_dem_and_camera(self):
   source=(ROOT/'earth-history.mjs').read_text()

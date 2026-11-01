@@ -31,7 +31,7 @@ const elements={};
 const document={createElement(tag){return {tagName:tag,listeners:{},setAttribute(k,v){this[k]=v},addEventListener(type,cb){this.listeners[type]=cb}}},getElementById(id){return elements[id]||(elements[id]={textContent:''})}};
 const context={maplibregl,document,console,URLSearchParams,Date,Number,Math,
  fetch:async url=>{
-  if(url.includes('api.maptiler.com'))return url.includes('key=INVALID')?{ok:false,status:403}:{ok:true,json:async()=>({tiles:['https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg']})};
+  if(url.includes('api.maptiler.com'))return url.includes('key=INVALID')?{ok:false,status:403}:{ok:true,status:200,json:async()=>({tiles:['https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key={key}']})};
   lookupCalls++;return {ok:true,json:async()=>({features:[{geometry:{coordinates:[-0.128,51.507]},properties:{name:'London',country:'United Kingdom'}}]})}
  }};
 vm.runInNewContext(`${source}\nglobalThis.EarthMap=EarthMap;`,context,{filename:'earth-map.mjs'});
@@ -49,6 +49,7 @@ assert.equal(latestMap.getSource('real-dem'),undefined,'Local DEM remains separa
 await earth.setImageryKey('TEST_BROWSER_KEY');
 assert.ok(latestMap.getSource('earth-aerial').url.includes('satellite-v2'),'Optional high-resolution imagery is activated');
 assert.equal(latestMap.getSource('earth-aerial').tileSize,512);
+assert.ok(earth.tileTemplate.includes('/satellite-v2/')); 
 await assert.rejects(earth.setImageryKey('INVALID'),/HTTP-origin restriction rejected/);
 assert.equal(earth.imageryKey,'TEST_BROWSER_KEY','Bad key must not replace working imagery');
 events.click({lngLat:{lat:51.5,lng:-.13}});

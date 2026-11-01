@@ -29,6 +29,24 @@ export function sampleElevation(grid,x,z){
 }
 export function sceneElevation(grid,x,z){return 2+(sampleElevation(grid,x,z)-grid.centerAltitude)/METRES_PER_UNIT}
 export function validateEarthGrid(grid){return !!grid&&grid.source==='mapterhorn-dem'&&grid.steps===GRID_STEPS&&grid.half===PATCH_HALF_UNITS&&Array.isArray(grid.heights)&&grid.heights.length===(GRID_STEPS+1)**2&&grid.heights.every(h=>Number.isFinite(h)&&h>=-12000&&h<=9000)&&Number.isFinite(grid.centerAltitude)}
+/* Repair only isolated, physically implausible single-cell DEM artifacts.
+ * Never flatten slopes or invent complete hills. The count is exposed to UI so
+ * interpolated pixels are never described as unmodified measurements. */
+export function correctIsolatedDemArtifacts(grid){
+ const n=grid.steps,source=grid.heights,heights=[...source];let corrected=0;
+ for(let j=0;j<=n;j++)for(let i=0;i<=n;i++){
+  const k=j*(n+1)+i,v=source[k];
+  const neighbors=[];
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if((dx||dz)&&i+dx>=0&&i+dx<=n&&j+dz>=0&&j+dz<=n)neighbors.push(source[(j+dz)*(n+1)+i+dx]);
+  const sorted=[...neighbors].sort((a,b)=>a-b),m=Math.floor(sorted.length/2),median=sorted.length%2?sorted[m]:(sorted[m-1]+sorted[m])/2;
+  // At least six surrounding cells must support the same local terrain.
+  // This deliberately does not 'repair' extended cliffs, ridges or plateaus.
+  if(Math.abs(v-median)<130||neighbors.filter(h=>Math.abs(h-median)<=35).length<Math.max(3,neighbors.length-2))continue;
+  heights[k]=median;corrected++;
+ }
+ const centerIndex=(n/2)*(n+1)+(n/2);
+ return {...grid,heights,centerAltitude:heights[centerIndex],artifactsCorrected:corrected};
+}
 /* Image decoder is injectable so tile math can be tested without network or canvas. */
 export async function fetchEarthGrid(anchor,{zoom=12,loadTile=loadTileImage}={}){
  // Mapterhorn global DEM is reliably served at z<=12. High-zoom requests
@@ -64,7 +82,7 @@ export async function fetchEarthGrid(anchor,{zoom=12,loadTile=loadTileImage}={})
   heights.push(...await Promise.all(row));
  }
  const centerAltitude=heights[(steps/2)*(steps+1)+(steps/2)];
- const grid={source:'mapterhorn-dem',zoom,anchor:{lat:anchor.lat,lon:anchor.lon},half,steps,centerAltitude,heights};
+ const grid=correctIsolatedDemArtifacts({source:'mapterhorn-dem',zoom,anchor:{lat:anchor.lat,lon:anchor.lon},half,steps,centerAltitude,heights});
  if(!validateEarthGrid(grid))throw new Error('Elevation tiles are incomplete');
  return grid;
 }

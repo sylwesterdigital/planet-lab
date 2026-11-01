@@ -21,4 +21,23 @@ export function sanitizeBookmark(b){const view=sanitizeView(b?.view);if(!view||v
  if(!id)return null;
  return {id,name:String(b.name||'Saved view').slice(0,80),view,created:finite(b.created)?b.created:0};
 }
-export function sanitizeHistory(data){return {last:sanitizeView(data?.last),bookmarks:(Array.isArray(data?.bookmarks)?data.bookmarks:[]).slice(0,60).map(sanitizeBookmark).filter(Boolean).slice(0,30),recent:(Array.isArray(data?.recent)?data.recent:[]).slice(0,16).map(sanitizeView).filter(v=>v?.mode==='region').slice(0,8)};}
+export function viewChanged(a,b){
+ if(!a||!b||a.mode!==b.mode)return true;
+ const p=viewAt(a.anchor,a.site),q=viewAt(b.anchor,b.site);
+ if(!p||!q||Math.hypot((p.lat-q.lat)*111195,(p.lon-q.lon)*111195*Math.cos(p.lat*Math.PI/180))>10)return true;
+ if(a.mode==='region'){
+  if(!a.camera||!b.camera||!a.target||!b.target)return true;
+  return Math.hypot(...a.camera.map((v,i)=>v-b.camera[i]))>3 || Math.hypot(...a.target.map((v,i)=>v-b.target[i]))>2;
+ }
+ if(!a.map||!b.map)return true;
+ const distance=Math.hypot(a.map.center[0]-b.map.center[0],a.map.center[1]-b.map.center[1]);
+ return distance>Math.max(.0005,1/2**a.map.zoom)||Math.abs(a.map.zoom-b.map.zoom)>.25||Math.abs(a.map.pitch-b.map.pitch)>3||Math.abs(a.map.bearing-b.map.bearing)>3;
+}
+export function sanitizeHistory(data){
+ const bookmarks=(Array.isArray(data?.bookmarks)?data.bookmarks:[]).slice(0,60).map(sanitizeBookmark).filter(Boolean).slice(0,30);
+ const recent=(Array.isArray(data?.recent)?data.recent:[]).slice(0,16).map(sanitizeView).filter(v=>v?.mode==='region').slice(0,8);
+ const trailSource=Array.isArray(data?.trail)?data.trail:[...recent].reverse();
+ const trail=trailSource.slice(-48).map(sanitizeView).filter(Boolean);
+ const cursor=Number.isInteger(data?.cursor)?Math.max(0,Math.min(data.cursor,trail.length-1)):trail.length-1;
+ return {last:sanitizeView(data?.last),bookmarks,recent,trail,cursor};
+}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {nearbyLatLon,lonLatToTile,terrariumHeight,fetchEarthGrid,sampleElevation,sceneElevation,validateEarthGrid} from './earth-terrain.mjs';
+import {nearbyLatLon,lonLatToTile,terrariumHeight,fetchEarthGrid,sampleElevation,sceneElevation,validateEarthGrid,correctIsolatedDemArtifacts} from './earth-terrain.mjs';
 import {citySpec,terrainHeight,assessTerrain,generateCity} from './planner.mjs';
 assert.equal(terrariumHeight(128,0,0),0);
 assert.equal(terrariumHeight(128,10,0),10);
@@ -11,6 +11,12 @@ let calls=0;const dem=await fetchEarthGrid({lat:51.5074,lon:-0.1278},{loadTile:a
 assert.ok(calls<=8,`expected bounded tile requests, got ${calls}`);
 assert.ok(validateEarthGrid(dem));assert.ok(Math.abs(sampleElevation(dem,0,0)-50)<.0001);
 assert.ok(Math.abs(sceneElevation(dem,0,0)-2)<.0001);
+const broken={...dem,heights:[...dem.heights]};broken.heights[52*105+52]=2500;broken.heights[0]=2600;
+const repaired=correctIsolatedDemArtifacts(broken);
+assert.equal(repaired.artifactsCorrected,2);assert.equal(repaired.heights[52*105+52],50);assert.equal(repaired.heights[0],50);
+assert.equal(broken.heights[0],2600,'Do not mutate original DEM data');
+const genuineSlope={...dem,heights:dem.heights.map((_,i)=>50+10*Math.floor(i/105))};
+assert.equal(correctIsolatedDemArtifacts(genuineSlope).artifactsCorrected,0,'Preserve real extended terrain slopes');
 const c=citySpec({seed:'test',anchor:{lat:51.5074,lon:-0.1278},geoSource:'earth-dem',dem});
 assert.equal(terrainHeight(0,0,c),2);
 assert.equal(assessTerrain(0,0,c).water,false);

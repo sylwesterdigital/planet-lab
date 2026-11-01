@@ -211,7 +211,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.18 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.19 · Earth / Terrain / Building Studio</small></div></div><div class="account-strip" id="accountStrip" hidden><button type="button" class="account-signout" id="aiSetupTop">AI Setup</button><button type="button" class="account-signout" id="apiConsoleTop">API Console</button><span class="account-name" id="accountName"></span><button type="button" class="account-signout" id="accountSignout">Sign out</button></div><div class="top-right"><a class="top-github" href="https://github.com/sylwesterdigital/planet-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a><button class="account-signout" type="button" id="updatesToggle">Updates</button><div class="status" id="status">INITIALISING</div></div></header>
 <div class="workspace" id="mainWorkspace" data-flow="world"><aside class="sidebar left">
 <section class="workflow-entry" id="workflowEntry" aria-label="Welcome and getting started">
  <p class="eyebrow">YOUR WORKSPACE</p>
@@ -258,9 +258,10 @@ html,body{height:100%;overflow:hidden}
 <div class="section" id="feasibilitySection" aria-live="polite"><h3>Site feasibility <span class="small">· preliminary screen</span></h3><div id="feasibilityState" class="hint">Select a site to assess</div><ul id="feasibilityList" class="feasibility-findings"><li>Terrain, flood exposure, road access and utilities will be screened before buildings are placed.</li></ul><div class="hint">Measured elevation does not establish flood risk, access, utilities, ownership or planning permission.</div></div>
 <div class="section" id="viewHistorySection"><h3>Locations & views</h3>
 <div class="hint" id="viewRestoreStatus" role="status">Your last Earth location and camera view reopen automatically.</div>
+<div class="buttons" role="group" aria-label="Visited viewpoint navigation"><button type="button" class="btn mini" id="viewHistoryBack">← Back</button><span class="hint" id="viewHistoryCounter" aria-live="polite">No visited views</span><button type="button" class="btn mini" id="viewHistoryNext">Forward →</button></div>
 <div class="buttons"><input id="viewBookmarkName" class="field" maxlength="80" placeholder="Name this view" aria-label="Bookmark name"><button class="btn mini primary" id="viewBookmarkSave" type="button">Bookmark view</button></div>
 <div id="viewBookmarkList" class="snapshot-list" aria-label="Saved camera viewpoints"></div>
-<details id="viewRecentDetails"><summary class="hint">Recent locations</summary><div id="viewRecentList" class="snapshot-list"></div></details>
+<details id="viewRecentDetails" open><summary class="hint">Visited locations & camera views</summary><div id="viewRecentList" class="snapshot-list"></div></details>
 <div class="hint">Bookmarks are saved in this browser for the signed-in account. Saved projects below remain on PlanetLab.</div>
 </div>
 <div class="section" id="placebookSection"><h3>Places & saved snapshots</h3>
@@ -359,13 +360,13 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.18"></script>
-<script type="module" src="./collab.mjs?v=0.4.18"></script>
-<script type="module" src="./ai-connections.mjs?v=0.4.18"></script>
-<script type="module" src="./studio.mjs?v=0.4.18"></script>
-<script type="module" src="./placebook.mjs?v=0.4.18"></script>
-<script type="module" src="./earth-history.mjs?v=0.4.18"></script>
-<script type="module" src="./update-feed.mjs?v=0.4.18"></script>
-<script type="module" src="./system-catalog.mjs?v=0.4.18"></script>
-<script type="module" src="./workflow.mjs?v=0.4.18"></script>
+<script type="module" src="./app.mjs?v=0.4.19"></script>
+<script type="module" src="./collab.mjs?v=0.4.19"></script>
+<script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
+<script type="module" src="./studio.mjs?v=0.4.19"></script>
+<script type="module" src="./placebook.mjs?v=0.4.19"></script>
+<script type="module" src="./earth-history.mjs?v=0.4.19"></script>
+<script type="module" src="./update-feed.mjs?v=0.4.19"></script>
+<script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
+<script type="module" src="./workflow.mjs?v=0.4.19"></script>
 </body></html>

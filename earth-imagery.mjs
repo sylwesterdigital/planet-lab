@@ -4,6 +4,7 @@
 import {nearbyLatLon,lonLatToTile,PATCH_HALF_UNITS,METRES_PER_UNIT} from './earth-terrain.mjs';
 export const IMAGERY_URL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg';
 export const AERIAL_URL='https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key={key}';
+export function geoUV(x,z,half=PATCH_HALF_UNITS){return [(x+half)/(2*half),(z+half)/(2*half)]}
 export function imageryBounds(anchor, zoom=14){
  const metres=PATCH_HALF_UNITS*METRES_PER_UNIT;
  const nw=nearbyLatLon(anchor,-metres,metres),se=nearbyLatLon(anchor,metres,-metres);
@@ -12,7 +13,7 @@ export function imageryBounds(anchor, zoom=14){
  if(b.x<a.x){b.x+=2**zoom}
  return {west:a.x*256,north:a.y*256,east:b.x*256,south:b.y*256,zoom};
 }
-export async function loadSiteImagery(anchor,{zoom,size,loadImage=loadRasterTile,maptilerKey=''}={}){
+export async function loadSiteImagery(anchor,{zoom,size,loadImage=loadRasterTile,maptilerKey='',tileTemplate=''}={}){
  const highRes=Boolean(maptilerKey);zoom??=highRes?17:14;size??=highRes?2048:1024;
  // The physical area spans more tiles at high latitudes and large zoom levels.
  // Reduce zoom for a bounded number of genuine image requests; never invent
@@ -34,7 +35,7 @@ export async function loadSiteImagery(anchor,{zoom,size,loadImage=loadRasterTile
  const jobs=[];
  for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
   jobs.push(async()=>{
-   const image=await loadImage(zoom,((x%2**zoom)+2**zoom)%2**zoom,y,maptilerKey);
+   const image=await loadImage(zoom,((x%2**zoom)+2**zoom)%2**zoom,y,maptilerKey,tileTemplate);
    return {x,y,image};
   });
  }
@@ -46,8 +47,8 @@ export async function loadSiteImagery(anchor,{zoom,size,loadImage=loadRasterTile
  }
  return canvas;
 }
-export async function loadRasterTile(z,x,y,maptilerKey=''){
- const url=(maptilerKey?AERIAL_URL:IMAGERY_URL).replace('{z}',z).replace('{x}',x).replace('{y}',y).replace('{key}',encodeURIComponent(maptilerKey));
+export async function loadRasterTile(z,x,y,maptilerKey='',tileTemplate=''){
+ const url=(maptilerKey?(tileTemplate||AERIAL_URL):IMAGERY_URL).replace('{z}',z).replace('{x}',x).replace('{y}',y).replace('{key}',encodeURIComponent(maptilerKey));
  const response=await fetch(url,{mode:'cors'});
  if(!response.ok)throw new Error((maptilerKey?'High-resolution aerial':'Sentinel-2')+' imagery unavailable (HTTP '+response.status+')');
  return createImageBitmap(await response.blob());

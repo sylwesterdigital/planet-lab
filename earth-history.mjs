@@ -1,6 +1,6 @@
 /* Camera+location continuity and per-account browser bookmarks.
  * No credentials, project blueprints or DEM tiles are stored here. */
-import {sanitizeView,sanitizeHistory,viewAt,siteAt,samePatch} from './earth-views.mjs';
+import {sanitizeView,sanitizeHistory,viewAt,siteAt,samePatch,viewChanged} from './earth-views.mjs';
 const $=id=>document.getElementById(id);
 const sim=window.planetLabApp;
 const PREFIX='planetlab.earth-views.v1.';
@@ -23,6 +23,28 @@ function capture(){
  const local=sim.config?.geoSource==='earth-dem'&&sim.earthDem;
  return sanitizeView({mode:mode==='region'&&local?'region':'planet',anchor:sim.anchor,site:sim.site,camera:position(sim.world.camera.position.toArray()),target:position(sim.world.controls.target.toArray()),map:globe});
 }
+function recordView(view){
+ if(!view||!scope||restoring)return;
+ const current=history.trail[history.cursor];
+ if(current&&!viewChanged(current,view)){history.last=view;write();return}
+ history.trail=history.trail.slice(0,history.cursor+1);
+ history.trail.push(view);
+ if(history.trail.length>36)history.trail.shift();
+ history.cursor=history.trail.length-1;history.last=view;
+ renderRecent();renderNavigation();write();
+}
+function renderNavigation(){
+ const back=$('viewHistoryBack'),next=$('viewHistoryNext'),counter=$('viewHistoryCounter');
+ if(!back||!next)return;
+ back.disabled=history.cursor<=0;next.disabled=history.cursor>=history.trail.length-1;
+ counter.textContent=history.trail.length?`${history.cursor+1} / ${history.trail.length}`:'No visited views';
+}
+async function navigateHistory(index){
+ if(index<0||index>=history.trail.length)return;
+ if(await restore(history.trail[index],{record:false})){history.cursor=index;history.last=history.trail[index];write();renderRecent()}
+}
+$('viewHistoryBack').onclick=()=>navigateHistory(history.cursor-1);
+$('viewHistoryNext').onclick=()=>navigateHistory(history.cursor+1);
 function saveView({recent=false}={}){
  if(restoring||!scope)return;
  const view=capture();if(!view)return;
@@ -36,7 +58,7 @@ function saveView({recent=false}={}){
   })].slice(0,8);
   renderRecent();
  }
- write();
+ recordView(view);write();
 }
 function globePinItems(){return history.bookmarks.map(b=>({id:b.id,title:b.name,anchor:viewAt(b.view.anchor,b.view.site)})).filter(b=>b.anchor)}
 function updateMarkers(){
@@ -59,7 +81,7 @@ function row(name,detail,onOpen,onRemove){
  if(onRemove)actions.appendChild(btn('Remove',onRemove,'Remove '+name));
  item.appendChild(actions);return item;
 }
-function summary(view){const point=viewAt(view.anchor,view.site);return point?`${point.lat.toFixed(5)}°, ${point.lon.toFixed(5)}° · exact camera view`:'Invalid location'}
+function summary(view){if(view.mode==='planet'&&view.map)return `Globe ${view.map.center[1].toFixed(5)}°, ${view.map.center[0].toFixed(5)}° · zoom ${view.map.zoom.toFixed(1)}`;const point=viewAt(view.anchor,view.site);return point?`${point.lat.toFixed(5)}°, ${point.lon.toFixed(5)}° · saved camera + target`:'Invalid location'}
 function renderBookmarks(){
  const list=$('viewBookmarkList');list.replaceChildren();
  if(!history.bookmarks.length){const hint=document.createElement('small');hint.className='hint';hint.textContent='No bookmarks yet.';list.appendChild(hint)}
@@ -70,10 +92,17 @@ function renderBookmarks(){
  }
  updateMarkers();
 }
-function renderRecent(){const list=$('viewRecentList');list.replaceChildren();
- for(const view of history.recent){list.appendChild(row('Recent site',summary(view),()=>restore(view)))}
+function renderRecent(){
+ const list=$('viewRecentList');list.replaceChildren();
+ // Include previous camera viewpoints, not just different latitude/longitude.
+ history.trail.forEach((view,index)=>{
+  const mode=view.mode==='region'?'3D terrain':'Earth globe';
+  const selected=index===history.cursor;
+  list.appendChild(row(`${selected?'Current · ':''}${mode} #${index+1}`,summary(view),()=>navigateHistory(index)));
+ });
+ renderNavigation();
 }
-async function restore(view){
+async function restore(view,{record=true}={}){
  const sanitized=sanitizeView(view);if(!sanitized||!sim)return false;
  const generation=++restoreGeneration;restoring=true;
  try{
@@ -96,18 +125,18 @@ async function restore(view){
   return true;
  }catch(error){$('viewRestoreStatus').textContent='Could not restore view: '+error.message;return false}
  finally{
-  if(generation===restoreGeneration){restoring=false;saveView()}
+  if(generation===restoreGeneration){restoring=false;if(record)saveView({recent:true})}
  }
 }
 function openBookmark(id){const b=history.bookmarks.find(row=>row.id===id);if(b)restore(b.view)}
 function connectMap(){
  const map=sim?.world.earthMap?.map;
- if(map&&map!==attachedMap){attachedMap=map;map.on('moveend',()=>{if(sim.world.mode==='planet')saveView()})}
+ if(map&&map!==attachedMap){attachedMap=map;map.on('moveend',()=>{if(sim.world.mode==='planet')saveView({recent:true})})}
  updateMarkers();
 }
 function activate(handle){if(!handle||handle===scope)return;
  ++restoreGeneration;scope=handle;history=read(handle);renderBookmarks();renderRecent();
- if(history.last)void restore(history.last);
+ if(history.last)void restore(history.last,{record:false});
  else $('viewRestoreStatus').textContent='Your current view will be remembered on this device.';
 }
 $('viewBookmarkSave').onclick=()=>{
@@ -127,8 +156,8 @@ window.addEventListener('planetlab:auth-changed',event=>{
 window.addEventListener('planetlab:earth-ready',connectMap);
 window.addEventListener('planetlab:site-selected',()=>{if(!restoring){saveView({recent:true});renderBookmarks()}else updateMarkers()});
 window.addEventListener('planetlab:site-changed',()=>{if(!restoring)saveView({recent:true});updateMarkers()});
-window.addEventListener('planetlab:view-changed',()=>saveView());
-sim?.world.controls.addEventListener('end',()=>saveView());
+window.addEventListener('planetlab:view-changed',()=>saveView({recent:true}));
+sim?.world.controls.addEventListener('end',()=>saveView({recent:true}));
 window.addEventListener('pagehide',()=>saveView());
 connectMap();
 if(window.planetLabAuthState?.user?.handle)activate(window.planetLabAuthState.user.handle);

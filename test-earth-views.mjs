@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {sanitizeView,sanitizeHistory,validAnchor,validSite,viewAt,siteAt,samePatch} from './earth-views.mjs';
+import {sanitizeView,sanitizeHistory,validAnchor,validSite,viewAt,siteAt,samePatch,viewChanged} from './earth-views.mjs';
 import {estimatedStoreyHeight,recordedHeight,parseBuildings} from './earth-buildings.mjs';
 const anchor={lat:38.8537,lon:6.0497};
 assert.equal(validAnchor(anchor),true);assert.equal(validAnchor({lat:91,lon:0}),false);
@@ -17,6 +17,12 @@ assert.equal(sanitizeView({mode:'region',anchor:{lat:999,lon:1},site:[0,0]}),nul
 assert.equal(sanitizeView({mode:'region',anchor,site:[0,0],camera:[Infinity,0,0]}).camera,null);
 const state=sanitizeHistory({last:view,bookmarks:[{id:'view-123456',name:'My site',created:100,view},{id:'../bad',view}],recent:[view]});
 assert.equal(state.bookmarks.length,1);assert.equal(state.recent.length,1);
+assert.equal(state.trail.length,1);
+assert.equal(viewChanged(view,{...view,camera:[48,53,21]}),false);
+assert.equal(viewChanged(view,{...view,camera:[60,53,21]}),true);
+const history=sanitizeHistory({last:view,trail:[view,{...view,camera:[60,53,21]}],cursor:0});
+assert.equal(history.cursor,0);assert.equal(history.trail.length,2);
+assert.equal(sanitizeHistory({trail:[view],cursor:999}).cursor,0);
 assert.equal(estimatedStoreyHeight({'building:levels':'2'}),6);
 assert.equal(estimatedStoreyHeight({'building:levels':'3.5'}),10.5);
 assert.equal(estimatedStoreyHeight({'building:levels':'garbage'}),null);

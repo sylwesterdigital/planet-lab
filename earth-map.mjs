@@ -12,7 +12,7 @@ const BLUE_MARBLE='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble
 const SENTINEL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg';
 export class EarthMap{
  constructor(node,onSelect){
-  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';
+  this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';this.tileTemplate='';
   this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true});
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
   // Styles can override projection specified in the constructor. ALWAYS set it after
@@ -86,13 +86,22 @@ export class EarthMap{
   const value=String(key||'').trim();
   // Validate metadata before mutating the active layer or storing the key.
   // A failed request must leave the working public imagery untouched.
+  let tileTemplate='';
   if(value){
    const response=await fetch(`https://api.maptiler.com/tiles/satellite-v2/tiles.json?key=${encodeURIComponent(value)}`,{mode:'cors'});
    if(!response.ok)throw new Error(response.status===403?'MapTiler key or HTTP-origin restriction rejected (403)':`MapTiler satellite imagery unavailable (HTTP ${response.status})`);
    const meta=await response.json();
    if(!Array.isArray(meta.tiles)||!meta.tiles.length)throw new Error('MapTiler satellite tileset returned invalid metadata');
+   // Only allow actual provider endpoints, not arbitrary URLs in TileJSON.
+   tileTemplate=meta.tiles.find(url=>typeof url==='string'&&/^https:\/\/api\.maptiler\.com\/tiles\/satellite-v2\//.test(url)&&url.includes('{z}')&&url.includes('{x}')&&url.includes('{y}'))||'';
+   if(!tileTemplate)throw new Error('MapTiler satellite TileJSON has no compatible satellite-v2 raster tiles');
+   // A valid metadata response alone is insufficient: an origin-restricted key
+   // can still fail on image tile requests. Verify before enabling the layer.
+   const tile=tileTemplate.replace('{z}','3').replace('{x}','4').replace('{y}','2').replace('{key}',encodeURIComponent(value));
+   const tileResponse=await fetch(tile,{mode:'cors'});
+   if(!tileResponse.ok)throw new Error(`MapTiler imagery tile rejected (HTTP ${tileResponse.status}); check domain restrictions and tileset access`);
   }
-  this.imageryKey=value;
+  this.imageryKey=value;this.tileTemplate=tileTemplate;
   if(this.map.getLayer?.('earth-aerial-layer'))this.map.removeLayer('earth-aerial-layer');
   if(this.map.getSource('earth-aerial'))this.map.removeSource('earth-aerial');
   this.addHighResolutionLayer();

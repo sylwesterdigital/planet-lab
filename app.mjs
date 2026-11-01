@@ -1,10 +1,10 @@
 import {fetchSiteBuildings} from './earth-buildings.mjs';
 import {fetchEarthGrid,sceneElevation,validateEarthGrid,sampleElevation} from './earth-terrain.mjs';
-import {loadSiteImagery} from './earth-imagery.mjs';
+import {loadSiteImagery,geoUV} from './earth-imagery.mjs';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
-import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, planetSurfaceHeight, terrainHeight, chooseSite, assessTerrain, citySpec, generateCity} from './planner.mjs?v=0.4.18';
+import {STAGES, TYPES, LEVELS, TEAM_ROLES, hash, mulberry32, planetElevation, planetSurfaceHeight, terrainHeight, chooseSite, assessTerrain, citySpec, generateCity} from './planner.mjs?v=0.4.19';
 const $=id=>document.getElementById(id);
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const colors={sea:'#24526e',earth:'#7f8f68',stone:'#a6a39b',path:'#b9a48d'};
@@ -94,7 +94,7 @@ class WorldView{
   this.terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));this.terrain.receiveShadow=true;this.regionGroup.add(this.terrain);
   // A satellite texture uses the same geographic bounds as the DEM.
   if(config.geoSource==='earth-dem'&&config.dem?.anchor){
-   const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,1-uv.getY(i));
+   const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++){const [u,v]=geoUV(p.getX(i),p.getZ(i));uv.setXY(i,u,v)}
    this.refreshImagery();
   }
   const water=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshStandardMaterial({color:colors.sea,transparent:true,opacity:.77,roughness:.3,metalness:.2,depthWrite:false}));water.rotation.x=-Math.PI/2;water.position.y=config.geoSource==='earth-dem'?2-config.dem.centerAltitude/10:.23;if(config.geoSource!=='earth-dem'||config.dem.heights.some(h=>h<=.25))this.regionGroup.add(water);
@@ -106,10 +106,11 @@ class WorldView{
   if(this.config?.geoSource!=='earth-dem'||!this.terrain)return;
   const mesh=this.terrain,token=Symbol('site-imagery');this._siteImageToken=token;
   const key=window.planetLabApp?.imageryKey||'';
-  loadSiteImagery(this.config.dem.anchor,{maptilerKey:key}).then(canvas=>{
+  const tileTemplate=this.earthMap?.tileTemplate||'';
+  loadSiteImagery(this.config.dem.anchor,{maptilerKey:key,tileTemplate}).then(canvas=>{
    if(this._siteImageToken!==token||this.terrain!==mesh)return;
-   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-   // Geometry UVs are flipped above: true geographic north remains at +Z.
+   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
+   // North is +Z, east is +X: the georeferenced raster stays unmirrored.
    const previous=mesh.material;mesh.material=new THREE.MeshStandardMaterial({map:texture,roughness:1,side:THREE.DoubleSide});
    previous.map?.dispose();previous.dispose();
    const note=document.getElementById('imageryState');if(note)note.textContent=key?'High-resolution aerial imagery active':'Sentinel-2 imagery (2016 · approx. 10 m/pixel)';
@@ -284,8 +285,8 @@ class CityApp{
  generateWorld(){this.running=false;this.config=this.readConfig();if(this.geoSource!=='earth-dem')this.world.buildPlanet(this.config.seed);this.site=this.geoSource==='earth-dem'?[0,0]:(chooseSite([0,0],this.config)||[0,0]);this.config.site=this.site;this.world.setSite(this.site);this.world.generateTerrain(this.config);if(this.buildingsState==='ready')this.world.showExistingBuildings(this.siteBuildings);this.world.setMode('region');window.dispatchEvent(new Event('planetlab:site-changed'));this.plan=null;this.events=[];this.removeRobots();this.log('Planet terrain generated. Select settlement site or generate a masterplan.');this.updateLocation();this.drawMap();this.updateUi()}
  removeRobots(){for(const a of this.robots){this.world.robotsGroup.remove(a.group);a.group.traverse(o=>o.geometry?.dispose())}this.robots=[]}
  async changeAnchor(anchor){return this.selectEarthSite(anchor)}
- async initEarthMap(){try{const container=$('earthMap');container.hidden=false;const {EarthMap}=await import('./earth-map.mjs?v=0.4.18');this.world.earthMap=new EarthMap(container,anchor=>this.selectEarthSite(anchor));this.world.earthMap.show();this.world.earthMap.connectSearch($('earthSearch'),$('earthQuery'),$('earthStatus'));this.world.earthMap.map.resize();const status=$('earthStatus');status.textContent='Click a real location on Earth to inspect terrain.';window.dispatchEvent(new Event('planetlab:earth-ready'));}catch(error){$('earthStatus').textContent='Earth map unavailable: '+error.message;console.error(error)}}
- async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level`;this.updateUi();this.loadBuildings(ticket);return true;}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error);return false}}
+ async initEarthMap(){try{const container=$('earthMap');container.hidden=false;const {EarthMap}=await import('./earth-map.mjs?v=0.4.19');this.world.earthMap=new EarthMap(container,anchor=>this.selectEarthSite(anchor));this.world.earthMap.show();this.world.earthMap.connectSearch($('earthSearch'),$('earthQuery'),$('earthStatus'));this.world.earthMap.map.resize();const status=$('earthStatus');status.textContent='Click a real location on Earth to inspect terrain.';window.dispatchEvent(new Event('planetlab:earth-ready'));}catch(error){$('earthStatus').textContent='Earth map unavailable: '+error.message;console.error(error)}}
+ async selectEarthSite(anchor){const ticket=this._earthRequest=(this._earthRequest||0)+1;const status=$('earthStatus');this.world.setMode('planet');status.textContent=`Loading measured elevation near ${anchor.lat.toFixed(4)}°, ${anchor.lon.toFixed(4)}°…`;this.world.earthMap?.focus(anchor);try{const dem=await fetchEarthGrid(anchor);if(ticket!==this._earthRequest)return;this.siteBuildings=null;this.buildingsState='loading';this.updateBuildingCoverage();this.geoSource='earth-dem';this.anchor=anchor;this.earthDem=dem;this.site=[0,0];this.generateWorld();this.updateMode();this.log(`Earth elevation loaded at ${anchor.lat}°, ${anchor.lon}°`);window.dispatchEvent(new Event('planetlab:site-selected'));status.textContent=`Real elevation loaded · ${Math.round(dem.centerAltitude)} m above sea level${dem.artifactsCorrected?` · ${dem.artifactsCorrected} isolated DEM outliers interpolated`:''}`;this.updateUi();this.loadBuildings(ticket);return true;}catch(error){if(ticket!==this._earthRequest)return;status.textContent=`Real elevation unavailable: ${error.message}. No synthetic terrain substituted.`;this.world.setMode('planet');this.updateMode();console.error(error);return false}}
  async loadBuildings(ticket=this._earthRequest){
   if(!this.earthDem)return;
   this.buildingsState='loading';this.updateBuildingCoverage();
