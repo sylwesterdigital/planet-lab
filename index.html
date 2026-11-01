@@ -263,8 +263,24 @@ html,body{height:100%;overflow:hidden}
 .gallery-viewer-toolbar{display:flex;justify-content:space-between;align-items:center;min-height:64px;gap:10px;padding:12px 21px;background:#152a35}
 .gallery-viewer-toolbar strong{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gallery-viewer-actions{display:flex;gap:7px}.gallery-viewer-actions button{border:1px solid #5b7888;background:#264250;color:#f4fff8;border-radius:7px;padding:8px 15px;font-size:20px}
-.gallery-viewer-frame{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:10px;cursor:zoom-in}
+.gallery-viewer-frame{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:10px;cursor:zoom-in;position:relative}
 .gallery-viewer-frame img{max-width:96vw;max-height:calc(100vh - 91px);object-fit:contain;transform-origin:center center;box-shadow:0 10px 50px #0009;border-radius:4px}
+.gallery-viewer-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:0}
+.gallery-viewer-sidebar{background:#102331;border-left:1px solid #274556;padding:14px;overflow:auto;display:grid;gap:12px;align-content:start}
+.gallery-viewer-sidebar h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#b8ced6}
+.gallery-viewer-hint{font-size:12px;color:#a8bec8;line-height:1.45}
+.gallery-viewer-stage{position:relative;max-width:min(1100px,92vw);width:100%;background:#0a151e;border:1px solid #355366;border-radius:10px;overflow:hidden;box-shadow:0 14px 44px #0008}
+.composition-layer{position:absolute;object-fit:fill;inset:auto;border:0;user-select:none;-webkit-user-drag:none}
+.composition-layer.selected{outline:3px solid rgba(180,255,126,.95);outline-offset:-3px}
+.gallery-viewer-selection{position:absolute;border:3px solid #ff5164;background:linear-gradient(135deg,rgba(255,81,100,.22),rgba(114,225,255,.18));box-shadow:0 0 0 9999px rgba(0,0,0,.18) inset;pointer-events:none;display:none;z-index:999}
+.gallery-viewer-selection::before,.gallery-viewer-selection::after{content:"";position:absolute;width:16px;height:16px;border:3px solid #fff}.gallery-viewer-selection::before{left:-6px;top:-6px;border-right:0;border-bottom:0}.gallery-viewer-selection::after{right:-6px;bottom:-6px;border-left:0;border-top:0}
+.viewer-layer-list,.viewer-history-list{display:grid;gap:8px}
+.viewer-layer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #305262;border-radius:10px;background:#122b39}
+.viewer-layer-row.active{border-color:#b8eb77;box-shadow:0 0 0 1px #b8eb77 inset}
+.viewer-layer-pick,.viewer-layer-eye{border:1px solid #4b6a7c;background:#1f3a49;color:#f0f7fb;border-radius:8px;padding:8px 10px;font:inherit;cursor:pointer}.viewer-layer-pick{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-history-item{padding:8px 10px;border:1px solid #284654;border-radius:10px;background:#0f202b;font-size:11px;color:#aec4ce}
+.gallery-viewer-actions.secondary button{font-size:12px;padding:8px 10px}
+.gallery-viewer-meta{font-size:12px;color:#b9d0d9}
 @media(max-width:950px){.top{padding:0 8px}.brand small{display:none}.top-right .status{display:none}.account-strip{gap:4px}}
 @media(max-width:700px){.planet-top-nav button{font-size:12px;padding:7px}.top-right{display:none}.tool-dock{left:7px;top:54px;width:min(365px,calc(100vw - 14px));max-height:calc(100% - 65px)}#drawingModeBanner{max-width:96%;white-space:normal;font-size:11px;gap:6px}#drawingModeBanner strong{font-size:12px}}
 </style></head><body>
@@ -301,7 +317,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.31 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.32 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
 <button id="tabExplore" type="button" aria-pressed="true">Explore</button>
 <button id="tabCreate" type="button" aria-pressed="false">Create</button>
 <button id="tabProjects" type="button" aria-pressed="false">Projects</button>
@@ -364,7 +380,7 @@ html,body{height:100%;overflow:hidden}
  <div class="hint">Variants are saved in this browser for the selected Earth location. Image edits are visual concepts only, not real site clearance or GIS updates. A provider call may incur charges.</div>
  </section>
 <section class="section" id="perspectiveEditor"><h3>Perspective concept gallery</h3>
- <div class="hint">Draw a rectangle over the current perspective view, generate separate concept images, and keep them in a gallery for this location.</div>
+ <div class="hint">Draw a rectangle over the current perspective view, generate a base concept, then open it as a layered composition. From there you can draw smaller patches, stack new AI generations, and keep the layers aligned.</div>
  <div class="buttons"><button type="button" class="btn primary" id="perspectivePick">Draw perspective patch</button><button type="button" class="btn mini" id="perspectiveUndo">Undo</button><button type="button" class="btn mini" id="perspectiveRedo">Redo</button></div>
  <div class="hint" style="margin-top:8px">After drawing a rectangle, press <strong>Enter</strong> to review the exact image crop that will be sent to AI.</div><canvas id="perspectiveCrop" width="1024" height="1024" aria-label="Selected perspective patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:2px solid #ff5a6a;border-radius:6px;background:#122632"></canvas>
  <label class="lab" for="perspectivePrompt" style="margin-top:9px">PERSPECTIVE IMAGE INSTRUCTION</label>
@@ -514,8 +530,25 @@ html,body{height:100%;overflow:hidden}
  </div>
 </section>
 <section id="perspectiveGalleryViewer" class="gallery-viewer" role="dialog" aria-modal="true" aria-label="Generated perspective image" hidden>
- <div class="gallery-viewer-toolbar"><strong id="galleryViewerTitle">Perspective image</strong><div class="gallery-viewer-actions"><button type="button" id="galleryViewerPrevious" aria-label="Previous image">←</button><button type="button" id="galleryViewerNext" aria-label="Next image">→</button><button type="button" id="galleryViewerZoomOut" aria-label="Zoom out">−</button><button type="button" id="galleryViewerZoomIn" aria-label="Zoom in">+</button><button type="button" id="galleryViewerClose" aria-label="Close image">×</button></div></div>
- <div id="galleryViewerFrame" class="gallery-viewer-frame"><img id="galleryViewerImage" alt="Generated perspective image"></div>
+ <div class="gallery-viewer-toolbar"><strong id="galleryViewerTitle">Perspective composition</strong><div class="gallery-viewer-actions"><button type="button" id="galleryViewerPrevious" aria-label="Previous image">←</button><button type="button" id="galleryViewerNext" aria-label="Next image">→</button><button type="button" id="galleryViewerZoomOut" aria-label="Zoom out">−</button><button type="button" id="galleryViewerZoomIn" aria-label="Zoom in">+</button><button type="button" id="galleryViewerClose" aria-label="Close image">×</button></div></div>
+ <div class="gallery-viewer-body">
+  <div id="galleryViewerFrame" class="gallery-viewer-frame"><div id="galleryViewerStage" class="gallery-viewer-stage"><div id="galleryViewerSelection" class="gallery-viewer-selection" hidden></div></div><img id="galleryViewerImage" alt="Generated perspective image" hidden></div>
+  <aside class="gallery-viewer-sidebar" aria-label="Composition layers and history">
+   <div class="gallery-viewer-meta" id="galleryViewerMeta">Layers: 0</div>
+   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerDrawPatch">Draw patch on image</button><button type="button" id="galleryViewerUndo">Undo</button><button type="button" id="galleryViewerRedo">Redo</button></div>
+   <div class="gallery-viewer-hint" id="galleryViewerSelectionHint">Select a composition patch to generate another layer.</div>
+   <div>
+    <h4>Layer stack</h4>
+    <div id="galleryViewerLayers" class="viewer-layer-list">No layers.</div>
+   </div>
+   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerMoveUp">Move up</button><button type="button" id="galleryViewerMoveDown">Move down</button></div>
+   <div class="gallery-viewer-actions secondary"><button type="button" id="galleryViewerToggle">Hide / show</button><button type="button" id="galleryViewerDelete">Delete layer</button></div>
+   <div>
+    <h4>Composition history</h4>
+    <div id="galleryViewerHistory" class="viewer-history-list">No composition edits yet.</div>
+   </div>
+  </aside>
+ </div>
 </section>
 <section id="apiConsole" class="api-console" hidden role="region" aria-label="AI HTTP debug console">
   <div class="api-console-bar" id="apiConsoleHandle"><strong>● API CONSOLE</strong><span id="apiLogCount">0 requests</span><button class="api-ctl" id="apiConsoleMin" type="button" aria-label="Minimise console" title="Minimise console">−</button><button class="api-ctl" id="apiConsoleClose" type="button" aria-label="Close console">×</button></div>
@@ -528,16 +561,16 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.31"></script>
+<script type="module" src="./app.mjs?v=0.4.32"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.31"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.31"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.32"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.32"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
-<script type="module" src="./ui-shell.mjs?v=0.4.31"></script>
+<script type="module" src="./ui-shell.mjs?v=0.4.32"></script>
 </body></html>
