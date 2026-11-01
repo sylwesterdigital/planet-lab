@@ -1,3 +1,11 @@
+## v0.4.26 — Perspective capture and modal fix
+
+- Hide the image preview dialog correctly on fresh load and refresh.
+- Review the exact selected crop with Enter or the Review button.
+- Capture a fresh WebGL frame before copying; reject empty captures.
+- Bound the JPEG request size before sending to image providers.
+- Keep the existing perspective gallery and site-workflow unchanged.
+
 ## v0.4.23 — Corrected AI patch release
 
 - Repairs local watcher test assertions that were pinned to an old release.

@@ -1,4 +1,4 @@
-import {getAiHeaders} from './ai-connections.mjs?v=0.4.25';
+import {getAiHeaders} from './ai-connections.mjs?v=0.4.26';
 import {siteKey} from './scenario-core.mjs';
 const $=id=>document.getElementById(id);
 const state={site:null,items:[],current:null,keys:{meta:'',xai:'',openai:''},busy:false,selecting:false,rect:null,history:[],future:[],drag:null};
@@ -13,16 +13,45 @@ function currentSite(){return siteKey(window.planetLabApp?.anchor)}
 
 function previewModal(){return $('perspectivePreviewModal')}
 function previewImage(){return $('perspectivePreviewImage')}
-function hidePreview(){const m=previewModal();if(m)m.hidden=true}
+function hidePreview(){const m=previewModal();if(m)m.hidden=true;const image=previewImage();if(image){image.hidden=true;image.removeAttribute('src')}}
 function showPreview(size=1024){
  if(!state.rect)throw new Error('Draw a perspective patch first.');
  const uri=captureView(state.rect,size);
- previewImage().src=uri;
+ const image=previewImage();image.src=uri;image.hidden=false;
  previewModal().hidden=false;
  $('perspectivePreviewNote').textContent='This exact cropped perspective image will be sent to the selected AI provider at '+size+' × '+size+'.';
  return uri
 }
-function captureView(rect,size=1024){const canvas=sceneCanvas();if(!canvas)throw new Error('3D view unavailable.');const bounds=canvas.getBoundingClientRect();const sx=Math.max(0,Math.round(rect.x*bounds.width));const sy=Math.max(0,Math.round(rect.y*bounds.height));const sw=Math.max(1,Math.round(rect.w*bounds.width));const sh=Math.max(1,Math.round(rect.h*bounds.height));const sourceW=canvas.width||bounds.width,sourceH=canvas.height||bounds.height;const px=sx*(sourceW/bounds.width),py=sy*(sourceH/bounds.height),pw=sw*(sourceW/bounds.width),ph=sh*(sourceH/bounds.height);const out=$('perspectiveCrop');out.width=size;out.height=size;const ctx=out.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.clearRect(0,0,size,size);ctx.drawImage(canvas,px,py,pw,ph,0,0,size,size);return out.toDataURL('image/png')}
+function captureView(rect,size=1024){
+ const world=window.planetLabApp?.world,canvas=sceneCanvas();
+ if(!canvas||!world||world.mode!=='region')throw new Error('Open a local 3D terrain view first.');
+ const bounds=canvas.getBoundingClientRect();
+ if(bounds.width<2||bounds.height<2)throw new Error('The 3D scene is not visible.');
+ const x=rect.x*canvas.width,y=rect.y*canvas.height,w=rect.w*canvas.width,h=rect.h*canvas.height;
+ if(w<8||h<8)throw new Error('Draw a larger rectangle.');
+ // WebGL default buffers may be cleared between frames. Render immediately
+ // before copying the pixels, in the same JavaScript task.
+ world.render();
+ const out=$('perspectiveCrop');out.width=size;out.height=size;
+ const ctx=out.getContext('2d',{willReadFrequently:true});
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+ ctx.drawImage(canvas,x,y,w,h,0,0,size,size);
+ // Reject a missing/blank WebGL frame rather than billing the user for it.
+ const pixels=ctx.getImageData(0,0,Math.min(size,64),Math.min(size,64)).data;
+ let visible=0;
+ for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]>16&&(pixels[i]>7||pixels[i+1]>7||pixels[i+2]>7))visible++;
+ if(visible<40)throw new Error('Could not capture the 3D scene. Try again after the terrain renders.');
+ // Encode the exact displayed preview as a bounded JPEG so the image-edit
+ // endpoint can accept even a detailed 2048px perspective crop.
+ let image='';
+ for(const quality of [.9,.82,.72,.62]){
+  image=out.toDataURL('image/jpeg',quality);
+  if(image.length<=3_250_000)break;
+ }
+ if(!image.startsWith('data:image/jpeg;base64,')||image.length<500||image.length>3_250_000)
+  throw new Error('The selected image is too large. Choose a smaller output resolution.');
+ return image;
+}
 function drawRect(rect){const box=selectionBox();if(!box)return; if(!rect){box.classList.remove('active');box.style.display='none';return;}box.style.display='block';box.classList.add('active');box.style.left=(rect.x*100)+'%';box.style.top=(rect.y*100)+'%';box.style.width=(rect.w*100)+'%';box.style.height=(rect.h*100)+'%';}
 function setRect(rect,push=true){state.rect=rect?{...rect}:null;drawRect(state.rect);if(rect&&push){state.history.push({...rect});if(state.history.length>24)state.history.shift();state.future=[]}if(rect){try{captureView(rect,1024);status('Perspective patch ready. Press Enter to review the exact image that will be sent to AI.')}catch(error){status(error.message,true)}}}
 function enableSelection(enable){state.selecting=!!enable;const o=overlay();o.hidden=!enable;o.classList.toggle('active',enable);if(!enable){state.drag=null}status(enable?'Drag on the 3D view to draw a rectangle.':'Draw a rectangle on the current 3D view to begin.')}
@@ -30,7 +59,7 @@ function pointerPoint(ev){const r=overlay().getBoundingClientRect();const x=(ev.
 function onPointerDown(ev){if(!state.selecting||window.planetLabApp?.world?.mode!=='region')return;ev.preventDefault();state.drag={start:pointerPoint(ev),current:pointerPoint(ev)};window.planetLabApp?.world?.controls&&(window.planetLabApp.world.controls.enabled=false);updateDrag()}
 function updateDrag(){if(!state.drag)return;const a=state.drag.start,b=state.drag.current;drawRect({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(a.x-b.x),h:Math.abs(a.y-b.y)})}
 function onPointerMove(ev){if(!state.drag)return;ev.preventDefault();state.drag.current=pointerPoint(ev);updateDrag()}
-function onPointerUp(ev){if(!state.drag)return;ev.preventDefault();state.drag.current=pointerPoint(ev);const a=state.drag.start,b=state.drag.current;state.drag=null;window.planetLabApp?.world?.controls&&(window.planetLabApp.world.controls.enabled=true);const rect={x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(a.x-b.x),h:Math.abs(a.y-b.y)};if(rect.w<0.03||rect.h<0.03){status('Perspective patch too small. Drag a larger rectangle.',true);drawRect(state.rect);return}setRect(rect,true);enableSelection(false)}
+function onPointerUp(ev){if(!state.drag)return;ev.preventDefault();state.drag.current=pointerPoint(ev);const a=state.drag.start,b=state.drag.current;state.drag=null;window.planetLabApp?.world?.controls&&(window.planetLabApp.world.controls.enabled=true);const rect={x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(a.x-b.x),h:Math.abs(a.y-b.y)};if(rect.w<0.03||rect.h<0.03){status('Perspective patch too small. Drag a larger rectangle.',true);drawRect(state.rect);return}setRect(rect,true);enableSelection(false);$('perspectiveReview').focus({preventScroll:true})}
 function restoreView(view){const world=window.planetLabApp?.world;if(!world||!view)return;const c=world.camera,t=world.controls?.target;if(c&&view.camera&&['x','y','z'].every(k=>Number.isFinite(view.camera[k]))){c.position.set(view.camera.x,view.camera.y,view.camera.z)}if(t&&view.target&&['x','y','z'].every(k=>Number.isFinite(view.target[k]))){t.set(view.target.x,view.target.y,view.target.z);world.controls.update()}world.render?.()}
 function selected(){return state.items.find(i=>i.id===state.current)||null}
 function galleryThumb(item){if(item.url)return item.url;item.url=URL.createObjectURL(item.blob);return item.url}
@@ -47,6 +76,7 @@ $('perspectiveViewpoint').onclick=()=>{const item=selected();if(!item){status('S
 $('perspectiveDelete').onclick=async()=>{const item=selected();if(!item)return;await removeItem(item.id);if(item.url)URL.revokeObjectURL(item.url);state.items=state.items.filter(i=>i.id!==item.id);state.current=state.items[0]?.id||null;refreshGallery();status('Perspective concept deleted.')};
 
 $('perspectivePreviewClose').onclick=()=>hidePreview();
+$('perspectiveReview').onclick=()=>{try{showPreview(resolution());status('Review the exact crop before generating.')}catch(error){status(error.message,true)}};
 document.addEventListener('keydown',event=>{
  const tag=(event.target?.tagName||'').toUpperCase();
  if(event.key==='Escape'&&!previewModal().hidden){hidePreview();return}
