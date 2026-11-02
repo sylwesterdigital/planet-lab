@@ -114,6 +114,9 @@
 .provider-keys-dialog .key-panel-body{padding:14px}
 .provider-keys-dialog .key-row button{min-width:47px;padding:7px 5px}
 @media(max-width:700px){#mapQuickControls{right:5px;top:96px;gap:3px}#mapQuickControls label{padding:5px;font-size:10px}}
+
+#perspectiveOverlay.active{touch-action:none!important;user-select:none!important}
+#perspectiveOverlay.active #perspectiveSelection{pointer-events:none}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 <style>
@@ -341,7 +344,7 @@ html,body{height:100%;overflow:hidden}
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.34 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
+<div class="app"><header class="top"><div class="brand"><div class="logo"></div><div><strong>PlanetLab</strong><small>v0.4.37 · Earth / Terrain / Building Studio</small></div></div><nav class="planet-top-nav" aria-label="Main workspace">
 <button id="tabExplore" type="button" aria-pressed="true">Explore</button>
 <button id="tabCreate" type="button" aria-pressed="false">Create</button>
 <button id="tabProjects" type="button" aria-pressed="false">Projects</button>
@@ -369,7 +372,7 @@ html,body{height:100%;overflow:hidden}
 <div class="mode-tabs"><button class="active" id="regionMode">Local terrain</button><button id="planetMode">Earth map</button></div>
 <div class="row2"><div hidden><label class="lab" for="seed">LEGACY SEED</label><input id="seed" class="field" value="ODYSSEY-7"/></div><div hidden><label class="lab" for="geography">REGION TAG (LEGACY)</label><select id="geography" class="field"><option value="island">Island</option><option value="peninsula">Peninsula</option><option value="coast">Coastline</option><option value="mainland">Continent</option><option value="archipelago">Archipelago</option><option value="valley">River valley</option><option value="mountains">Mountains</option></select></div></div>
 <div class="section" id="existingBuildingsSection" style="padding:8px 0"><strong>Existing buildings · OpenStreetMap</strong><div id="existingBuildingsState" class="hint" role="status">Select a location to load mapped buildings.</div><button class="btn mini" id="retryBuildings" type="button">Reload building data</button><label class="checkbox" style="margin-top:8px"><input id="showExistingBuildings3d" type="checkbox" checked> Show mapped 3D / outline buildings</label><label class="checkbox" style="margin-top:6px"><input id="showOnlyExistingBuildings" type="checkbox"> Focus on mapped buildings only</label><label class="checkbox" style="margin-top:6px"><input id="showBuildingOutlines" type="checkbox" checked> Show footprint outlines where height is unknown</label></div>
-<details class="section" id="aerialOptions" style="padding:7px 0"><summary>High-resolution imagery settings</summary><p class="hint">Free Sentinel-2 is about 10 m/pixel. Enable HD imagery in the map toolbar using the MapTiler key stored in Providers & Keys.</p><input id="imageryKey" type="hidden" autocomplete="off" placeholder="MapTiler API key" aria-label="MapTiler API key" style="width:100%;box-sizing:border-box;background:#0c1822;color:#f1fff6;border:1px solid #42616a;border-radius:6px;padding:9px"><button class="btn mini" type="button" id="applyImagery">Apply imagery</button><div class="hint" id="imageryState" role="status">Sentinel-2 (2016)</div></details>
+<details class="section" id="aerialOptions" style="padding:7px 0"><summary>High-resolution imagery settings</summary><p class="hint">Free Sentinel-2 is about 10 m/pixel. Enable HD imagery in the map toolbar using the MapTiler key stored in Providers & Keys.</p><input id="imageryKey" type="hidden" value="" aria-label="MapTiler API key" style="width:100%;box-sizing:border-box;background:#0c1822;color:#f1fff6;border:1px solid #42616a;border-radius:6px;padding:9px"><button class="btn mini" type="button" id="applyImagery">Apply imagery</button><div class="hint" id="imageryState" role="status">Sentinel-2 (2016)</div></details>
 <style>
 /* Site selection is an active tool, not a subtle map annotation. */
 #scenarioPick.scenario-picking{background:#ba1526!important;border:2px solid #ff6874!important;color:#fff!important;font-weight:800;box-shadow:0 0 0 2px #23080b,0 0 18px rgba(255,38,65,.4)}
@@ -390,7 +393,7 @@ html,body{height:100%;overflow:hidden}
  <canvas id="scenarioCrop" width="2048" height="2048" aria-label="Selected overhead imagery patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:1px solid #315365;border-radius:6px;background:#122632"></canvas>
  <label class="lab" for="scenarioPrompt" style="margin-top:9px">EDIT INSTRUCTION</label>
  <textarea id="scenarioPrompt" class="field textarea" maxlength="1500" placeholder="Remove all buildings in this patch; retain existing trees, paths and park lawns.">Remove buildings from the selected patch, retain trees and green lawns, and create a realistic park mockup.</textarea>
- <div class="row2"><div><label class="lab" for="scenarioProvider">IMAGE PROVIDER</label><select id="scenarioProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><label class="lab" for="scenarioKey">API KEY (TAB ONLY)</label><input class="field" id="scenarioKey" type="hidden" autocomplete="off" placeholder="Provider API key"/></div></div>
+ <div class="row2"><div><label class="lab" for="scenarioProvider">IMAGE PROVIDER</label><select id="scenarioProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><span class="lab">PROVIDER KEY</span><input id="scenarioKey" type="hidden" value=""/><button type="button" id="scenarioKeysOpen" class="btn mini" aria-label="Open provider key settings">Provider settings</button></div></div>
  <div class="row2"><div><label class="lab" for="scenarioResolution">AI OUTPUT RESOLUTION</label><select id="scenarioResolution" class="field"><option value="1024" selected>1024 × 1024</option><option value="1536">1536 × 1536</option><option value="2048">2048 × 2048</option></select></div><div><label class="lab">AI JOB STATUS</label><div class="hint" style="margin-top:11px">Selected patch animates while the job is running.</div></div></div>
  <button type="button" class="btn primary full" id="scenarioGenerate">Generate AI site variant</button>
  <div class="hint" role="status" aria-live="polite" id="scenarioStatus">Choose two ground corners to begin.</div>
@@ -405,11 +408,11 @@ html,body{height:100%;overflow:hidden}
  </section>
 <section class="section" id="perspectiveEditor"><h3>Perspective concept gallery</h3>
  <div class="hint">Draw a rectangle over the current perspective view, generate a base concept, then open it as a layered composition. From there you can draw smaller patches, stack new AI generations, and keep the layers aligned.</div>
- <div class="buttons"><button type="button" class="btn primary" id="perspectivePick">Draw perspective patch</button><button type="button" class="btn mini" id="perspectiveUndo">Undo</button><button type="button" class="btn mini" id="perspectiveRedo">Redo</button></div>
+ <div class="buttons"><button type="button" class="btn primary" id="perspectivePick">▭ Draw on Earth / terrain</button><button type="button" class="btn mini" id="perspectiveUndo">Undo</button><button type="button" class="btn mini" id="perspectiveRedo">Redo</button></div>
  <div class="hint" style="margin-top:8px">After drawing a rectangle, press <strong>Enter</strong> to review the exact image crop that will be sent to AI.</div><canvas id="perspectiveCrop" width="1024" height="1024" aria-label="Selected perspective patch" style="display:block;margin-top:9px;width:100%;height:auto;max-height:160px;object-fit:contain;border:2px solid #ff5a6a;border-radius:6px;background:#122632"></canvas>
  <label class="lab" for="perspectivePrompt" style="margin-top:9px">PERSPECTIVE IMAGE INSTRUCTION</label>
  <textarea id="perspectivePrompt" class="field textarea" maxlength="1500" placeholder="Generate a realistic cleaned-up visual concept from this perspective view.">Generate a realistic, high-quality visual concept from this perspective view. Preserve the overall perspective and proportions, improve texture quality, and remove distracting artifacts.</textarea>
- <div class="row2"><div><label class="lab" for="perspectiveProvider">IMAGE PROVIDER</label><select id="perspectiveProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><label class="lab" for="perspectiveKey">API KEY (TAB ONLY)</label><input class="field" id="perspectiveKey" type="hidden" autocomplete="off" placeholder="Provider API key"/></div></div>
+ <div class="row2"><div><label class="lab" for="perspectiveProvider">IMAGE PROVIDER</label><select id="perspectiveProvider" class="field"><option value="meta">Meta · Muse Image</option><option value="xai">xAI · Grok Imagine</option><option value="openai">OpenAI · GPT Image 2</option></select></div><div><span class="lab">PROVIDER KEY</span><input id="perspectiveKey" type="hidden" value=""/><button type="button" id="perspectiveKeysOpen" class="btn mini" aria-label="Open provider key settings">Provider settings</button></div></div>
  <div class="row2"><div><label class="lab" for="perspectiveResolution">LONG EDGE RESOLUTION</label><select id="perspectiveResolution" class="field"><option value="1024">1024 px</option><option value="1536">1536 px</option><option value="2048" selected>2048 px</option></select></div><div><label class="lab" for="perspectiveAspect">CROP ASPECT RATIO</label><select id="perspectiveAspect" class="field"><option value="free" selected>Match drawn rectangle</option><option value="1:1">1:1 square</option><option value="4:3">4:3</option><option value="3:2">3:2</option><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="2:3">2:3</option></select></div></div><div class="row2"><div><label class="lab" for="perspectiveSelectedName">SELECTION</label><input id="perspectiveSelectedName" class="field" type="text" maxlength="80" placeholder="Optional gallery name"/></div><div><label class="lab">AI JOB STATUS</label><div class="hint" id="perspectiveBusyHint" style="margin-top:11px">Idle</div></div></div>
  <button type="button" class="btn full" id="perspectiveReview">Review selected image (Enter)</button>
  <button type="button" class="btn primary full" id="perspectiveGenerate">Generate perspective concept</button>
@@ -585,16 +588,16 @@ html,body{height:100%;overflow:hidden}
 <div class="updates-items" id="updatesList">Loading release notes…</div>
 <a href="https://github.com/sylwesterdigital/planet-lab/commits/main" target="_blank" rel="noopener noreferrer">View commits on GitHub ↗</a>
 </aside>
-<script type="module" src="./app.mjs?v=0.4.34"></script>
+<script type="module" src="./app.mjs?v=0.4.37"></script>
 <script type="module" src="./collab.mjs?v=0.4.19"></script>
 <script type="module" src="./ai-connections.mjs?v=0.4.19"></script>
 <script type="module" src="./studio.mjs?v=0.4.19"></script>
 <script type="module" src="./placebook.mjs?v=0.4.19"></script>
 <script type="module" src="./earth-history.mjs?v=0.4.19"></script>
-<script type="module" src="./earth-scenarios.mjs?v=0.4.34"></script>
-<script type="module" src="./perspective-gallery.mjs?v=0.4.34"></script>
+<script type="module" src="./earth-scenarios.mjs?v=0.4.37"></script>
+<script type="module" src="./perspective-gallery.mjs?v=0.4.37"></script>
 <script type="module" src="./update-feed.mjs?v=0.4.19"></script>
 <script type="module" src="./system-catalog.mjs?v=0.4.19"></script>
 <script type="module" src="./workflow.mjs?v=0.4.19"></script>
-<script type="module" src="./ui-shell.mjs?v=0.4.34"></script>
+<script type="module" src="./ui-shell.mjs?v=0.4.37"></script>
 </body></html>

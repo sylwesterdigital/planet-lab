@@ -3,6 +3,7 @@
  * Public Overpass is best-effort, so results are cached per selected site.
  */
 import {nearbyLatLon,EARTH_RADIUS_M,PATCH_HALF_UNITS,METRES_PER_UNIT} from './earth-terrain.mjs';
+import {loadVectorBuildings} from './earth-vector-buildings.mjs';
 const RAD=Math.PI/180,HALF_M=PATCH_HALF_UNITS*METRES_PER_UNIT;
 // Try the currently less-loaded public instance before the often-overloaded main server.
 // Both providers are best-effort; do not turn failures into fabricated footprints.
@@ -38,8 +39,8 @@ async function saveFootprints(key,data){
 function validStored(record,anchor){
  if(!record||!Number.isFinite(record.at)||Date.now()-record.at>STALE_MS)return false;
  const d=record.data;
- return d?.source==='openstreetmap'&&d.anchor?.lat===anchor.lat&&d.anchor?.lon===anchor.lon&&Array.isArray(d.buildings)&&d.buildings.length<=1800&&d.buildings.every(b=>
-  typeof b.id==='string'&&b.id.startsWith('way/')&&Array.isArray(b.outline)&&b.outline.length>=3&&b.outline.length<=350&&b.outline.every(v=>Array.isArray(v)&&v.length===2&&v.every(n=>Number.isFinite(n)&&Math.abs(n)<=78))&&b.bounds&&Object.values(b.bounds).every(Number.isFinite));
+ return d?.source==='openstreetmap'&&d.anchor?.lat===anchor.lat&&d.anchor?.lon===anchor.lon&&Array.isArray(d.buildings)&&d.buildings.length>0&&d.buildings.length<=1800&&d.buildings.every(b=>
+  typeof b.id==='string'&&(b.id.startsWith('way/')||b.id.startsWith('tile/'))&&Array.isArray(b.outline)&&b.outline.length>=3&&b.outline.length<=350&&b.outline.every(v=>Array.isArray(v)&&v.length===2&&v.every(n=>Number.isFinite(n)&&Math.abs(n)<=78))&&b.bounds&&Object.values(b.bounds).every(Number.isFinite));
 }
 function cachedResult(record,stale=false){return {...record.data,cacheStatus:stale?'stale':'fresh',cachedAt:record.at}}
 export function bboxForSite(anchor,half=HALF_M){
@@ -123,10 +124,12 @@ export function occupiedByBuilding(x,z,data,buffer=1.5){
  }
  return false;
 }
-export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal}={}){
+export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal,vectorFetchImpl=null}={}){
  const key=`${anchor.lat.toFixed(7)},${anchor.lon.toFixed(7)}`;
  const previous=cache.get(key);
- if(previous&&Date.now()-previous.at<CACHE_MS)return previous.data;
+ // Older releases could persist an empty vector response after a failed tile
+ // parse; never let that block this release's verified tile gateway.
+ if(previous?.data?.buildings?.length&&Date.now()-previous.at<CACHE_MS)return previous.data;
  const disk=await persisted(key);
  const known=validStored(disk,anchor)?disk:null;
  if(known&&Date.now()-known.at<PERSIST_MS){
@@ -140,12 +143,30 @@ export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal}={}){
   throw new Error('OpenStreetMap building service temporarily unavailable. Retry shortly. '+failure.message);
  }
  const issues=[];
+ // Public OSM-derived vector tiles normally load in seconds, without Overpass
+ // query-timeout limits. Custom fetchImpl callers retain the old Overpass
+ // contract unless they explicitly inject a vectorFetchImpl for testing.
+ if(vectorFetchImpl || fetchImpl===globalThis.fetch){
+  try{
+   const vector=await loadVectorBuildings(anchor,{fetchImpl:vectorFetchImpl||fetchImpl,signal});
+   // A successful empty data set is valid: never fabricate buildings.
+   cache.set(key,{at:Date.now(),data:vector});
+   if(cache.size>12)cache.delete(cache.keys().next().value);
+   failures.delete(key);
+   // Never persist incomplete tile coverage as a fully verified seven-day map.
+   if(!vector.partial&&vector.buildings.length)void saveFootprints(key,vector);
+   return vector;
+  }catch(error){
+   if(signal?.aborted)throw error;
+   issues.push('OSM vector tiles: '+error.message);
+  }
+ }
  // Bound each public-provider attempt: an overloaded server must not block the
  // fallback indefinitely. The caller's cancellation still interrupts the query.
  for(const endpoint of ENDPOINTS){
   const controller=typeof AbortController==='function'?new AbortController():null;
   const cancel=()=>controller?.abort();
-  const timer=controller?setTimeout(cancel,13000):null;
+  const timer=controller?setTimeout(cancel,8000):null;
   if(signal?.aborted){if(timer)clearTimeout(timer);throw new Error('Building request cancelled')}
   signal?.addEventListener?.('abort',cancel,{once:true});
   try{
@@ -168,5 +189,5 @@ export async function fetchSiteBuildings(anchor,{fetchImpl=fetch,signal}={}){
  const message=issues.join(' · ');
  failures.set(key,{at:Date.now(),message});
  if(known)return cachedResult(known,true);
- throw new Error('OpenStreetMap buildings unavailable; all public Overpass services failed. '+message);
+ throw new Error('OpenStreetMap buildings unavailable; vector tiles and Overpass services failed. '+message);
 }

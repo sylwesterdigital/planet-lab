@@ -13,13 +13,25 @@ const SENTINEL='https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/
 export class EarthMap{
  constructor(node,onSelect){
   this.node=node;this.onSelect=onSelect;this.pins=[];this.ready=false;this.selectedPin=null;this.imageryKey='';this.tileTemplate='';
-  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true,
+  this.map=new maplibregl.Map({container:node,style:MAP_STYLE,center:[0,15],zoom:1.8,pitch:0,attributionControl:true,preserveDrawingBuffer:true,
    pixelRatio:Math.min(typeof window==='undefined'?1:window.devicePixelRatio||1,1.5),maxCanvasSize:[6144,6144],
    // OpenFreeMap Liberty currently ships invalid numeric filters in these US road
    // shield symbol layers. Removing only the three invalid symbols preserves road
    // geometry, building map features, and the rest of the cartography.
    transformStyle:(_prior,next)=>({...next,layers:next.layers.filter(layer=>
     !['highway-shield-non-us','highway-shield-us-interstate','road_shield_us'].includes(layer.id))})});
+  // Some OpenFreeMap styles name icons absent from the public sprite.
+  // Use an unobtrusive neutral point marker, not a broken image or invented POI.
+  this.map.on('styleimagemissing',event=>{
+   const id=String(event.id||'');
+   if(!id||id.length>150||this.map.hasImage(id))return;
+   const canvas=document.createElement('canvas');canvas.width=32;canvas.height=32;
+   const c=canvas.getContext('2d');
+   c.fillStyle='#365963';c.strokeStyle='#d5edf1';c.lineWidth=2;
+   c.beginPath();c.arc(16,16,6,0,Math.PI*2);c.fill();c.stroke();
+   try{this.map.addImage(id,{width:32,height:32,data:c.getImageData(0,0,32,32).data}, {pixelRatio:2});}
+   catch(error){console.info('Map symbol fallback unavailable:',id,error.message)}
+  });
   this.map.addControl(new maplibregl.NavigationControl({showCompass:true,showZoom:true}),'top-right');
   // Styles can override projection specified in the constructor. ALWAYS set it after
   // style.load; without this, MapLibre displays a flat world even at globe zoom.

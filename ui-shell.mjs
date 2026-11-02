@@ -77,6 +77,8 @@ function updateKeys(){
 }
 function openKeys(){updateKeys();dialog.hidden=false;$('aiSetupBackdrop').hidden=true}
 $('topKeys').onclick=openKeys;
+$('scenarioKeysOpen').onclick=openKeys;
+$('perspectiveKeysOpen').onclick=openKeys;
 $('providerKeysClose').onclick=()=>{dialog.hidden=true};
 $('rememberKeys').onchange=event=>{try{setRememberEnabled(event.target.checked);updateKeys()}catch(error){$('providerKeysStatus').textContent=error.message;event.target.checked=false}};
 function setCheck(provider,message){verifications[provider]=message;updateKeys();$('providerKeysStatus').textContent=provider.toUpperCase()+': '+message}

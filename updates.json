@@ -2,6 +2,34 @@
   "project": "PlanetLab",
   "releases": [
     {
+      "version": "0.4.37",
+      "date": "2026-11-01",
+      "changes": [
+        "Perspective rectangle selection works directly on the visible Earth Overview MapLibre 3D map and includes visible map buildings in the exact cropped AI input.",
+        "Clicking a location in Earth Overview now marks it without automatically replacing the current high-fidelity map with the separate local DEM. Terrain is an explicit choice.",
+        "Preserve MapLibre WebGL drawing buffer for precise map screenshot capture, with bounds, blank-frame, and file-size checks.",
+        "Store the captured source frame and native Earth camera bearing, pitch, zoom and center with generated compositions; preview and generation use the same frozen image."
+      ]
+    },
+    {
+      "version": "0.4.36",
+      "date": "2026-11-01",
+      "changes": [
+        "Serve OpenFreeMap OSM building vector tiles through a bounded, same-origin Flask endpoint with gzip decoding and short-lived cache to avoid browser CORS and public Overpass outages.",
+        "Keep a direct tile fallback and render partial verified footprints if some vector tiles fail, with explicit coverage status.",
+        "Add deterministic validation tests for tile coordinates, response size, gzip, server cache and local proxy loading. Old cached empty building sets are invalidated."
+      ]
+    },
+    {
+      "version": "0.4.35",
+      "date": "2026-11-01",
+      "changes": [
+        "Load real OSM-derived mapped building footprints from OpenFreeMap vector tiles before trying overloaded Overpass instances; preserve cached verified geometry and mark tile-derived heights as estimates.",
+        "Fallback to neutral point markers for missing OpenFreeMap style sprite icons.",
+        "Fix hidden API credential label associations; route provider configuration buttons to the unified settings panel."
+      ]
+    },
+    {
       "version": "0.4.34",
       "date": "2026-11-01",
       "changes": [
@@ -172,5 +200,5 @@
       "changes": "First-load account overlay and session handling."
     }
   ],
-  "currentVersion": "0.4.34"
+  "currentVersion": "0.4.37"
 }

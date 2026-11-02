@@ -26,6 +26,7 @@ const state={
   sourceSize:null
  }
 };
+state.sceneFrame=null;
 let dbPromise=null;
 
 function status(msg,error=false){
@@ -93,7 +94,23 @@ function stripRuntimeFields(item){
 function overlay(){return $('perspectiveOverlay')}
 function selectionBox(){return $('perspectiveSelection')}
 function sceneCanvas(){return $('scene')}
-function currentSite(){return siteKey(window.planetLabApp?.anchor)}
+function overviewMode(){return siteWorld()?.mode==='planet'}
+function mapInstance(){return siteWorld()?.earthMap?.map}
+function activeViewCanvas(){return overviewMode()?mapInstance()?.getCanvas?.():sceneCanvas()}
+function overviewCamera(){
+ const map=mapInstance();if(!map)return null;
+ const center=map.getCenter();
+ return {type:'earth-overview',center:{lat:center.lat,lon:center.lng},zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()};
+}
+function currentSite(){
+ if(overviewMode()&&mapInstance()){
+  const c=mapInstance().getCenter();
+  // Group camera views within a neighbourhood without assuming one map click
+  // means the user wants to switch to a low-resolution DEM.
+  return siteKey({lat:Math.round(c.lat*1000)/1000,lon:Math.round(c.lng*1000)/1000});
+ }
+ return siteKey(window.planetLabApp?.anchor);
+}
 function previewModal(){return $('perspectivePreviewModal')}
 function previewImage(){return $('perspectivePreviewImage')}
 function previewBusy(){return $('perspectivePreviewBusy')}
@@ -132,9 +149,19 @@ function setBusy(on,message=''){
  if(addPatch)addPatch.disabled=on;
 }
 
+function rectEquals(a,b){return !!(a&&b)&&['x','y','w','h'].every(k=>Math.abs(a[k]-b[k])<1e-7)}
+function selectedFrame(rect=state.rect){
+ if(!rect)throw new Error('Draw a perspective patch first.');
+ const dims=outputSize(resolution(),rect);
+ const valid=state.sceneFrame&&rectEquals(state.sceneFrame.rect,rect)&&state.sceneFrame.width===dims.width&&state.sceneFrame.height===dims.height;
+ if(valid)return state.sceneFrame;
+ const frame={rect:{...rect},width:dims.width,height:dims.height,image:captureView(rect,dims),view:overviewMode()?overviewCamera():(siteWorld()?{type:'local-terrain',camera:{x:siteWorld().camera.position.x,y:siteWorld().camera.position.y,z:siteWorld().camera.position.z},target:{x:siteWorld().controls.target.x,y:siteWorld().controls.target.y,z:siteWorld().controls.target.z}}:null)};
+ state.sceneFrame=frame;
+ return frame;
+}
 function outputSize(longEdge=1024,rect=state.rect){
  const choice=aspectRatio();
- const canvas=sceneCanvas();const view=canvas?.getBoundingClientRect();
+ const canvas=activeViewCanvas();const view=canvas?.getBoundingClientRect();
  let ratio=(rect&&rect.w&&rect.h)?(rect.w*(view?.width||1))/Math.max(rect.h*(view?.height||1),.0001):1;
  if(choice!=='free'){const [rw,rh]=choice.split(':').map(Number); if(rw>0&&rh>0)ratio=rw/rh;}
  let width,height;
@@ -158,7 +185,7 @@ function normalizeSceneRect(a,b){
  let ratio=null;
  if(choice!=='free'){
   const [rw,rh]=choice.split(':').map(Number);
-  const view=sceneCanvas()?.getBoundingClientRect();
+  const view=activeViewCanvas()?.getBoundingClientRect();
   const viewRatio=(view?.width||1)/(view?.height||1);
   if(rw>0&&rh>0)ratio=(rw/rh)/viewRatio;
  }
@@ -175,8 +202,12 @@ function drawRect(rect){
 function setRect(rect,push=true){
  state.rect=rect?{...rect}:null;drawRect(state.rect);
  if(rect&&push){state.history.push({...rect});if(state.history.length>24)state.history.shift();state.future=[]}
+ state.sceneFrame=null;
  if(rect){
-  try{captureView(rect,outputSize(1024,rect));status('Perspective patch ready. Press Enter to review the exact image that will be sent to AI.')}catch(error){status(error.message,true)}
+  try{const frame=selectedFrame(rect);previewImage().src=frame.image;previewImage().hidden=false;
+   $('perspectivePreviewNote').textContent=`Ready to send ${frame.width} × ${frame.height} from the captured ${overviewMode()?'Earth Overview':'local terrain'} frame.`;
+   status('Patch captured from '+(overviewMode()?'the visible Earth 3D map':'local terrain')+'. Press Review or Generate.');
+  }catch(error){status(error.message,true)}
  }
 }
 function enableSelection(enable){
@@ -185,12 +216,12 @@ function enableSelection(enable){
  $('drawingModeBanner').hidden=!enable;
  $('perspectivePick').classList.toggle('drawing-active',enable);
  $('perspectivePick').setAttribute('aria-pressed',String(enable));
- $('perspectivePick').textContent=enable?'Cancel drawing':'Draw perspective patch';
+ $('perspectivePick').textContent=enable?'Cancel drawing':'▭ Draw on Earth / terrain';
  if(!enable){state.drag=null;const controls=siteWorld()?.controls;if(controls&&siteWorld()?.mode==='region')controls.enabled=true}
- status(enable?'DRAWING MODE: drag on the map to draw your rectangle.':state.rect?'Patch ready. Review image or generate concept.':'Draw a rectangle on the current 3D view to begin.');
+ status(enable?'DRAWING MODE: drag on the map to draw your rectangle.':state.rect?'Patch captured from the visible '+(state.sceneFrame?.view?.type==='earth-overview'?'Earth 3D map':'terrain')+'. Review or generate.':'Draw a rectangle on the current 3D view to begin.');
 }
 function pointerPoint(ev){const r=overlay().getBoundingClientRect();const x=(ev.clientX-r.left)/r.width,y=(ev.clientY-r.top)/r.height;return {x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y))}}
-function onPointerDown(ev){if(!state.selecting||siteWorld()?.mode!=='region')return;ev.preventDefault();state.drag={start:pointerPoint(ev),current:pointerPoint(ev)};siteWorld()?.controls&&(siteWorld().controls.enabled=false);updateDrag()}
+function onPointerDown(ev){if(!state.selecting||(!overviewMode()&&siteWorld()?.mode!=='region'))return;ev.preventDefault();state.drag={start:pointerPoint(ev),current:pointerPoint(ev)};siteWorld()?.controls&&(siteWorld().controls.enabled=false);updateDrag()}
 function updateDrag(){if(!state.drag)return;drawRect(normalizeSceneRect(state.drag.start,state.drag.current))}
 function onPointerMove(ev){if(!state.drag)return;ev.preventDefault();state.drag.current=pointerPoint(ev);updateDrag()}
 function onPointerUp(ev){
@@ -323,6 +354,12 @@ function redoComposition(){
 }
 function restoreView(view){
  const world=siteWorld();if(!world||!view)return;
+ if(view.type==='earth-overview'&&Number.isFinite(view.center?.lat)&&Number.isFinite(view.center?.lon)){
+  world.setMode('planet');
+  const map=mapInstance();if(map)map.jumpTo({center:[view.center.lon,view.center.lat],zoom:view.zoom,pitch:view.pitch,bearing:view.bearing});
+  window.planetLabApp?.updateMode?.();
+  return;
+ }
  const c=world.camera,t=world.controls?.target;
  if(c&&view.camera&&['x','y','z'].every(k=>Number.isFinite(view.camera[k])))c.position.set(view.camera.x,view.camera.y,view.camera.z);
  if(t&&view.target&&['x','y','z'].every(k=>Number.isFinite(view.target[k]))){t.set(view.target.x,view.target.y,view.target.z);world.controls.update()}
@@ -570,7 +607,7 @@ async function loadSite(){
  state.site=currentSite();state.current=null;
  state.items=[];
  if(!state.site){refreshGallery();return}
- state.rect=null;state.history=[];state.future=[];drawRect(null);overlay().hidden=true;
+ state.rect=null;state.sceneFrame=null;state.history=[];state.future=[];drawRect(null);overlay().hidden=true;
  try{
   let raw=await listSite(state.site);
   if(!raw.length){const older=await listLegacySite(state.site);
@@ -584,24 +621,46 @@ async function loadSite(){
 }
 
 function captureView(rect,size=1024){
- const world=siteWorld(),canvas=sceneCanvas();
- if(!canvas||!world||world.mode!=='region')throw new Error('Open a local 3D terrain view first.');
+ const world=siteWorld(),canvas=activeViewCanvas();
+ if(!canvas||!world||!['region','planet'].includes(world.mode))throw new Error('Open Earth Overview or local terrain first.');
  const bounds=canvas.getBoundingClientRect();
- if(bounds.width<2||bounds.height<2)throw new Error('The 3D scene is not visible.');
- const x=rect.x*canvas.width,y=rect.y*canvas.height,w=rect.w*canvas.width,h=rect.h*canvas.height;
- if(w<8||h<8)throw new Error('Draw a larger rectangle.');
- world.render();
+ if(bounds.width<2||bounds.height<2||canvas.width<2||canvas.height<2)throw new Error('The visible Earth view is not ready yet.');
+ // Rectangle coordinates are relative to the stage. Convert them to the actual
+ // active map canvas so high-DPI and any canvas offset retain pixel alignment.
+ const stage=overlay().getBoundingClientRect();
+ const left=stage.left+rect.x*stage.width,top=stage.top+rect.y*stage.height;
+ const right=stage.left+(rect.x+rect.w)*stage.width,bottom=stage.top+(rect.y+rect.h)*stage.height;
+ const x=(left-bounds.left)/bounds.width*canvas.width;
+ const y=(top-bounds.top)/bounds.height*canvas.height;
+ const w=(right-left)/bounds.width*canvas.width;
+ const h=(bottom-top)/bounds.height*canvas.height;
+ if(w<8||h<8||x<0||y<0||x+w>canvas.width+2||y+h>canvas.height+2)
+  throw new Error('Draw the patch entirely inside the visible map.');
+ // Three.js explicitly renders this frame; MapLibre retains its last rendered
+ // WebGL frame via preserveDrawingBuffer, including native map 3D buildings.
+ if(world.mode==='region')world.render();
  const dims=typeof size==='number'?{width:size,height:size}:size;
  const out=$('perspectiveCrop');out.width=dims.width;out.height=dims.height;
  const ctx=out.getContext('2d',{willReadFrequently:true});
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(canvas,x,y,w,h,0,0,dims.width,dims.height);
- const pixels=ctx.getImageData(0,0,Math.min(dims.width,64),Math.min(dims.height,64)).data;
- let visible=0; for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]>16&&(pixels[i]>7||pixels[i+1]>7||pixels[i+2]>7))visible++;
- if(visible<40)throw new Error('Could not capture the 3D scene. Try again after the terrain renders.');
+ try{ctx.drawImage(canvas,x,y,w,h,0,0,dims.width,dims.height)}catch(error){
+  throw new Error('Could not capture the visible Earth map: '+error.message);
+ }
+ // Check several image regions; a legitimate sky/ground patch can be dark in
+ // one corner. Never bill an AI call for an empty WebGL framebuffer.
+ const sample=ctx.getImageData(0,0,dims.width,dims.height).data;
+ let visible=0,min=255,max=0;
+ const step=Math.max(4,Math.floor(Math.sqrt(sample.length/4)/32));
+ for(let row=0;row<dims.height;row+=step){for(let col=0;col<dims.width;col+=step){
+  const i=(row*dims.width+col)*4;const value=sample[i]+sample[i+1]+sample[i+2];
+  if(sample[i+3]>16&&value>18)visible++;
+  min=Math.min(min,value/3);max=Math.max(max,value/3);
+ }}
+ if(visible<40||max-min<2)throw new Error('The map frame is empty or not rendered yet. Wait for the 3D tiles, then review again.');
  let image='';
  for(const quality of [.9,.82,.72,.62]){image=out.toDataURL('image/jpeg',quality);if(image.length<=3_250_000)break}
- if(!image.startsWith('data:image/jpeg;base64,')||image.length<500||image.length>3_250_000)throw new Error('The selected image is too large. Choose a smaller output resolution or a smaller crop.');
+ if(!image.startsWith('data:image/jpeg;base64,')||image.length<500||image.length>3_250_000)
+  throw new Error('The selected image is too large. Choose a lower long-edge resolution.');
  return image;
 }
 async function flattenLayersToData(item,rect,dims){
@@ -660,9 +719,9 @@ async function showPreview(size=1024){
   uri=result.image; note='This exact cropped composition image will be sent to the selected AI provider at '+result.width+' × '+result.height+'.';
  }else{
   if(!state.rect)throw new Error('Draw a perspective patch first.');
-  const dims=outputSize(size,state.rect);
-  uri=captureView(state.rect,dims);
-  note='This exact cropped perspective image will be sent to the selected AI provider at '+dims.width+' × '+dims.height+'.';
+  const frame=selectedFrame(state.rect);
+  uri=frame.image;
+  note='This exact '+(frame.view?.type==='earth-overview'?'Earth Overview (3D buildings included)':'local terrain')+' crop will be sent to AI at '+frame.width+' × '+frame.height+'.';
  }
  const image=previewImage();image.src=uri;image.hidden=false;
  previewModal().hidden=false;
@@ -672,11 +731,11 @@ async function showPreview(size=1024){
 function captureForGeneration(){
  if(hasOpenComposition())return captureCompositionCrop(currentItem(),state.composition.rect,resolution());
  if(!state.rect)throw new Error('Draw a perspective patch first.');
- return Promise.resolve(captureView(state.rect,outputSize(resolution(),state.rect)));
+ return Promise.resolve(selectedFrame(state.rect).image);
 }
 
-$('perspectivePick').onclick=()=>{if(siteWorld()?.mode!=='region'){status('Open a local terrain view first.',true);return}enableSelection(!state.selecting)};
-$('perspectiveUndo').onclick=()=>{if(!state.history.length){status('Nothing to undo.',true);return}const current=state.history.pop();if(current)state.future.push(current);const previous=state.history[state.history.length-1];state.rect=previous?{...previous}:null;drawRect(state.rect);if(state.rect)captureView(state.rect,1024)};
+$('perspectivePick').onclick=async()=>{if(!overviewMode()&&siteWorld()?.mode!=='region'){status('Open Earth Overview or local terrain first.',true);return}if(!state.selecting){const next=currentSite();if(next!==state.site){await loadSite();if(next!==state.site){status('Location not ready for drawing; retry.',true);return}}}enableSelection(!state.selecting)};
+$('perspectiveUndo').onclick=()=>{if(!state.history.length){status('Nothing to undo.',true);return}const current=state.history.pop();if(current)state.future.push(current);const previous=state.history[state.history.length-1];state.rect=previous?{...previous}:null;state.sceneFrame=null;drawRect(state.rect);if(state.rect)selectedFrame(state.rect)};
 $('perspectiveRedo').onclick=()=>{const rect=state.future.pop();if(!rect){status('Nothing to redo.',true);return}setRect(rect,false);state.history.push({...rect})};
 $('perspectiveProvider').onchange=()=>{$('perspectiveKey').value='';$('perspectiveKey').placeholder='API key for '+$('perspectiveProvider').selectedOptions[0].text};
 $('perspectiveOpen').onclick=()=>{const item=selected();if(!item){status('Select a gallery image first.',true);return}showGalleryImage(item.id)};
@@ -684,7 +743,8 @@ $('perspectiveViewpoint').onclick=()=>{const item=selected();if(!item){status('S
 $('perspectiveDelete').onclick=async()=>{const item=selected();if(!item)return;await removeItem(item.id);state.items=state.items.filter(i=>i.id!==item.id);state.current=state.items[0]?.id||null;refreshGallery();if(viewer().hidden===false&&state.current)showGalleryImage(state.current);else closeGallery();status('Perspective concept deleted.')};
 $('perspectivePreviewClose').onclick=()=>hidePreview();
 $('perspectiveReview').onclick=async()=>{try{await showPreview(resolution());status('Review the exact crop before generating.')}catch(error){status(error.message,true)}};
-$('perspectiveAspect').onchange=()=>{if(state.drag)updateDrag();if(state.rect)try{captureView(state.rect,outputSize(resolution(),state.rect));status('Aspect ratio updated.')}catch(error){status(error.message,true)}};
+$('perspectiveAspect').onchange=()=>{if(state.drag)updateDrag();state.sceneFrame=null;if(state.rect)try{selectedFrame(state.rect);status('Aspect ratio updated.')}catch(error){status(error.message,true)}};
+$('perspectiveResolution').onchange=()=>{state.sceneFrame=null;if(state.rect)try{selectedFrame(state.rect);status('Capture resolution updated.')}catch(error){status(error.message,true)}};
 
 document.addEventListener('keydown',event=>{
  const tag=(event.target?.tagName||'').toUpperCase();
@@ -732,7 +792,7 @@ async function generatePerspective(mode='scene'){
    const capture=await captureCompositionCrop(currentItem(),state.composition.rect,resolution());
    sourcePayload=capture.image;width=capture.width;height=capture.height;
   }else{
-   const dims=outputSize(resolution(),state.rect);sourcePayload=captureView(state.rect,dims);width=dims.width;height=dims.height;
+   const frame=selectedFrame(state.rect);sourcePayload=frame.image;width=frame.width;height=frame.height;
    previewImage().src=sourcePayload;previewImage().hidden=false;previewModal().hidden=false;
   }
  }catch(error){compositionStatus(error.message,true);return}
@@ -744,7 +804,7 @@ async function generatePerspective(mode='scene'){
   compositionStatus('Sending '+width+' × '+height+' selected patch to '+provider+'…');
  }else status('Generating perspective concept…');
  const world=siteWorld();
- const itemView=world?{camera:{x:world.camera.position.x,y:world.camera.position.y,z:world.camera.position.z},target:{x:world.controls.target.x,y:world.controls.target.y,z:world.controls.target.z}}:null;
+ const itemView=isComposition?(overviewMode()?overviewCamera():(world?{type:'local-terrain',camera:{x:world.camera.position.x,y:world.camera.position.y,z:world.camera.position.z},target:{x:world.controls.target.x,y:world.controls.target.y,z:world.controls.target.z}}:null)):(state.sceneFrame?.view||null);
  try{
   const result=await sendGenerationRequest({provider,key,prompt,source:sourcePayload,width,height,size:resolution()});
   const generatedImage=await providerResultToDataUrl(result.image);
@@ -786,5 +846,5 @@ $('perspectiveGenerate').onclick=()=>generatePerspective('scene');
 ['pointerdown','pointermove','pointerup','pointerleave'].forEach(type=>overlay().addEventListener(type,ev=>({pointerdown:onPointerDown,pointermove:onPointerMove,pointerup:onPointerUp,pointerleave:onPointerUp})[type](ev)));
 window.addEventListener('planetlab:site-selected',loadSite);
 window.addEventListener('planetlab:site-changed',loadSite);
-window.addEventListener('planetlab:view-changed',()=>{if(siteWorld()?.mode==='planet')enableSelection(false)});
+window.addEventListener('planetlab:view-changed',()=>{if(state.selecting)enableSelection(false)});
 if(window.planetLabApp?.config)loadSite();
